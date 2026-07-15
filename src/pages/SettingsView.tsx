@@ -27,6 +27,7 @@ import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ALL_BUCKET_KINDS, getEnabledBuckets, setEnabledBuckets, kindLabel, type BucketKind } from "@/lib/timeBuckets";
 import { getCalendarSystem, setCalendarSystem, type CalendarSystem } from "@/lib/jalali";
 import { useTheme } from "next-themes";
+import { applyTheme } from "@/lib/theme";
 
 function TimeBucketsSettings() {
   const [enabled, setEnabled] = useState<BucketKind[]>(() => getEnabledBuckets());
@@ -314,24 +315,7 @@ export default function SettingsView() {
   };
 
   useEffect(() => {
-    if (!reminders?.theme) return;
-    const root = document.documentElement;
-    const t = reminders.theme;
-    root.classList.remove("theme-arshnaz");
-    if (t === "arshnaz-light") {
-      root.classList.add("theme-arshnaz");
-      root.classList.remove("dark");
-    } else if (t === "arshnaz-dark") {
-      root.classList.add("theme-arshnaz");
-      root.classList.add("dark");
-    } else if (t === "dark") {
-      root.classList.add("dark");
-    } else if (t === "light") {
-      root.classList.remove("dark");
-    } else {
-      const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-      if (prefersDark) root.classList.add("dark"); else root.classList.remove("dark");
-    }
+    if (reminders?.theme) applyTheme(reminders.theme);
   }, [reminders?.theme]);
 
   useEffect(() => {
@@ -612,6 +596,7 @@ export default function SettingsView() {
               <SelectItem value="system">🖥️ {t("settings.themeSystem")}</SelectItem>
               <SelectItem value="light">☀️ {t("settings.themeLight")}</SelectItem>
               <SelectItem value="dark">🌙 {t("settings.themeDark")}</SelectItem>
+              <SelectItem value="ticktick-light">✅ {t("settings.themeTickTick")}</SelectItem>
               <SelectItem value="arshnaz-light">💖 {t("settings.themeArshnaz")}</SelectItem>
               <SelectItem value="arshnaz-dark">💜 {t("settings.themeArshnazDark")}</SelectItem>
             </SelectContent>

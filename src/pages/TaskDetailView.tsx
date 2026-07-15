@@ -3,7 +3,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { TaskDetail } from "@/components/TaskDetail";
 import type { Task, ConfirmState } from "@/lib/taskTypes";
-import { Loader2 } from "lucide-react";
+import { Loader2, ArrowRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -34,6 +35,13 @@ export default function TaskDetailView() {
 
   return (
     <>
+      <div className="sticky top-0 z-20 bg-background/95 backdrop-blur border-b flex items-center justify-between gap-2 p-3">
+        <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="gap-1">
+          <ArrowRight className="w-4 h-4" /> برگشت
+        </Button>
+        <h1 className="text-base font-bold flex-1 text-center">جزئیات تسک</h1>
+        <div className="w-20" />
+      </div>
       <TaskDetail
         task={task}
         onClose={() => navigate(-1)}
