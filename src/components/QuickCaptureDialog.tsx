@@ -25,7 +25,7 @@ export default function QuickCaptureDialog() {
     : "";
 
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
+    const keyHandler = (e: KeyboardEvent) => {
       if ((e.key === "n" || e.key === "N") && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
         const target = e.target as HTMLElement | null;
         const tag = target?.tagName;
@@ -34,8 +34,13 @@ export default function QuickCaptureDialog() {
         setOpen(true);
       }
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    const openHandler = () => setOpen(true);
+    window.addEventListener("keydown", keyHandler);
+    window.addEventListener("lov:open-quick-capture", openHandler);
+    return () => {
+      window.removeEventListener("keydown", keyHandler);
+      window.removeEventListener("lov:open-quick-capture", openHandler);
+    };
   }, []);
 
   useEffect(() => {

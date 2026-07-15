@@ -1,12 +1,10 @@
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Maximize2, Loader2, Calendar as CalendarIcon, Ban, CalendarClock } from "lucide-react";
+import { Plus, Loader2, Calendar as CalendarIcon, CalendarClock } from "lucide-react";
 import { parseNaturalDate } from "@/lib/nlDate";
 import { toPersianDigits } from "@/lib/persianDigits";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Switch } from "@/components/ui/switch";
 import { DueDatePicker } from "@/components/DueDatePicker";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -31,11 +29,9 @@ export function QuickAddTask({
   className?: string;
 }) {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const [title, setTitle] = useState("");
   const [busy, setBusy] = useState(false);
   const [due, setDue] = useState<string | null>(defaults.due_date ?? null);
-  const [avoidance, setAvoidance] = useState(false);
 
   // Live natural-language date detection (e.g. "فردا ساعت ۵").
   const parsed = useMemo(() => parseNaturalDate(title), [title]);
@@ -57,7 +53,6 @@ export function QuickAddTask({
           folder_id: defaults.folder_id ?? null,
           due_date: finalDue,
           parent_id: defaults.parent_id ?? null,
-          is_avoidance: avoidance,
         } as any)
         .select()
         .single();
@@ -69,7 +64,6 @@ export function QuickAddTask({
       }
       setTitle("");
       setDue(defaults.due_date ?? null);
-      setAvoidance(false);
       window.dispatchEvent(new Event("tasks-changed"));
       if (data) onCreated?.(data.id);
     } catch (e: any) {
@@ -79,16 +73,6 @@ export function QuickAddTask({
     }
   };
 
-  const goFullscreen = () => {
-    const params = new URLSearchParams();
-    if (title.trim()) params.set("title", title.trim());
-    if (defaults.folder_id) params.set("folder_id", defaults.folder_id);
-    if (due ?? defaults.due_date) params.set("due_date", (due ?? defaults.due_date)!);
-    if (defaults.parent_id) params.set("parent_id", defaults.parent_id);
-    if (defaults.tag_id) params.set("tag_id", defaults.tag_id);
-    navigate(`/app/new/task?${params.toString()}`);
-  };
-
   const showHint = !due && !defaults.due_date && !!parsed.dueDate;
   const hintLabel = showHint
     ? new Date(parsed.dueDate!).toLocaleDateString("fa-IR", { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })
@@ -96,56 +80,40 @@ export function QuickAddTask({
 
   return (
     <div className={`${className}`} dir="rtl">
-    <div className="flex gap-1.5">
-      <Input
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        onKeyDown={(e) => e.key === "Enter" && submit()}
-        placeholder={placeholder}
-        className="flex-1 h-9 text-sm"
-        dir="auto"
-        disabled={busy}
-      />
-      <Popover>
-        <PopoverTrigger asChild>
-          <Button
-            variant="outline"
-            size="sm"
-            title="تاریخ و گزینه‌ها"
-            className={`h-9 px-2 ${due || avoidance ? "border-primary text-primary" : ""}`}
-          >
-            <CalendarIcon className="w-4 h-4" />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-72 space-y-3" align="end">
-          <DueDatePicker value={due} onChange={setDue} compact />
-          <div className="flex items-center justify-between gap-2 pt-2 border-t">
-            <label className="text-xs flex items-center gap-1.5 cursor-pointer">
-              <Ban className="w-3 h-3 text-amber-600" />
-              تسک اجتنابی (نباید انجام شود)
-            </label>
-            <Switch checked={avoidance} onCheckedChange={setAvoidance} />
-          </div>
-        </PopoverContent>
-      </Popover>
-      <Button onClick={submit} disabled={busy || !title.trim()} size="sm" title="افزودن سریع" className="h-9 px-2">
-        {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-      </Button>
-      <Button
-        onClick={goFullscreen}
-        variant="outline"
-        size="sm"
-        title="تمام‌صفحه با همه جزئیات"
-        className="h-9 px-2"
-      >
-        <Maximize2 className="w-4 h-4" />
-      </Button>
-    </div>
+      <div className="flex gap-1.5">
+        <Input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && submit()}
+          placeholder={placeholder}
+          className="flex-1 h-10 text-sm bg-background"
+          dir="auto"
+          disabled={busy}
+        />
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              size="icon"
+              title="تاریخ"
+              className={`h-10 w-10 shrink-0 ${due ? "border-primary text-primary" : ""}`}
+            >
+              <CalendarIcon className="w-4 h-4" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-72 space-y-3" align="end">
+            <DueDatePicker value={due} onChange={setDue} compact />
+          </PopoverContent>
+        </Popover>
+        <Button onClick={submit} disabled={busy || !title.trim()} size="icon" title="افزودن" className="h-10 w-10 shrink-0">
+          {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+        </Button>
+      </div>
       {showHint && (
         <div className="mt-1.5 flex items-center gap-1.5 text-[11px] text-primary animate-fade-in">
           <CalendarClock className="w-3.5 h-3.5" />
           <span>{toPersianDigits(hintLabel)}</span>
-          <span className="text-muted-foreground">— با زدن Enter ثبت می‌شود</span>
+          <span className="text-muted-foreground">— Enter = ثبت</span>
         </div>
       )}
     </div>
