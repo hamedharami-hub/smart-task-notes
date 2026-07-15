@@ -15,13 +15,15 @@ type Hit = { kind: "task" | "note" | "folder" | "tag"; id: string; title: string
 
 const NAV = [
   { label: "خانه", to: "/app/home", icon: Home, keywords: "home dashboard خانه داشبورد" },
+  { label: "اینباکس", to: "/app/inbox", icon: ListTodo, keywords: "inbox اینباکس ورودی" },
   { label: "امروز", to: "/app/today", icon: ListTodo, keywords: "today امروز" },
-  { label: "هفت روز آینده", to: "/app/next7", icon: Calendar, keywords: "week 7" },
+  { label: "فردا", to: "/app/tomorrow", icon: Calendar, keywords: "tomorrow فردا" },
+  { label: "هفت روز آینده", to: "/app/next7", icon: Calendar, keywords: "week 7 آینده" },
   { label: "تقویم", to: "/app/calendar", icon: Calendar, keywords: "calendar تقویم" },
   { label: "نوت‌ها", to: "/app/notes", icon: FileText, keywords: "notes نوت یادداشت" },
-  
   { label: "عادات", to: "/app/habits", icon: Heart, keywords: "habits عادت" },
   { label: "Pomodoro", to: "/app/pomodoro", icon: Timer, keywords: "pomodoro تمرکز" },
+  { label: "آمار", to: "/app/stats", icon: BarChart3, keywords: "stats summary statistics آمار خلاصه" },
   { label: "داشبورد ذهن", to: "/app/mind", icon: Brain, keywords: "mind ذهن داشبورد" },
   { label: "خودشناسی", to: "/app/self", icon: Brain, keywords: "self شخصیت" },
   { label: "چک‌این روزانه", to: "/app/checkin", icon: Heart, keywords: "checkin checkin روزانه" },
