@@ -68,6 +68,15 @@ export default function AppLayout() {
                 <span className="flex-1 text-start">جستجو...</span>
                 <kbd className="text-[10px] bg-muted px-1 py-0.5 rounded ltr">⌘K</kbd>
               </button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 sm:hidden shrink-0"
+                onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }))}
+                title="جستجو"
+              >
+                <Search className="w-4 h-4 text-muted-foreground" />
+              </Button>
               <Button variant="ghost" size="icon" onClick={() => setAiOpen(true)} className="h-8 w-8 shrink-0" title="AI">
                 <Sparkles className="w-4 h-4 text-primary" />
               </Button>
