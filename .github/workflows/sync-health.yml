@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
@@ -35,7 +38,11 @@ jobs:
         run: |
           LOVABLE_COMMITS=$(git log --format='%an' -20 | grep -c "gpt-engineer-app" || true)
           if [ "$LOVABLE_COMMITS" -eq 0 ]; then
-            echo "::warning::No Lovable bot commits found in the last 20 commits. Verify Lovable sync in Lovable Settings → Git."
+            if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref }}" = "refs/heads/main" ]; then
+              echo "::warning::No Lovable bot commits found in the last 20 commits on main. Verify Lovable sync in Lovable Settings → Git."
+            else
+              echo "No Lovable bot commits found on this branch; this is expected for non-main branches and PRs."
+            fi
           else
             echo "Found $LOVABLE_COMMITS Lovable bot commits in the last 20 commits. Sync appears active."
           fi
