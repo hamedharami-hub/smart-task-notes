@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { AutoTextarea } from "@/components/ui/auto-textarea";
 import { BidiText } from "@/components/BidiText";
 import { Card } from "@/components/ui/card";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import {
@@ -68,6 +68,7 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
   const [showTimeBlock, setShowTimeBlock] = useState(hasTimeBlock);
   const [voiceListening, setVoiceListening] = useState(false);
   const [voiceInstance, setVoiceInstance] = useState<VoiceInput | null>(null);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
 
   useEffect(() => { setT(task); }, [task.id]);
 
@@ -325,28 +326,14 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
   const quickChips = (
     <div className="flex flex-wrap gap-1 px-1 pb-2">
       {dueLabel && (
-        <Popover>
-          <PopoverTrigger asChild>
-            <span>
-              <Chip
-                icon={CalendarIcon}
-                onClear={() => save({ due_date: null, reminder_at: null })}
-                color="bg-primary/10 text-primary"
-              >
-                {dueLabel}
-              </Chip>
-            </span>
-          </PopoverTrigger>
-          <PopoverContent className="w-80 p-3" align="start">
-            <DueDatePicker
-              label=""
-              value={t.due_date}
-              reminderValue={t.reminder_at}
-              onReminderChange={(iso) => save({ reminder_at: iso })}
-              onChange={(iso) => save({ due_date: iso })}
-            />
-          </PopoverContent>
-        </Popover>
+        <Chip
+          icon={CalendarIcon}
+          onClick={() => setScheduleOpen(true)}
+          onClear={() => save({ due_date: null, reminder_at: null })}
+          color="bg-primary/10 text-primary"
+        >
+          {dueLabel}
+        </Chip>
       )}
       {t.bucket_kind && t.bucket_anchor && (
         <TooltipProvider>
@@ -476,8 +463,8 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
     <div className="mx-auto max-w-3xl">
       <div className="flex items-center gap-0.5 overflow-x-auto no-scrollbar px-2 py-1">
         {/* 1. Schedule (Date + Time block + Repeat + Bucket) */}
-        <Popover>
-          <PopoverTrigger asChild>
+        <Sheet open={scheduleOpen} onOpenChange={setScheduleOpen}>
+          <SheetTrigger asChild>
             <span>
               <RailButton
                 icon={CalendarIcon}
@@ -486,8 +473,11 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
                 accent
               />
             </span>
-          </PopoverTrigger>
-          <PopoverContent className="w-[min(94vw,380px)] p-2" align="start" side="top">
+          </SheetTrigger>
+          <SheetContent side="bottom" className="w-full max-w-2xl mx-auto rounded-t-2xl p-4 max-h-[85vh] overflow-y-auto" aria-describedby="schedule-sheet-desc">
+            <SheetHeader className="mb-3">
+              <SheetTitle className="text-base">{T("زمان‌بندی تسک", "Task schedule")}</SheetTitle>
+            </SheetHeader>
             <Tabs defaultValue="date">
               <TabsList className="grid grid-cols-4 w-full mb-2">
                 <TabsTrigger value="date" className="text-[11px] px-1 relative">
@@ -577,8 +567,9 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
                 />
               </TabsContent>
             </Tabs>
-          </PopoverContent>
-        </Popover>
+            <p id="schedule-sheet-desc" className="sr-only">{T("زمان‌بندی تسک", "Task scheduling")}</p>
+          </SheetContent>
+        </Sheet>
 
         {/* 2. Priority */}
         <Popover>
