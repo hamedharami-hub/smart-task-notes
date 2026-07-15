@@ -1,8 +1,9 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { ListTodo, Calendar, Plus, Repeat, Settings } from "lucide-react";
+import { ListTodo, Calendar, Plus, Settings, PanelRight } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { haptic } from "@/lib/haptics";
+import { useSidebar } from "@/components/ui/sidebar";
 import RecentlyDeletedSheet from "@/components/RecentlyDeletedSheet";
 
 type Tab = { key: string; to: string; icon: typeof ListTodo; fa: string; en: string; match: (p: string) => boolean };
@@ -10,6 +11,7 @@ type Tab = { key: string; to: string; icon: typeof ListTodo; fa: string; en: str
 export function BottomTabBar() {
   const loc = useLocation();
   const navigate = useNavigate();
+  const { toggleSidebar } = useSidebar();
   const { i18n } = useTranslation();
   const isEn = (i18n.language || "fa").startsWith("en");
   const T = (fa: string, en: string) => (isEn ? en : fa);
@@ -32,7 +34,6 @@ export function BottomTabBar() {
   const tabs: Tab[] = [
     { key: "today", to: "/app/today", icon: ListTodo, fa: "امروز", en: "Today", match: (p) => p === "/app/today" || p === "/app/home" || p === "/app" },
     { key: "calendar", to: "/app/calendar", icon: Calendar, fa: "تقویم", en: "Calendar", match: (p) => p.startsWith("/app/calendar") },
-    { key: "habits", to: "/app/habits", icon: Repeat, fa: "عادت‌ها", en: "Habits", match: (p) => p.startsWith("/app/habits") },
     { key: "settings", to: "/app/settings", icon: Settings, fa: "تنظیمات", en: "Settings", match: (p) => p.startsWith("/app/settings") },
   ];
 
@@ -100,6 +101,16 @@ export function BottomTabBar() {
             </button>
           );
         })}
+
+        <button
+          type="button"
+          className={itemClass(false)}
+          aria-label={T("منو", "Menu")}
+          onClick={() => { haptic("light"); toggleSidebar(); }}
+        >
+          <PanelRight className="w-5 h-5" />
+          <span>{T("منو", "Menu")}</span>
+        </button>
       </nav>
 
       <RecentlyDeletedSheet open={trashOpen} onOpenChange={setTrashOpen} />
