@@ -87,7 +87,7 @@ export default function CommandPalette() {
             <CommandGroup heading="نتایج جستجو">
               {hits.map((h) => {
                 const Icon = h.kind === "task" ? ListTodo : h.kind === "note" ? FileText : h.kind === "folder" ? Folder : Hash;
-                const to = h.kind === "task" ? `/app/today` :
+                const to = h.kind === "task" ? `/app/tasks/${h.id}` :
                            h.kind === "note" ? `/app/notes` :
                            h.kind === "folder" ? `/app/folder/${h.id}` : `/app/tag/${h.id}`;
                 return (

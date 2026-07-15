@@ -24,6 +24,7 @@ import { useLocation } from "react-router-dom";
 import { useEffect } from "react";
 import { useTwoFingerSwipe } from "@/lib/useTwoFingerSwipe";
 import { useThreeFingerGestures } from "@/lib/useThreeFingerGestures";
+import { applyTheme, getStoredTheme } from "@/lib/theme";
 
 export default function AppLayout() {
   const [aiOpen, setAiOpen] = useState(false);
@@ -39,6 +40,11 @@ export default function AppLayout() {
       try { localStorage.setItem("last_route", loc.pathname); } catch {}
     }
   }, [loc.pathname]);
+
+  useEffect(() => {
+    const stored = getStoredTheme();
+    if (stored) applyTheme(stored);
+  }, []);
   return (
     <SidebarProvider defaultOpen={false}>
       <div className="min-h-screen flex w-full bg-background">
@@ -62,6 +68,15 @@ export default function AppLayout() {
                 <span className="flex-1 text-start">جستجو...</span>
                 <kbd className="text-[10px] bg-muted px-1 py-0.5 rounded ltr">⌘K</kbd>
               </button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 sm:hidden shrink-0"
+                onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }))}
+                title="جستجو"
+              >
+                <Search className="w-4 h-4 text-muted-foreground" />
+              </Button>
               <Button variant="ghost" size="icon" onClick={() => setAiOpen(true)} className="h-8 w-8 shrink-0" title="AI">
                 <Sparkles className="w-4 h-4 text-primary" />
               </Button>

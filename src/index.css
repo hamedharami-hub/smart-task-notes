@@ -215,6 +215,62 @@
     --gradient-primary: linear-gradient(135deg, hsl(330 85% 65%), hsl(270 85% 70%), hsl(217 91% 65%));
     --shadow-elegant: 0 10px 40px -10px hsl(330 85% 50% / 0.5);
   }
+
+  /* ========== TICKTICK LIGHT — clean, minimal, white & red ========== */
+  .theme-ticktick {
+    --background: 0 0% 100%;
+    --foreground: 220 15% 18%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 220 15% 18%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 15% 18%;
+
+    --primary: 354 70% 54%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 354 70% 60%;
+
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 220 15% 22%;
+
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 10% 48%;
+
+    --accent: 354 70% 96%;
+    --accent-foreground: 354 70% 40%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 142 71% 45%;
+    --warning: 38 92% 50%;
+
+    --priority-high: 354 75% 55%;
+    --priority-medium: 35 95% 55%;
+    --priority-low: 210 95% 62%;
+    --priority-none: 220 10% 60%;
+
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 354 70% 54%;
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 220 15% 22%;
+    --sidebar-primary: 354 70% 54%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 14% 96%;
+    --sidebar-accent-foreground: 220 15% 22%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 354 70% 54%;
+
+    --gradient-primary: linear-gradient(135deg, hsl(354 70% 54%), hsl(354 70% 60%));
+    --gradient-mesh: none;
+    --shadow-soft: 0 1px 2px 0 hsl(220 20% 40% / 0.05), 0 1px 2px -1px hsl(220 20% 40% / 0.04);
+    --shadow-elegant: 0 10px 30px -10px hsl(220 20% 40% / 0.12);
+  }
 }
 
 @layer base {
