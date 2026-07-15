@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { format, subDays, isSameDay, startOfWeek } from "date-fns";
+import { getCalendarSystem, formatDate, jalaliDayOfWeek, WEEKDAY_SHORT_FA, type CalendarSystem } from "@/lib/jalali";
 import { toast } from "sonner";
 import { useTapGestures } from "@/lib/useTapGestures";
 import { haptic } from "@/lib/haptics";
@@ -29,6 +30,7 @@ export default function HabitsView() {
   const [name, setName] = useState("");
   const [frequency, setFrequency] = useState<"daily" | "weekly">("daily");
   const [target, setTarget] = useState<number>(7);
+  const [system, setSystem] = useState<CalendarSystem>(getCalendarSystem());
 
   const load = async () => {
     if (!user) return;
@@ -210,6 +212,7 @@ export default function HabitsView() {
                     <DayCell
                       key={d.toISOString()}
                       date={d}
+                      system={system}
                       done={done}
                       hasNote={hasNote}
                       onTap={() => toggle(h.id, d)}
@@ -250,12 +253,14 @@ export default function HabitsView() {
 
 function DayCell({
   date,
+  system,
   done,
   hasNote,
   onTap,
   onLongPress,
 }: {
   date: Date;
+  system: CalendarSystem;
   done: boolean;
   hasNote: boolean;
   onTap: () => void;
@@ -274,8 +279,10 @@ function DayCell({
       className={`relative flex-1 aspect-square rounded-lg flex flex-col items-center justify-center text-xs transition select-none border
         ${done ? "bg-primary/15 text-primary border-primary/40" : "bg-muted/50 border-transparent hover:border-primary/30 hover:bg-accent/30"}`}
     >
-      <span className="text-[10px] text-muted-foreground">{format(date, "EEE")[0]}</span>
-      <span className="font-semibold">{format(date, "d")}</span>
+      <span className="text-[10px] text-muted-foreground">
+        {system === "jalali" ? WEEKDAY_SHORT_FA[jalaliDayOfWeek(date)] : format(date, "EEE")[0]}
+      </span>
+      <span className="font-semibold">{system === "jalali" ? formatDate(date, "d", "jalali") : format(date, "d")}</span>
       {hasNote && (
         <StickyNote className="w-2.5 h-2.5 absolute top-1 end-1 text-primary opacity-80" />
       )}
