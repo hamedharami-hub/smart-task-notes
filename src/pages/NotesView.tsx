@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Plus, Pin, Trash2, Search, Sparkles, Loader2, FolderInput, PinOff, Share2, X } from "lucide-react";
+import { Plus, Pin, Trash2, Search, Sparkles, Loader2, FolderInput, PinOff, Share2, X, Maximize2 } from "lucide-react";
 import ShareDialog from "@/components/ShareDialog";
 import SwipeableRow from "@/components/gestures/SwipeableRow";
 import { MoveToDialog } from "@/components/MoveToDialog";
@@ -75,6 +75,7 @@ export default function NotesView() {
   const { user } = useAuth();
   const [notes, setNotes] = useState<Note[]>([]);
   const [selected, setSelected] = useState<Note | null>(null);
+  const [snap, setSnap] = useState<number | string>(0.55);
   const [search, setSearch] = useState("");
   const [draft, setDraft] = useState<{ html: string; md: string } | null>(null);
   const [confirmDel, setConfirmDel] = useState<Note | null>(null);
@@ -276,17 +277,22 @@ export default function NotesView() {
       </div>
 
       {selected && (
-        <Drawer open={true} onOpenChange={(v) => !v && setSelected(null)} snapPoints={[0.55, 0.92]} shouldScaleBackground={false}>
-          <DrawerContent className="max-h-[95vh] overflow-y-auto" aria-describedby="note-drawer-desc">
+        <Drawer open={true} onOpenChange={(v) => !v && setSelected(null)} snapPoints={[0.55, 1]} activeSnapPoint={snap} setActiveSnapPoint={setSnap} shouldScaleBackground={false}>
+          <DrawerContent className="max-h-[95vh] flex flex-col" aria-describedby="note-drawer-desc">
             <DrawerHeader className="sr-only">
               <DrawerTitle>{selected.title}</DrawerTitle>
             </DrawerHeader>
             <div className="flex items-center justify-end px-3 pt-3 pb-1">
+              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setSnap(1)} title="فول اسکرین">
+                <Maximize2 className="w-4 h-4" />
+              </Button>
               <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setSelected(null)} title="بستن">
                 <X className="w-4 h-4" />
               </Button>
             </div>
-            {editor}
+            <div className="flex-1 overflow-y-auto min-h-0 px-3 pb-4">
+              {editor}
+            </div>
             <p id="note-drawer-desc" className="sr-only">جزئیات و ویرایش نوت</p>
           </DrawerContent>
         </Drawer>

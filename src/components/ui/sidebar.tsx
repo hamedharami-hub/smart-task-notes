@@ -137,6 +137,34 @@ const Sidebar = React.forwardRef<
   }
 >(({ side = "left", variant = "sidebar", collapsible = "offcanvas", className, children, ...props }, ref) => {
   const { isMobile, state, openMobile, setOpenMobile } = useSidebar();
+  const contentRef = React.useRef<HTMLDivElement>(null);
+  const swipe = React.useRef<{ x: number; y: number; active: boolean } | null>(null);
+
+  const onTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    const t = e.targetTouches[0];
+    const rect = contentRef.current?.getBoundingClientRect();
+    if (!rect || !t) return;
+    if (t.clientX - rect.left < 40) {
+      swipe.current = { x: t.clientX, y: t.clientY, active: true };
+    }
+  };
+
+  const onTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (!swipe.current?.active) return;
+    const t = e.targetTouches[0];
+    if (!t) return;
+    const dx = t.clientX - swipe.current.x;
+    const dy = t.clientY - swipe.current.y;
+    if (Math.abs(dy) > Math.abs(dx) * 0.8) {
+      swipe.current.active = false;
+    }
+    if (dx > 56) {
+      setOpenMobile(false);
+      swipe.current = null;
+    }
+  };
+
+  const onTouchEnd = () => { swipe.current = null; };
 
   if (collapsible === "none") {
     return (
@@ -154,6 +182,7 @@ const Sidebar = React.forwardRef<
     return (
       <Sheet open={openMobile} onOpenChange={setOpenMobile} {...props}>
         <SheetContent
+          ref={contentRef}
           data-sidebar="sidebar"
           data-mobile="true"
           className="h-[100dvh] w-[--sidebar-width-mobile] max-w-[--sidebar-width-mobile] p-0 border-0 rounded-none
@@ -161,10 +190,13 @@ const Sidebar = React.forwardRef<
             backdrop-blur-xl shadow-2xl [&>button]:top-3 [&>button]:left-3 [&>button]:right-auto
             text-sidebar-foreground"
           side="right"
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
         >
           <div className="relative flex h-full w-full flex-col overflow-hidden">
             {/* Drawer edge drag handle */}
-            <div className="absolute left-2 top-1/2 -translate-y-1/2 z-10">
+            <div className="absolute left-2 top-1/2 -translate-y-1/2 z-10 pointer-events-none">
               <span className="block h-8 w-1 rounded-full bg-foreground/20" />
             </div>
             <div className="flex-1 overflow-y-auto px-2 pb-6 pt-[calc(env(safe-area-inset-top)+0.5rem)]">

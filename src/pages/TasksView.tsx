@@ -595,13 +595,21 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
                   <span className="truncate">سطح {depth} · زیرِ «{parent.title}»</span>
                 </div>
               )}
-              {/* Row 1: chevron + TITLE (wide) + checkbox (right) */}
+              {/* Row 1: chevron + pin + TITLE (wide) + checkbox (right) */}
               <div dir="rtl" className="flex items-start gap-1.5">
                 {subs.length > 0 ? (
                   <button onClick={() => setExpanded((s) => ({ ...s, [t.id]: !open }))} className="text-muted-foreground hover:text-foreground shrink-0 pt-0.5">
                     {open ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                   </button>
                 ) : <span className="w-4 shrink-0" />}
+                <button
+                  onClick={(e) => { e.stopPropagation(); patchTask(t.id, { pinned: !t.pinned }); }}
+                  className={`shrink-0 inline-flex items-center justify-center w-5 h-5 rounded transition mt-0.5 ${t.pinned ? "text-primary" : "text-muted-foreground/40 hover:text-foreground"}`}
+                  title={t.pinned ? "حذف پین" : "پین کردن"}
+                  data-no-longpress
+                >
+                  <Pin className={`w-3 h-3 ${t.pinned ? "fill-primary" : ""}`} />
+                </button>
                 <div
                   className="flex-1 min-w-0 cursor-pointer select-none"
                   onClick={() => {
@@ -724,13 +732,6 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
                     <CornerDownRight className="w-3 h-3" /> {prog.done}/{prog.total}
                   </span>
                 )}
-                <button
-                  onClick={(e) => { e.stopPropagation(); patchTask(t.id, { pinned: !t.pinned }); }}
-                  className={`inline-flex items-center justify-center w-5 h-5 rounded transition ${t.pinned ? "text-primary" : "text-muted-foreground/40 hover:text-foreground"}`}
-                  title={t.pinned ? "حذف پین" : "پین کردن"}
-                >
-                  <Pin className={`w-3 h-3 ${t.pinned ? "fill-primary" : ""}`} />
-                </button>
               </div>
             </Card>
             </SwipeableRow>

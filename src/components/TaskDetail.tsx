@@ -59,6 +59,7 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
   const [taskNotes, setTaskNotes] = useState<TaskNote[]>([]);
   const [activeNote, setActiveNote] = useState<TaskNote | null>(null);
   const [aiOpen, setAiOpen] = useState(false);
+  const [snap, setSnap] = useState<number | string>(0.55);
   const [folders, setFolders] = useState<{ id: string; name: string; parent_id: string | null; color: string | null }[]>([]);
   const [tags, setTags] = useState<{ id: string; name: string; color: string | null }[]>([]);
   const [taskTagIds, setTaskTagIds] = useState<string[]>([]);
@@ -306,6 +307,15 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
   const hero = (
     <div className="px-1 pb-2">
       <div className="flex items-start gap-1.5">
+        <Button
+          size="icon"
+          variant="ghost"
+          onClick={() => save({ pinned: !t.pinned })}
+          className={`h-9 w-9 shrink-0 ${t.pinned ? "text-primary" : "text-muted-foreground/60 hover:text-foreground"}`}
+          title={t.pinned ? T("حذف پین", "Unpin") : T("پین", "Pin")}
+        >
+          <Pin className={`w-4 h-4 ${t.pinned ? "fill-primary" : ""}`} />
+        </Button>
         <AutoTextarea
           value={t.title}
           onChange={(e) => setT({ ...t, title: e.target.value })}
@@ -838,15 +848,6 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
           </PopoverContent>
         </Popover>
 
-        {/* Pin */}
-        <RailButton
-          icon={t.pinned ? PinOff : Pin}
-          label={t.pinned ? T("حذف پین", "Unpin") : T("پین", "Pin")}
-          active={t.pinned}
-          accent
-          onClick={() => save({ pinned: !t.pinned })}
-        />
-
         {/* Link parent task */}
         <Popover open={parentOpen} onOpenChange={setParentOpen}>
           <PopoverTrigger asChild>
@@ -1030,7 +1031,7 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
           size="icon"
           variant="ghost"
           className="h-8 w-8"
-          onClick={() => { navigate(`/app/tasks/${t.id}`); onClose(); }}
+          onClick={() => { setSnap(1); }}
           title={T("فول اسکرین", "Full screen")}
         >
           <Maximize2 className="w-4 h-4" />
@@ -1046,16 +1047,16 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
           {activeNote ? noteEditorBody : body}
         </div>
       ) : mode === "drawer" ? (
-        <Drawer open={true} onOpenChange={(v) => !v && onClose()} snapPoints={[0.55, 0.92]} shouldScaleBackground={false}>
-          <DrawerContent className="max-h-[95vh] overflow-y-auto" aria-describedby="task-drawer-desc">
+        <Drawer open={true} onOpenChange={(v) => !v && onClose()} snapPoints={[0.55, 1]} activeSnapPoint={snap} setActiveSnapPoint={setSnap} shouldScaleBackground={false}>
+          <DrawerContent className="max-h-[95vh] flex flex-col" aria-describedby="task-drawer-desc">
             <DrawerHeader className="sr-only">
               <DrawerTitle>{activeNote ? T("ویرایش نوت", "Edit note") : T("جزئیات تسک", "Task")}</DrawerTitle>
             </DrawerHeader>
             {drawerHeader}
-            <div className="px-3 pb-28">
+            <div className="flex-1 overflow-y-auto min-h-0 px-3 pb-4">
               {activeNote ? noteEditorBody : body}
             </div>
-            <div className="sticky bottom-0 z-10 bg-background/95 backdrop-blur border-t border-border/40">
+            <div className="shrink-0 z-10 bg-background/95 backdrop-blur border-t border-border/40">
               {railInner}
             </div>
             <p id="task-drawer-desc" className="sr-only">{T("جزئیات و ویرایش تسک", "Task details and editing")}</p>
