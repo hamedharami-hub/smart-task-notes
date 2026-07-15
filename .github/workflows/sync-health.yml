@@ -1,0 +1,48 @@
+name: Lovable Sync Health
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sync-health:
+    name: Verify Lovable ↔ GitHub sync
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 20
+
+      - name: Verify Lovable marker exists
+        run: |
+          if [ ! -f .lovable/mcp/manifest.json ]; then
+            echo "::error::Lovable marker (.lovable/mcp/manifest.json) is missing. Sync may be broken."
+            exit 1
+          fi
+
+      - name: Print recent commit authors
+        run: |
+          echo "Recent commits on main:"
+          git log --format='%h %an <%ae> %s' -10
+
+      - name: Check for Lovable bot activity
+        run: |
+          LOVABLE_COMMITS=$(git log --format='%an' -20 | grep -c "gpt-engineer-app" || true)
+          if [ "$LOVABLE_COMMITS" -eq 0 ]; then
+            if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref }}" = "refs/heads/main" ]; then
+              echo "::warning::No Lovable bot commits found in the last 20 commits on main. Verify Lovable sync in Lovable Settings → Git."
+            else
+              echo "No Lovable bot commits found on this branch; this is expected for non-main branches and PRs."
+            fi
+          else
+            echo "Found $LOVABLE_COMMITS Lovable bot commits in the last 20 commits. Sync appears active."
+          fi
