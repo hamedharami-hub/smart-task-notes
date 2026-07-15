@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { Clock, ListChecks, TrendingUp } from "lucide-react";
+import { Clock, ListChecks, TrendingUp, Target } from "lucide-react";
 import PomodoroTimer from "@/components/PomodoroTimer";
 import { subDays, startOfDay, format, isSameDay } from "date-fns";
 import { getCalendarSystem, jalaliDayOfWeek, WEEKDAY_SHORT_FA, formatDate } from "@/lib/jalali";
@@ -10,11 +11,14 @@ import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recha
 
 type SessionRow = { duration_minutes: number; task_id: string | null; ended_at: string | null; tasks?: { title: string } | null };
 type WeekRow = { duration_minutes: number; started_at: string };
+type TaskOption = { id: string; title: string; due_date: string | null };
 
 export default function PomodoroView() {
   const { user } = useAuth();
   const [today, setToday] = useState<SessionRow[]>([]);
   const [weekSessions, setWeekSessions] = useState<WeekRow[]>([]);
+  const [tasks, setTasks] = useState<TaskOption[]>([]);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [refreshTick, setRefreshTick] = useState(0);
   const system = getCalendarSystem();
 
@@ -36,6 +40,13 @@ export default function PomodoroView() {
       .gte("started_at", weekStart.toISOString())
       .order("started_at", { ascending: true })
       .then(({ data }) => setWeekSessions((data as WeekRow[] | null) || []));
+    supabase.from("tasks")
+      .select("id,title,due_date")
+      .eq("user_id", user.id)
+      .eq("completed", false)
+      .order("due_date", { ascending: true })
+      .limit(50)
+      .then(({ data }) => setTasks((data as TaskOption[] | null) || []));
   }, [user, refreshTick]);
 
   const totalMin = today.reduce((s, r) => s + (r.duration_minutes || 0), 0);
@@ -64,10 +75,37 @@ export default function PomodoroView() {
     } else freeMin += r.duration_minutes;
   }
 
+  const selectedTask = tasks.find((t) => t.id === selectedTaskId);
+
   return (
     <div dir="rtl" className="p-4 md:p-6 max-w-md mx-auto space-y-4">
-      <Card className="p-6">
-        <PomodoroTimer onSessionComplete={() => setRefreshTick(t => t + 1)} />
+      <Card className="p-6 space-y-4">
+        <div className="space-y-1.5">
+          <label className="text-xs text-muted-foreground flex items-center gap-1.5">
+            <Target className="w-3 h-3" /> تسک فعلی
+          </label>
+          <Select value={selectedTaskId || "none"} onValueChange={(v) => setSelectedTaskId(v === "none" ? null : v)}>
+            <SelectTrigger className="h-9 text-xs">
+              <SelectValue placeholder="انتخاب تسک برای تمرکز" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">بدون تسک</SelectItem>
+              {tasks.map((t) => (
+                <SelectItem key={t.id} value={t.id}>
+                  <span className="truncate max-w-[16rem] block">{t.title}</span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {selectedTask && (
+            <p className="text-[10px] text-muted-foreground">
+              {selectedTask.due_date
+                ? `سررسید: ${system === "jalali" ? formatDate(new Date(selectedTask.due_date), "d MMM", "jalali") : format(new Date(selectedTask.due_date), "d MMM")}`
+                : "بدون سررسید"}
+            </p>
+          )}
+        </div>
+        <PomodoroTimer taskId={selectedTaskId} onSessionComplete={() => setRefreshTick(t => t + 1)} />
       </Card>
 
       <Card>
