@@ -33,6 +33,7 @@ import { DueDatePicker } from "@/components/DueDatePicker";
 import { BucketPickerBody } from "@/components/BucketPickerInline";
 import { bucketLabel, kindLabel } from "@/lib/timeBuckets";
 import { describeRule } from "@/lib/recurrence";
+import { addDays, endOfDay } from "date-fns";
 
 import { Switch } from "@/components/ui/switch";
 import { pushUndo } from "@/lib/undoStack";
@@ -165,6 +166,14 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
         onClose();
       },
     });
+  };
+
+  const postpone = (days: number) => {
+    const base = t.due_date ? new Date(t.due_date) : endOfDay(new Date());
+    const next = addDays(base, days);
+    save({ due_date: next.toISOString() });
+    setScheduleOpen(false);
+    toast(T(`تسک به ${days} روز دیگر موکول شد`, `Task postponed by ${days} day(s)`));
   };
 
   const addNote = async () => {
@@ -497,7 +506,7 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
                   {t.bucket_kind && <span className="absolute top-1 end-1 w-1.5 h-1.5 rounded-full bg-primary" />}
                 </TabsTrigger>
               </TabsList>
-              <TabsContent value="date" className="mt-0">
+              <TabsContent value="date" className="mt-0 space-y-3">
                 <DueDatePicker
                   label=""
                   value={t.due_date}
@@ -505,6 +514,23 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
                   onReminderChange={(iso) => save({ reminder_at: iso })}
                   onChange={(iso) => save({ due_date: iso })}
                 />
+                <div className="border-t pt-2">
+                  <label className="text-[10px] text-muted-foreground mb-1.5 block">{T("به تعویق انداختن", "Postpone")}</label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[1, 3, 7].map((d) => (
+                      <Button
+                        key={d}
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-8 text-xs px-2.5"
+                        onClick={() => postpone(d)}
+                      >
+                        {d === 1 ? T("فردا", "Tomorrow") : d === 3 ? T("۳ روز دیگر", "+3 days") : T("هفته آینده", "Next week")}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
               </TabsContent>
               <TabsContent value="block" className="mt-0 space-y-2">
                 <div className="grid grid-cols-2 gap-2">
