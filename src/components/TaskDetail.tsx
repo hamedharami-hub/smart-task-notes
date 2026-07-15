@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -15,7 +16,7 @@ import {
   Plus, Sparkles, Trash2, FileText, Clock, ArrowRight, Ban,
   Folder as FolderIcon, Tag as TagIcon, Check, Calendar as CalendarIcon,
   Flag, Repeat, ListTree, Paperclip, X, Image as ImageIcon, Music, Link as LinkIcon,
-  CheckSquare, ListChecks, CalendarDays, Mic, MicOff,
+  CheckSquare, ListChecks, CalendarDays, Mic, MicOff, Pin, PinOff,
 } from "lucide-react";
 import { VoiceInput } from "@/lib/voiceInput";
 import { PRIORITY_META, PRIORITY_ORDER, type Priority } from "@/lib/priority";
@@ -49,6 +50,7 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
 }) {
   const { user } = useAuth();
   const { i18n } = useTranslation();
+  const navigate = useNavigate();
   const isEn = (i18n.language || "fa").startsWith("en");
   const T = (fa: string, en: string) => (isEn ? en : fa);
 
@@ -70,6 +72,9 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
   const [voiceListening, setVoiceListening] = useState(false);
   const [voiceInstance, setVoiceInstance] = useState<VoiceInput | null>(null);
   const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [parentOpen, setParentOpen] = useState(false);
+  const [parentTitle, setParentTitle] = useState("");
+  const [allTasks, setAllTasks] = useState<{ id: string; title: string; parent_id: string | null }[]>([]);
 
   useEffect(() => { setT(task); }, [task.id]);
 
@@ -124,7 +129,29 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
     supabase.from("tags").select("id,name,color").order("name").then(({ data }) => {
       setTags((data || []) as any);
     });
+    supabase.from("tasks").select("id,title,parent_id").eq("user_id", user.id).order("title").then(({ data }) => {
+      setAllTasks((data || []) as unknown as typeof allTasks);
+    });
   }, [user]);
+
+  useEffect(() => {
+    if (!t.parent_id) { setParentTitle(""); return; }
+    supabase.from("tasks").select("title").eq("id", t.parent_id).maybeSingle().then(({ data }) => {
+      setParentTitle((data?.title as string) || "—");
+    });
+  }, [t.parent_id]);
+
+  const parentCandidates = useMemo(() => {
+    const id = t.id;
+    const byId: Record<string, typeof allTasks[number]> = {};
+    allTasks.forEach((x) => { byId[x.id] = x; });
+    const descendants = new Set<string>();
+    const collect = (root: string) => {
+      allTasks.filter((x) => x.parent_id === root).forEach((x) => { descendants.add(x.id); collect(x.id); });
+    };
+    collect(id);
+    return allTasks.filter((x) => x.id !== id && !descendants.has(x.id));
+  }, [allTasks, t.id]);
 
   const folderName = (id: string | null): string => {
     if (!id) return T("بدون فولدر", "No folder");
@@ -384,6 +411,21 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
       )}
       {t.folder_id && (
         <Chip icon={FolderIcon}>{folderName(t.folder_id)}</Chip>
+      )}
+      {t.parent_id && (
+        <Chip
+          icon={ListTree}
+          color="bg-amber-500/10 text-amber-600 dark:text-amber-400"
+          onClick={() => navigate(`/app/tasks/${t.parent_id}`)}
+          onClear={() => save({ parent_id: null })}
+        >
+          {parentTitle || "—"}
+        </Chip>
+      )}
+      {t.pinned && (
+        <Chip icon={Pin} color="bg-primary/10 text-primary">
+          {T("پین شده", "Pinned")}
+        </Chip>
       )}
       {taskTagIds.length > 0 && (
         <Chip icon={TagIcon}>
@@ -792,6 +834,41 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
                 {T("افزودن", "Add")}
               </Button>
             </div>
+          </PopoverContent>
+        </Popover>
+
+        {/* Pin */}
+        <RailButton
+          icon={t.pinned ? PinOff : Pin}
+          label={t.pinned ? T("حذف پین", "Unpin") : T("پین", "Pin")}
+          active={t.pinned}
+          accent
+          onClick={() => save({ pinned: !t.pinned })}
+        />
+
+        {/* Link parent task */}
+        <Popover open={parentOpen} onOpenChange={setParentOpen}>
+          <PopoverTrigger asChild>
+            <span>
+              <RailButton icon={ListTree} label={T("تسک والد", "Parent")} active={!!t.parent_id} />
+            </span>
+          </PopoverTrigger>
+          <PopoverContent className="w-72 p-2 max-h-[55vh] overflow-y-auto" align="start" side="top">
+            <button
+              onClick={() => { save({ parent_id: null }); setParentOpen(false); }}
+              className={`w-full text-start p-2 rounded-lg text-sm hover:bg-accent ${t.parent_id === null ? "bg-accent" : ""}`}
+            >
+              {T("بدون والد (سطح بالا)", "No parent (top-level)")}
+            </button>
+            {parentCandidates.map((c) => (
+              <button
+                key={c.id}
+                onClick={() => { save({ parent_id: c.id }); setParentOpen(false); }}
+                className={`w-full text-start p-2 rounded-lg text-sm hover:bg-accent truncate ${t.parent_id === c.id ? "bg-accent" : ""}`}
+              >
+                {c.title || T("بدون عنوان", "Untitled")}
+              </button>
+            ))}
           </PopoverContent>
         </Popover>
 

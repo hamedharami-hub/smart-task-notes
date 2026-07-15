@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { startOfDay, endOfDay, addDays, format } from "date-fns";
-import { Plus, Calendar, Trash2, ChevronRight, ChevronDown, Flag, GripVertical, CornerDownRight, Ban } from "lucide-react";
+import { Plus, Calendar, Trash2, ChevronRight, ChevronDown, Flag, GripVertical, CornerDownRight, Ban, Pin } from "lucide-react";
 import { MoveToDialog } from "@/components/MoveToDialog";
 import { FolderDeleteDialog } from "@/components/FolderDeleteDialog";
 import { useNavigate } from "react-router-dom";
@@ -283,7 +283,10 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     };
     const primary = filters.sort_primary || DEFAULT_FILTERS.sort_primary;
     const secondary = filters.sort_secondary || DEFAULT_FILTERS.sort_secondary;
-    list = [...list].sort((a, b) => cmpForLevel(primary)(a, b) || cmpForLevel(secondary)(a, b));
+    list = [...list].sort((a, b) => {
+      if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+      return cmpForLevel(primary)(a, b) || cmpForLevel(secondary)(a, b);
+    });
     return list;
   }, [allTasks, scope, params.id, filters, taskTagsMap]);
 
@@ -300,6 +303,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       const da = a.due_date ? new Date(a.due_date).getTime() : Infinity;
       const db = b.due_date ? new Date(b.due_date).getTime() : Infinity;
       if (da !== db) return da - db;
+      if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
       if (a.completed !== b.completed) return a.completed ? 1 : -1;
       return (PRIORITY_META[a.priority]?.rank ?? 3) - (PRIORITY_META[b.priority]?.rank ?? 3);
     });
@@ -718,6 +722,13 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
                     <CornerDownRight className="w-3 h-3" /> {prog.done}/{prog.total}
                   </span>
                 )}
+                <button
+                  onClick={(e) => { e.stopPropagation(); patchTask(t.id, { pinned: !t.pinned }); }}
+                  className={`inline-flex items-center justify-center w-5 h-5 rounded transition ${t.pinned ? "text-primary" : "text-muted-foreground/40 hover:text-foreground"}`}
+                  title={t.pinned ? "حذف پین" : "پین کردن"}
+                >
+                  <Pin className={`w-3 h-3 ${t.pinned ? "fill-primary" : ""}`} />
+                </button>
               </div>
             </Card>
             </SwipeableRow>
@@ -909,6 +920,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
         onDelete={() => actionTask && askDeleteTask(actionTask)}
         onMove={() => actionTask && setMoveTask(actionTask)}
         onMakeChild={() => actionTask && setMakeChildOf(actionTask)}
+        onPin={() => actionTask && patchTask(actionTask.id, { pinned: !actionTask.pinned })}
         onEdit={() => actionTask && navigate(`/app/tasks/${actionTask.id}`)}
       />
     </div>
