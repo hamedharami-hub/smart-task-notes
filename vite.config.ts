@@ -9,7 +9,7 @@ const CLOUD_DEFAULTS = {
   VITE_SUPABASE_PROJECT_ID: "aeyhgdlacoqsabsbrzia",
   VITE_SUPABASE_URL: "https://aeyhgdlacoqsabsbrzia.supabase.co",
   VITE_SUPABASE_PUBLISHABLE_KEY:
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXAiLCJyZWYiOiJhZXloZ2RsYWNvcXNhYnNicnppYSIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNzc2NzA0ODIzLCJleHAiOjIwOTIyODA4MjN9.s9ht6_cvQYmvkSlhhU5re-JbSlsv637cTe72lghRSco",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFleWhnZGxhY29xc2Fic2JyemlhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MDQ4MjMsImV4cCI6MjA5MjI4MDgyM30.s9ht6_cvQYmvkSlhhU5re-JbSlsv637cTe72lghRSco",
 };
 
 // https://vitejs.dev/config/
