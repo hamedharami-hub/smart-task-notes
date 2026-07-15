@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -15,7 +16,7 @@ import {
   Plus, Sparkles, Trash2, FileText, Clock, ArrowRight, Ban,
   Folder as FolderIcon, Tag as TagIcon, Check, Calendar as CalendarIcon,
   Flag, Repeat, ListTree, Paperclip, X, Image as ImageIcon, Music, Link as LinkIcon,
-  CheckSquare, ListChecks, CalendarDays, Mic, MicOff,
+  CheckSquare, ListChecks, CalendarDays, Mic, MicOff, Pin, PinOff, Maximize2,
 } from "lucide-react";
 import { VoiceInput } from "@/lib/voiceInput";
 import { PRIORITY_META, PRIORITY_ORDER, type Priority } from "@/lib/priority";
@@ -38,17 +39,19 @@ import { addDays, endOfDay } from "date-fns";
 import { Switch } from "@/components/ui/switch";
 import { pushUndo } from "@/lib/undoStack";
 import type { Task, TaskNote, ConfirmState } from "@/lib/taskTypes";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 
 export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet", allowDelete = false }: {
   task: Task;
   onClose: () => void;
   onChanged: () => void;
   setConfirm: (c: ConfirmState) => void;
-  mode?: "sheet" | "page";
+  mode?: "sheet" | "page" | "drawer";
   allowDelete?: boolean;
 }) {
   const { user } = useAuth();
   const { i18n } = useTranslation();
+  const navigate = useNavigate();
   const isEn = (i18n.language || "fa").startsWith("en");
   const T = (fa: string, en: string) => (isEn ? en : fa);
 
@@ -70,6 +73,9 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
   const [voiceListening, setVoiceListening] = useState(false);
   const [voiceInstance, setVoiceInstance] = useState<VoiceInput | null>(null);
   const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [parentOpen, setParentOpen] = useState(false);
+  const [parentTitle, setParentTitle] = useState("");
+  const [allTasks, setAllTasks] = useState<{ id: string; title: string; parent_id: string | null }[]>([]);
 
   useEffect(() => { setT(task); }, [task.id]);
 
@@ -124,7 +130,29 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
     supabase.from("tags").select("id,name,color").order("name").then(({ data }) => {
       setTags((data || []) as any);
     });
+    supabase.from("tasks").select("id,title,parent_id").eq("user_id", user.id).order("title").then(({ data }) => {
+      setAllTasks((data || []) as unknown as typeof allTasks);
+    });
   }, [user]);
+
+  useEffect(() => {
+    if (!t.parent_id) { setParentTitle(""); return; }
+    supabase.from("tasks").select("title").eq("id", t.parent_id).maybeSingle().then(({ data }) => {
+      setParentTitle((data?.title as string) || "—");
+    });
+  }, [t.parent_id]);
+
+  const parentCandidates = useMemo(() => {
+    const id = t.id;
+    const byId: Record<string, typeof allTasks[number]> = {};
+    allTasks.forEach((x) => { byId[x.id] = x; });
+    const descendants = new Set<string>();
+    const collect = (root: string) => {
+      allTasks.filter((x) => x.parent_id === root).forEach((x) => { descendants.add(x.id); collect(x.id); });
+    };
+    collect(id);
+    return allTasks.filter((x) => x.id !== id && !descendants.has(x.id));
+  }, [allTasks, t.id]);
 
   const folderName = (id: string | null): string => {
     if (!id) return T("بدون فولدر", "No folder");
@@ -384,6 +412,21 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
       )}
       {t.folder_id && (
         <Chip icon={FolderIcon}>{folderName(t.folder_id)}</Chip>
+      )}
+      {t.parent_id && (
+        <Chip
+          icon={ListTree}
+          color="bg-amber-500/10 text-amber-600 dark:text-amber-400"
+          onClick={() => navigate(`/app/tasks/${t.parent_id}`)}
+          onClear={() => save({ parent_id: null })}
+        >
+          {parentTitle || "—"}
+        </Chip>
+      )}
+      {t.pinned && (
+        <Chip icon={Pin} color="bg-primary/10 text-primary">
+          {T("پین شده", "Pinned")}
+        </Chip>
       )}
       {taskTagIds.length > 0 && (
         <Chip icon={TagIcon}>
@@ -795,6 +838,41 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
           </PopoverContent>
         </Popover>
 
+        {/* Pin */}
+        <RailButton
+          icon={t.pinned ? PinOff : Pin}
+          label={t.pinned ? T("حذف پین", "Unpin") : T("پین", "Pin")}
+          active={t.pinned}
+          accent
+          onClick={() => save({ pinned: !t.pinned })}
+        />
+
+        {/* Link parent task */}
+        <Popover open={parentOpen} onOpenChange={setParentOpen}>
+          <PopoverTrigger asChild>
+            <span>
+              <RailButton icon={ListTree} label={T("تسک والد", "Parent")} active={!!t.parent_id} />
+            </span>
+          </PopoverTrigger>
+          <PopoverContent className="w-72 p-2 max-h-[55vh] overflow-y-auto" align="start" side="top">
+            <button
+              onClick={() => { save({ parent_id: null }); setParentOpen(false); }}
+              className={`w-full text-start p-2 rounded-lg text-sm hover:bg-accent ${t.parent_id === null ? "bg-accent" : ""}`}
+            >
+              {T("بدون والد (سطح بالا)", "No parent (top-level)")}
+            </button>
+            {parentCandidates.map((c) => (
+              <button
+                key={c.id}
+                onClick={() => { save({ parent_id: c.id }); setParentOpen(false); }}
+                className={`w-full text-start p-2 rounded-lg text-sm hover:bg-accent truncate ${t.parent_id === c.id ? "bg-accent" : ""}`}
+              >
+                {c.title || T("بدون عنوان", "Untitled")}
+              </button>
+            ))}
+          </PopoverContent>
+        </Popover>
+
         {/* 6. Items: Subtasks or Steps */}
         <Popover>
           <PopoverTrigger asChild>
@@ -849,7 +927,8 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
     </div>
   );
 
-  const rail = typeof document !== "undefined"
+  const portalRail = mode !== "drawer";
+  const rail = typeof document !== "undefined" && portalRail
     ? createPortal(
         <div
           dir="rtl"
@@ -940,12 +1019,48 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
     </div>
   );
 
+  const drawerHeader = (
+    <div className="flex items-center justify-between px-3 pt-3 pb-1">
+      <span className="sr-only">{activeNote ? T("ویرایش نوت", "Edit note") : T("جزئیات تسک", "Task")}</span>
+      <div className="flex items-center gap-1">
+        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={onClose} title={T("بستن", "Close")}>
+          <X className="w-4 h-4" />
+        </Button>
+        <Button
+          size="icon"
+          variant="ghost"
+          className="h-8 w-8"
+          onClick={() => { navigate(`/app/tasks/${t.id}`); onClose(); }}
+          title={T("فول اسکرین", "Full screen")}
+        >
+          <Maximize2 className="w-4 h-4" />
+        </Button>
+      </div>
+    </div>
+  );
+
   return (
     <>
       {mode === "page" ? (
         <div className="w-full max-w-3xl mx-auto px-2 sm:px-3 md:px-4 py-2 pb-40 md:pb-4">
           {activeNote ? noteEditorBody : body}
         </div>
+      ) : mode === "drawer" ? (
+        <Drawer open={true} onOpenChange={(v) => !v && onClose()} snapPoints={[0.55, 0.92]} shouldScaleBackground={false}>
+          <DrawerContent className="max-h-[95vh] overflow-y-auto" aria-describedby="task-drawer-desc">
+            <DrawerHeader className="sr-only">
+              <DrawerTitle>{activeNote ? T("ویرایش نوت", "Edit note") : T("جزئیات تسک", "Task")}</DrawerTitle>
+            </DrawerHeader>
+            {drawerHeader}
+            <div className="px-3 pb-28">
+              {activeNote ? noteEditorBody : body}
+            </div>
+            <div className="sticky bottom-0 z-10 bg-background/95 backdrop-blur border-t border-border/40">
+              {railInner}
+            </div>
+            <p id="task-drawer-desc" className="sr-only">{T("جزئیات و ویرایش تسک", "Task details and editing")}</p>
+          </DrawerContent>
+        </Drawer>
       ) : (
         <Sheet open={true} onOpenChange={(v) => !v && onClose()}>
           <SheetContent className="w-full sm:max-w-full overflow-y-auto p-3 sm:p-4">

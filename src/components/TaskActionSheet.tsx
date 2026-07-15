@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import {
   Check, Trash2, FolderInput, Network, Pencil, Copy, Share2,
-  Sparkles, CopyPlus, Calendar as CalendarIcon, Flag,
+  Sparkles, CopyPlus, Calendar as CalendarIcon, Flag, Pin, PinOff,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { Task } from "@/lib/taskTypes";
@@ -23,11 +23,12 @@ interface Props {
   onMove: () => void;
   onMakeChild: () => void;
   onEdit: () => void;
+  onPin?: () => void;
   onPatch?: (patch: Partial<Task>) => void;
 }
 
 export default function TaskActionSheet({
-  task, onOpenChange, onComplete, onDelete, onMove, onMakeChild, onEdit, onPatch,
+  task, onOpenChange, onComplete, onDelete, onMove, onMakeChild, onEdit, onPin,
 }: Props) {
   const { i18n } = useTranslation();
   const { user } = useAuth();
@@ -149,6 +150,12 @@ export default function TaskActionSheet({
               </PopoverContent>
             </Popover>
 
+            <Tile
+              icon={task.pinned ? PinOff : Pin}
+              label={task.pinned ? T("حذف پین", "Unpin") : T("پین", "Pin")}
+              onClick={() => { onPin?.(); close(); }}
+              accent={task.pinned}
+            />
             <Tile icon={FolderInput} label={T("انتقال", "Move")} onClick={() => { onMove(); close(); }} />
             <Tile icon={Network} label={T("زیرتسک", "Subtask")} onClick={() => { onMakeChild(); close(); }} />
             <Tile icon={CopyPlus} label={T("تکثیر", "Duplicate")} onClick={duplicate} />

@@ -1,6 +1,16 @@
 // Reminders engine — Web Notifications + auto daily task creation
 import { supabase } from "@/integrations/supabase/client";
 
+export type TaskDefaults = {
+  default_date?: "none" | "today" | "tomorrow" | "next7" | null;
+  default_reminder?: "none" | "ontime" | "5min" | "15min" | "30min" | "1hour" | "2hours" | "1day" | "2days" | null;
+  default_priority?: "none" | "low" | "medium" | "high" | null;
+  default_tag_id?: string | null;
+  default_folder_id?: string | null;
+  default_add_to?: "top" | "bottom";
+  overdue_position?: "top" | "bottom";
+};
+
 export type UserSettings = {
   user_id: string;
   checkin_reminder_enabled: boolean;
@@ -13,6 +23,7 @@ export type UserSettings = {
   ui_scale: number;
   task_card_layout: "compact" | "comfortable";
   default_landing: "today" | "home" | "last";
+  task_defaults: TaskDefaults;
 };
 
 const LAST_NOTIFY_KEY = "reminder_last_fired_v1"; // {sleep:"YYYY-MM-DD", checkin:"YYYY-MM-DD"}
@@ -165,7 +176,7 @@ export async function loadSettings(userId: string): Promise<UserSettings | null>
   if (cached) return cached;
   const p = (async () => {
     const { data } = await supabase.from("user_settings").select("*").eq("user_id", userId).maybeSingle();
-    if (data) return data as UserSettings;
+    if (data) return { task_defaults: {}, ...(data as UserSettings) } as UserSettings;
     const { data: created } = await supabase
       .from("user_settings")
       .insert({ user_id: userId })

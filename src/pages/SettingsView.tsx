@@ -28,6 +28,8 @@ import { ALL_BUCKET_KINDS, getEnabledBuckets, setEnabledBuckets, kindLabel, type
 import { getCalendarSystem, setCalendarSystem, type CalendarSystem } from "@/lib/jalali";
 import { useTheme } from "next-themes";
 import { applyTheme } from "@/lib/theme";
+import { TaskDefaultSettings } from "@/components/TaskDefaultSettings";
+import type { TaskDefaults } from "@/lib/reminders";
 
 function TimeBucketsSettings() {
   const [enabled, setEnabled] = useState<BucketKind[]>(() => getEnabledBuckets());
@@ -881,6 +883,12 @@ export default function SettingsView() {
       {/* Time buckets settings */}
       <TimeBucketsSettings />
 
+      {reminders && (
+        <TaskDefaultSettings
+          value={reminders.task_defaults || {}}
+          onChange={(next: TaskDefaults) => updateReminder({ task_defaults: { ...(reminders.task_defaults || {}), ...next } })}
+        />
+      )}
 
       <Card className="p-5 space-y-2 bg-card/60 border-border/60">
         <h2 className="font-semibold">{t("settings.aboutTitle")}</h2>
