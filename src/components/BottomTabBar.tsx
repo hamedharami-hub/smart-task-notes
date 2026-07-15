@@ -51,6 +51,7 @@ export function BottomTabBar() {
   return (
     <>
       <nav
+        dir="ltr"
         className="md:hidden fixed inset-x-0 z-50 bg-card/95 backdrop-blur border-t border-border flex items-stretch h-14"
         style={{ bottom: 0, paddingBottom: "env(safe-area-inset-bottom)" }}
         aria-label={T("نوار پایین", "Bottom bar")}
@@ -68,7 +69,7 @@ export function BottomTabBar() {
               onClick={() => go(tab.to)}
             >
               <Icon className="w-5 h-5" />
-              <span>{T(tab.fa, tab.en)}</span>
+              <span dir="rtl">{T(tab.fa, tab.en)}</span>
             </button>
           );
         })}
@@ -97,7 +98,7 @@ export function BottomTabBar() {
               onClick={() => go(tab.to)}
             >
               <Icon className="w-5 h-5" />
-              <span>{T(tab.fa, tab.en)}</span>
+              <span dir="rtl">{T(tab.fa, tab.en)}</span>
             </button>
           );
         })}
@@ -109,7 +110,7 @@ export function BottomTabBar() {
           onClick={() => { haptic("light"); toggleSidebar(); }}
         >
           <PanelRight className="w-5 h-5" />
-          <span>{T("منو", "Menu")}</span>
+          <span dir="rtl">{T("منو", "Menu")}</span>
         </button>
       </nav>
 
