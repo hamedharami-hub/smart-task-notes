@@ -51,25 +51,55 @@ export default function CommandPalette() {
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
-  // debounced search
+  // debounced search — tasks (title + description), notes (title + content),
+  // subtasks (and map to parent tasks), folders, tags
   useEffect(() => {
     if (!user || !open) return;
     const term = q.trim();
     if (!term || term.length < 2) { setHits([]); return; }
+    const pattern = `%${term}%`;
     const t = setTimeout(async () => {
-      const [tasks, notes, folders, tags] = await Promise.all([
-        supabase.from("tasks").select("id,title").eq("user_id", user.id).ilike("title", `%${term}%`).limit(8),
-        supabase.from("notes").select("id,title").eq("user_id", user.id).ilike("title", `%${term}%`).limit(6),
-        supabase.from("folders").select("id,name").eq("user_id", user.id).ilike("name", `%${term}%`).limit(4),
-        supabase.from("tags").select("id,name").eq("user_id", user.id).ilike("name", `%${term}%`).limit(4),
+      const [tasksRes, notesRes, foldersRes, tagsRes, subtasksRes] = await Promise.all([
+        supabase.from("tasks").select("id,title").eq("user_id", user.id).or(`title.ilike.${pattern},description.ilike.${pattern}`).limit(8),
+        supabase.from("notes").select("id,title").eq("user_id", user.id).or(`title.ilike.${pattern},content.ilike.${pattern}`).limit(6),
+        supabase.from("folders").select("id,name").eq("user_id", user.id).ilike("name", pattern).limit(4),
+        supabase.from("tags").select("id,name").eq("user_id", user.id).ilike("name", pattern).limit(4),
+        supabase.from("subtasks").select("task_id").eq("user_id", user.id).ilike("title", pattern).limit(8),
       ]);
+
+      // Resolve subtask hits into their parent tasks
+      const subtaskRows = (subtasksRes.data || []) as { task_id: string }[];
+      const subtaskTaskIds = Array.from(new Set(subtaskRows.map((s) => s.task_id).filter(Boolean)));
+      let subtaskTasks: { id: string; title: string }[] = [];
+      if (subtaskTaskIds.length) {
+        const { data } = await supabase.from("tasks").select("id,title").eq("user_id", user.id).in("id", subtaskTaskIds);
+        subtaskTasks = (data as { id: string; title: string }[]) || [];
+      }
+
+      const taskMap = new Map<string, Hit>();
+      const addTask = (id: string, title: string) => {
+        if (!taskMap.has(id)) taskMap.set(id, { kind: "task", id, title });
+      };
+      ((tasksRes.data || []) as { id: string; title: string }[]).forEach((x) => addTask(x.id, x.title));
+      subtaskTasks.forEach((x) => addTask(x.id, x.title));
+
+      const rank = (title: string) => {
+        const t = title.toLowerCase();
+        const q = term.toLowerCase();
+        if (t === q) return 3;
+        if (t.startsWith(q)) return 2;
+        if (t.includes(q)) return 1;
+        return 0;
+      };
+
       const all: Hit[] = [
-        ...(tasks.data || []).map((x) => ({ kind: "task" as const, id: x.id, title: x.title })),
-        ...(notes.data || []).map((x) => ({ kind: "note" as const, id: x.id, title: x.title })),
-        ...(folders.data || []).map((x) => ({ kind: "folder" as const, id: x.id, title: x.name })),
-        ...(tags.data || []).map((x) => ({ kind: "tag" as const, id: x.id, title: x.name })),
+        ...taskMap.values(),
+        ...((notesRes.data || []) as { id: string; title: string }[]).map((x) => ({ kind: "note" as const, id: x.id, title: x.title })),
+        ...((foldersRes.data || []) as { id: string; name: string }[]).map((x) => ({ kind: "folder" as const, id: x.id, title: x.name })),
+        ...((tagsRes.data || []) as { id: string; name: string }[]).map((x) => ({ kind: "tag" as const, id: x.id, title: x.name })),
       ];
-      setHits(all);
+      all.sort((a, b) => rank(b.title) - rank(a.title));
+      setHits(all.slice(0, 20));
     }, 200);
     return () => clearTimeout(t);
   }, [q, user, open]);

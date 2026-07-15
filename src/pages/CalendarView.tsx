@@ -115,7 +115,7 @@ export default function CalendarView() {
           <TabsTrigger value="month" className="text-xs rounded-md data-[state=active]:bg-background">ماهانه</TabsTrigger>
           <TabsTrigger value="week" className="text-xs rounded-md data-[state=active]:bg-background">هفتگی</TabsTrigger>
           <TabsTrigger value="day" className="text-xs rounded-md data-[state=active]:bg-background">روزانه</TabsTrigger>
-          <TabsTrigger value="agenda" className="text-xs rounded-md data-[state=active]:bg-background">Agenda</TabsTrigger>
+          <TabsTrigger value="agenda" className="text-xs rounded-md data-[state=active]:bg-background">برنامه</TabsTrigger>
         </TabsList>
 
         <TabsContent value="month">

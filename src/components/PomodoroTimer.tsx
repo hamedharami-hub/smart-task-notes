@@ -141,6 +141,10 @@ export default function PomodoroTimer({ taskId = null, defaultMinutes, compact =
     onLongPress: () => { haptic("warning"); reset(); },
   });
 
+  const totalSeconds = (mode === "work" ? prefs.minutes : 5) * 60;
+  const remainingSeconds = minutes * 60 + seconds;
+  const progress = totalSeconds > 0 ? Math.max(0, Math.min(1, remainingSeconds / totalSeconds)) : 0;
+
   // Vertical swipe ±5min, horizontal swipe → toggle work/break
   const swipeStart = useRef<{ x: number; y: number } | null>(null);
   const onTimerTouchStart = (e: RTouchEvent) => {
@@ -191,6 +195,12 @@ export default function PomodoroTimer({ taskId = null, defaultMinutes, compact =
           <Button size={compact ? "default" : "lg"} variant="outline" onClick={reset}>
             <RotateCcw className="w-5 h-5" />
           </Button>
+        </div>
+        <div className="h-2 w-full max-w-xs mx-auto bg-muted rounded-full overflow-hidden mt-3">
+          <div
+            className="h-full bg-primary transition-all duration-1000 ease-linear"
+            style={{ width: `${progress * 100}%` }}
+          />
         </div>
       </div>
 
