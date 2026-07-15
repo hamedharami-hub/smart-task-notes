@@ -56,12 +56,10 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
   }, [user]);
   const [allTasks, setAllTasks] = useState<Task[]>([]);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-  const [newTitle, setNewTitle] = useState("");
   // selected task removed — clicks navigate to /app/tasks/:id
   const [folderName, setFolderName] = useState("");
   const [tagName, setTagName] = useState("");
   const [confirm, setConfirm] = useState<ConfirmState>(null);
-  const [quickSub, setQuickSub] = useState<Record<string, string>>({});
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [moveTask, setMoveTask] = useState<Task | null>(null);
   const [makeChildOf, setMakeChildOf] = useState<Task | null>(null);
@@ -236,15 +234,17 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     let list = allTasks.filter(t => !t.parent_id);
     if (scope === "inbox") list = list.filter(t => !t.folder_id);
     else if (scope === "today") {
-      const s = startOfDay(new Date()).getTime(); const e = endOfDay(new Date()).getTime();
-      list = list.filter(t => t.due_date && new Date(t.due_date).getTime() >= s && new Date(t.due_date).getTime() <= e);
+      // Show overdue tasks plus today so the Today view matches TickTick (Overdue + Today groups)
+      const e = endOfDay(new Date()).getTime();
+      list = list.filter(t => t.due_date && new Date(t.due_date).getTime() <= e);
     } else if (scope === "tomorrow") {
       const s = startOfDay(addDays(new Date(), 1)).getTime();
       const e = endOfDay(addDays(new Date(), 1)).getTime();
       list = list.filter(t => t.due_date && new Date(t.due_date).getTime() >= s && new Date(t.due_date).getTime() <= e);
     } else if (scope === "next7") {
-      const s = startOfDay(new Date()).getTime(); const e = endOfDay(addDays(new Date(), 7)).getTime();
-      list = list.filter(t => t.due_date && new Date(t.due_date).getTime() >= s && new Date(t.due_date).getTime() <= e);
+      // Show overdue plus next 7 days for grouped Upcoming view
+      const e = endOfDay(addDays(new Date(), 7)).getTime();
+      list = list.filter(t => t.due_date && new Date(t.due_date).getTime() <= e);
     } else if (scope === "smart") {
       list = list.filter(t => t.priority === "high" && !t.completed);
     } else if (scope === "folder") {
@@ -287,26 +287,56 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     return list;
   }, [allTasks, scope, params.id, filters, taskTagsMap]);
 
-  const addTask = async (parent_id: string | null = null) => {
-    if (!newTitle.trim() || !user) return;
-    const folder_id = scope === "folder" ? params.id || null : null;
-    const due = scope === "today" ? new Date().toISOString()
-      : scope === "tomorrow" ? addDays(new Date(), 1).toISOString()
-      : scope === "next7" ? addDays(new Date(), 1).toISOString() : null;
-    const { data, error } = await supabase.from("tasks").insert({
-      user_id: user.id, title: newTitle, folder_id: parent_id ? null : folder_id,
-      due_date: parent_id ? null : due, parent_id,
-    }).select().single();
-    if (error) toast.error(error.message);
-    else {
-      setNewTitle("");
-      // optimistic update so user sees it immediately
-      if (data) setAllTasks((prev) => [data as any, ...prev]);
-      if (scope === "tag" && params.id && data && !parent_id) {
-        await supabase.from("task_tags").insert({ task_id: data.id, tag_id: params.id, user_id: user.id });
+  // Date-based grouping for Today/Next7 to mimic TickTick (Overdue, Today, Tomorrow, ...)
+  type TaskGroup = { key: string; label: string; tasks: Task[] };
+  const groupedTasks = useMemo<TaskGroup[] | null>(() => {
+    if (scope !== "today" && scope !== "next7") return null;
+    const now = new Date();
+    const todayStart = startOfDay(now).getTime();
+    const todayEnd = endOfDay(now).getTime();
+    const tomorrowStart = startOfDay(addDays(now, 1)).getTime();
+    const tomorrowEnd = endOfDay(addDays(now, 1)).getTime();
+    const sorted = [...topLevel].sort((a, b) => {
+      const da = a.due_date ? new Date(a.due_date).getTime() : Infinity;
+      const db = b.due_date ? new Date(b.due_date).getTime() : Infinity;
+      if (da !== db) return da - db;
+      if (a.completed !== b.completed) return a.completed ? 1 : -1;
+      return (PRIORITY_META[a.priority]?.rank ?? 3) - (PRIORITY_META[b.priority]?.rank ?? 3);
+    });
+    const groups = new Map<string, TaskGroup>();
+    for (const task of sorted) {
+      if (!task.due_date) continue;
+      const due = new Date(task.due_date).getTime();
+      let key: string;
+      let label: string;
+      if (due < todayStart) {
+        key = "overdue";
+        label = "تاخیر";
+      } else if (due <= todayEnd) {
+        key = "today";
+        label = "امروز";
+      } else if (due <= tomorrowEnd) {
+        key = "tomorrow";
+        label = "فردا";
+      } else {
+        const d = new Date(task.due_date);
+        key = format(d, "yyyy-MM-dd");
+        label = d.toLocaleDateString("fa-IR", { weekday: "long", month: "short", day: "numeric" });
       }
+      if (!groups.has(key)) groups.set(key, { key, label, tasks: [] });
+      groups.get(key)!.tasks.push(task);
     }
-  };
+    // Preserve Overdue -> Today -> Tomorrow -> chronological day order
+    const orderedKeys: string[] = [];
+    if (groups.has("overdue")) orderedKeys.push("overdue");
+    if (groups.has("today")) orderedKeys.push("today");
+    if (groups.has("tomorrow")) orderedKeys.push("tomorrow");
+    [...groups.keys()]
+      .filter(k => !["overdue", "today", "tomorrow"].includes(k))
+      .sort()
+      .forEach(k => orderedKeys.push(k));
+    return orderedKeys.map(k => groups.get(k)!);
+  }, [topLevel, scope]);
 
   const toggleTask = async (t: Task) => {
     const newCompleted = !t.completed;
@@ -400,22 +430,11 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     return { done, total };
   };
 
-  const quickAddSub = async (parent: Task, title: string) => {
-    if (!title || !user) return;
-    const { data, error } = await supabase.from("tasks").insert({
-      user_id: user.id, title, parent_id: parent.id, priority: "none" as const,
-    }).select().single();
-    if (error) return toast.error(error.message);
-    if (data) {
-      setAllTasks(prev => [data as any, ...prev]);
-      setExpanded(s => ({ ...s, [parent.id]: true }));
-    }
-  };
-
-
   // Drag & drop: drop a task onto another → set as child; drop in same parent zone → reorder
   const onDragEnd = async (e: DragEndEvent) => {
     setActiveDragId(null);
+    // Date-grouped views (Today/Next7) sort tasks by due date; manual reorder is disabled there.
+    if (scope === "today" || scope === "next7") return;
     const { active, over, delta } = e;
     if (!over || active.id === over.id) return;
     const activeId = String(active.id);
@@ -735,32 +754,58 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
         <TaskFilterSheet filters={filters} onChange={setFilters} />
       </div>
 
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragStart={(e: DragStartEvent) => setActiveDragId(String(e.active.id))}
-        onDragEnd={onDragEnd}
-        onDragCancel={() => setActiveDragId(null)}
-      >
-        <RootDropZone />
-        <div className="space-y-1 mt-1">
-          {topLevel.length === 0 && (
-            <Card className="p-5 text-center text-muted-foreground text-sm border-dashed">هیچ تسکی نیست</Card>
-          )}
-          <SortableContext items={topLevel.map(t => t.id)} strategy={verticalListSortingStrategy}>
-            {topLevel.map((t) => <TaskItem key={t.id} t={t} />)}
-          </SortableContext>
-        </div>
-        <DragOverlay>
-          {activeDragId ? (
-            <Card className="p-3 shadow-lg opacity-90">
-              <p className="text-sm font-medium">
-                {allTasks.find(x => x.id === activeDragId)?.title || "..."}
-              </p>
-            </Card>
-          ) : null}
-        </DragOverlay>
-      </DndContext>
+      {(() => {
+        const isEmpty = groupedTasks ? groupedTasks.length === 0 : topLevel.length === 0;
+        const sortableItems = groupedTasks
+          ? groupedTasks.flatMap(g => g.tasks.map(t => t.id))
+          : topLevel.map(t => t.id);
+        return (
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={(e: DragStartEvent) => setActiveDragId(String(e.active.id))}
+            onDragEnd={onDragEnd}
+            onDragCancel={() => setActiveDragId(null)}
+          >
+            <RootDropZone />
+            <div className="space-y-1 mt-1">
+              {isEmpty && (
+                <Card className="p-5 text-center text-muted-foreground text-sm border-dashed">هیچ تسکی نیست</Card>
+              )}
+              <SortableContext items={sortableItems} strategy={verticalListSortingStrategy}>
+                {groupedTasks ? (
+                  <div className="space-y-3">
+                    {groupedTasks.map(group => (
+                      <div key={group.key}>
+                        <div className="sticky top-0 z-[5] bg-background/95 backdrop-blur py-1 px-1 text-sm font-semibold text-foreground/80 flex items-center justify-between">
+                          <span>{group.label}</span>
+                          <span className="text-xs text-muted-foreground font-normal">{group.tasks.length}</span>
+                        </div>
+                        <div className="space-y-1">
+                          {group.tasks.map(t => <TaskItem key={t.id} t={t} />)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    {topLevel.map((t) => <TaskItem key={t.id} t={t} />)}
+                  </div>
+                )}
+              </SortableContext>
+            </div>
+            <DragOverlay>
+              {activeDragId ? (
+                <Card className="p-3 shadow-lg opacity-90">
+                  <p className="text-sm font-medium">
+                    {allTasks.find(x => x.id === activeDragId)?.title || "..."}
+                  </p>
+                </Card>
+              ) : null}
+            </DragOverlay>
+          </DndContext>
+        );
+      })()}
     </PullToRefresh>
   );
 
