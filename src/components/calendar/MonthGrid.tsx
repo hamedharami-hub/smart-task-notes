@@ -75,13 +75,16 @@ export default function MonthGrid({
                   </div>
                 ))}
                 {dayTasks.length > 0 && (
-                  <div className="flex items-center gap-1 mt-auto">
-                    <div className="flex gap-0.5">
-                      {dayTasks.slice(0, 3).map((t) => (
-                        <span key={t.id} className="w-1.5 h-1.5 rounded-full" style={{ background: PRIORITY_COLOR[t.priority] || PRIORITY_COLOR.none }} />
-                      ))}
-                    </div>
-                    <span className="text-[9px] text-muted-foreground">{toPersianDigits(dayTasks.length)}</span>
+                  <div className="flex flex-col gap-0.5 mt-auto">
+                    {dayTasks.slice(0, 2).map((t) => (
+                      <div key={t.id} className="flex items-center gap-1 text-[9px] leading-tight">
+                        <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: PRIORITY_COLOR[t.priority] || PRIORITY_COLOR.none }} />
+                        <span className="truncate text-foreground/80">{t.title}</span>
+                      </div>
+                    ))}
+                    {dayTasks.length > 2 && (
+                      <span className="text-[9px] text-muted-foreground px-2">+{toPersianDigits(dayTasks.length - 2)}</span>
+                    )}
                   </div>
                 )}
               </div>
