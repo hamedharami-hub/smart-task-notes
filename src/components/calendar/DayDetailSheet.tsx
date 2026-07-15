@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { format, isSameDay } from "date-fns";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Plus, Activity, FileText, ListChecks } from "lucide-react";
+import { Plus, Activity, ListChecks, ListTodo } from "lucide-react";
 import { formatDate, toPersianDigits, type CalendarSystem } from "@/lib/jalali";
 import { isHoliday, type Holiday } from "@/lib/holidays";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,6 +12,14 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 
 type Task = { id: string; title: string; due_date: string | null; priority: string };
+
+const PRIORITY_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2, none: 3 };
+const PRIORITY_COLOR: Record<string, string> = {
+  high: "hsl(var(--destructive))",
+  medium: "hsl(var(--primary))",
+  low: "hsl(var(--muted-foreground))",
+  none: "hsl(var(--muted-foreground) / 0.4)",
+};
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
@@ -40,7 +48,14 @@ export default function DayDetailSheet({
   }, [date, user, open]);
 
   if (!date) return null;
-  const dayTasks = tasks.filter((t) => t.due_date && isSameDay(new Date(t.due_date), date));
+  const dayTasks = tasks
+    .filter((t) => t.due_date && isSameDay(new Date(t.due_date), date))
+    .sort((a, b) => {
+      const pa = PRIORITY_ORDER[a.priority] ?? 3;
+      const pb = PRIORITY_ORDER[b.priority] ?? 3;
+      if (pa !== pb) return pa - pb;
+      return new Date(a.due_date!).getTime() - new Date(b.due_date!).getTime();
+    });
   const dayHolidays = isHoliday(date, holidays);
   const isFriday = date.getDay() === 5;
 
@@ -78,6 +93,28 @@ export default function DayDetailSheet({
             {(system === "jalali" && isFriday) && <span className="text-rose-500 me-2">• تعطیل</span>}
           </p>
         </SheetHeader>
+
+        {dayTasks.length > 0 && (
+          <div className="mt-4 space-y-2">
+            <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground"><ListTodo className="w-4 h-4 text-primary" /> تسک‌های این روز</h3>
+            <div className="border border-border/60 rounded-xl divide-y bg-card/40 max-h-[180px] overflow-y-auto">
+              {dayTasks.map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => { onOpenChange(false); navigate(`/app/tasks/${t.id}`); }}
+                  className="flex items-center gap-2 w-full text-end px-3 py-2 text-sm hover:bg-accent/30 transition"
+                >
+                  <span className="w-2 h-2 rounded-full shrink-0" style={{ background: PRIORITY_COLOR[t.priority] || PRIORITY_COLOR.none }} />
+                  <span className="truncate flex-1">{t.title}</span>
+                  <span className="text-[10px] text-muted-foreground tabular-nums">
+                    {toPersianDigits(String(t.due_date ? new Date(t.due_date).getHours().toString().padStart(2, "0") : "--"))}
+                    :{toPersianDigits("00")}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="grid md:grid-cols-2 gap-4 mt-6">
           {/* Hourly Timeline */}
