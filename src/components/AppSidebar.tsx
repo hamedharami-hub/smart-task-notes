@@ -4,6 +4,7 @@ import {
   Target, Timer, Calendar, Plus, ChevronRight, ChevronDown, LogOut, Sparkles, Settings, LayoutGrid,
   Brain, TrendingUp, Moon, HeartPulse, Activity, MessageCircleQuestion, Zap, Clock4, Heart, ShieldAlert, BookOpen, Sun,
   ListTodo, BrainCircuit, Wrench, GripVertical, RotateCcw, User, Trash2, Shield, Users, Home,
+  BarChart3,
 } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
@@ -65,6 +66,9 @@ const EN_LABELS: Record<string, string> = {
   "فولدرها": "Folders",
   "تگ‌ها": "Tags",
   "اشتراک‌ها": "Shared with me",
+  "Pomodoro": "Pomodoro",
+  "Smart Lists": "Smart Lists",
+  "آمار و خلاصه": "Stats & Summary",
 };
 
 function useLabel() {
@@ -91,6 +95,7 @@ const SECTIONS: Section[] = [
       { url: "/app/buckets", icon: CalendarDays, label: "بازه‌های کلی" },
       { url: "/app/smart", icon: Filter, label: "Smart Lists" },
       { url: "/app/pomodoro", icon: Timer, label: "Pomodoro" },
+      { url: "/app/stats", icon: BarChart3, label: "آمار و خلاصه" },
     ],
   },
   {

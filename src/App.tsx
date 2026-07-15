@@ -46,6 +46,7 @@ const NotesView = lazy(() => import("./pages/NotesView"));
 const HabitsView = lazy(() => import("./pages/HabitsView"));
 const PomodoroView = lazy(() => import("./pages/PomodoroView"));
 const CalendarView = lazy(() => import("./pages/CalendarView"));
+const StatsView = lazy(() => import("./pages/StatsView"));
 const SettingsView = lazy(() => import("./pages/SettingsView"));
 const KanbanView = lazy(() => import("./pages/KanbanView"));
 
@@ -120,6 +121,7 @@ const App = () => {
                 <Route path="habits" element={<HabitsView />} />
                 <Route path="pomodoro" element={<PomodoroView />} />
                 <Route path="calendar" element={<CalendarView />} />
+                <Route path="stats" element={<StatsView />} />
                 <Route path="kanban" element={<KanbanView />} />
                 <Route path="buckets" element={<BucketsView />} />
                 
