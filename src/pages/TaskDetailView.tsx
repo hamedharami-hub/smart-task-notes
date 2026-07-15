@@ -40,6 +40,7 @@ export default function TaskDetailView() {
         onChanged={load}
         setConfirm={setConfirm}
         mode="page"
+        allowDelete
       />
       <AlertDialog open={!!confirm} onOpenChange={(v) => !v && setConfirm(null)}>
         <AlertDialogContent>
@@ -55,10 +56,7 @@ export default function TaskDetailView() {
             <AlertDialogCancel>انصراف</AlertDialogCancel>
             <AlertDialogAction
               onClick={async () => {
-                if (confirm) {
-                  await confirm.onConfirm();
-                  if (confirm.kind === "task") navigate(-1);
-                }
+                if (confirm) await confirm.onConfirm();
                 setConfirm(null);
               }}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"

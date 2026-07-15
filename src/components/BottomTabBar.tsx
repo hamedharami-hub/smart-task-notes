@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { ListTodo, Calendar, Plus, Repeat, Brain } from "lucide-react";
+import { ListTodo, Calendar, Plus, Repeat, Settings } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { haptic } from "@/lib/haptics";
@@ -26,16 +26,14 @@ export function BottomTabBar() {
 
   const openQuickCapture = () => {
     haptic("medium");
-    window.dispatchEvent(new KeyboardEvent("keydown", { key: "n", metaKey: true }));
+    window.dispatchEvent(new Event("lov:open-quick-capture"));
   };
-
-  const MIND_ROUTES = ["/app/mind", "/app/checkin", "/app/thoughts", "/app/abc", "/app/socratic", "/app/breathing", "/app/worry", "/app/self", "/app/about-me"];
 
   const tabs: Tab[] = [
     { key: "today", to: "/app/today", icon: ListTodo, fa: "امروز", en: "Today", match: (p) => p === "/app/today" || p === "/app/home" || p === "/app" },
     { key: "calendar", to: "/app/calendar", icon: Calendar, fa: "تقویم", en: "Calendar", match: (p) => p.startsWith("/app/calendar") },
     { key: "habits", to: "/app/habits", icon: Repeat, fa: "عادت‌ها", en: "Habits", match: (p) => p.startsWith("/app/habits") },
-    { key: "mind", to: "/app/mind", icon: Brain, fa: "ذهن", en: "Mind", match: (p) => MIND_ROUTES.some((r) => p.startsWith(r)) },
+    { key: "settings", to: "/app/settings", icon: Settings, fa: "تنظیمات", en: "Settings", match: (p) => p.startsWith("/app/settings") },
   ];
 
   const go = (to: string) => { haptic("light"); navigate(to); };

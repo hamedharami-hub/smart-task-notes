@@ -106,7 +106,7 @@ const App = () => {
               <Route path="/auth/callback" element={<AuthCallback />} />
               <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
               <Route path="/app" element={<ProtectedRoute><ErrorBoundary><AppLayout /></ErrorBoundary></ProtectedRoute>}>
-                <Route index element={<Navigate to="home" replace />} />
+                <Route index element={<Navigate to="today" replace />} />
                 <Route path="home" element={<HomeView />} />
                 
                 <Route path="inbox" element={<TasksView scope="inbox" />} />

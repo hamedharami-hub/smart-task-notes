@@ -52,20 +52,18 @@ export default function AppLayout() {
               <SidebarTrigger />
               <HeaderBackButton />
             </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-2 text-muted-foreground"
+            <div className="flex items-center gap-2 flex-1 justify-end">
+              <button
+                type="button"
                 onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }))}
+                className="hidden sm:flex items-center gap-2 h-8 px-3 rounded-md border bg-background/50 text-muted-foreground text-xs hover:bg-accent transition flex-1 max-w-xs"
               >
-                <Search className="w-4 h-4" />
-                <span className="hidden sm:inline text-xs">جستجو</span>
-                <kbd className="hidden sm:inline text-[10px] bg-muted px-1.5 py-0.5 rounded ltr">⌘K</kbd>
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => setAiOpen(true)} className="gap-2">
+                <Search className="w-3.5 h-3.5" />
+                <span className="flex-1 text-start">جستجو...</span>
+                <kbd className="text-[10px] bg-muted px-1 py-0.5 rounded ltr">⌘K</kbd>
+              </button>
+              <Button variant="ghost" size="icon" onClick={() => setAiOpen(true)} className="h-8 w-8 shrink-0" title="AI">
                 <Sparkles className="w-4 h-4 text-primary" />
-                AI
               </Button>
             </div>
           </header>

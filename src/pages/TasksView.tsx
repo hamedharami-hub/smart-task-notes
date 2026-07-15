@@ -1,25 +1,20 @@
 import { useEffect, useState, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { startOfDay, endOfDay, addDays, format } from "date-fns";
-import { Plus, Calendar, Trash2, ChevronRight, ChevronDown, Flag, GripVertical, CornerDownRight, FolderInput, ArrowUp, ArrowDown, Ban } from "lucide-react";
+import { Plus, Calendar, Trash2, ChevronRight, ChevronDown, Flag, GripVertical, CornerDownRight, Ban } from "lucide-react";
 import { MoveToDialog } from "@/components/MoveToDialog";
 import { FolderDeleteDialog } from "@/components/FolderDeleteDialog";
-import { startItemDrag } from "@/lib/dragToFolder";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { BidiText } from "@/components/BidiText";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { PRIORITY_META } from "@/lib/priority";
 import { FolderKanban } from "@/components/FolderKanban";
-import { Countdown } from "@/components/Countdown";
 import { pushUndo } from "@/lib/undoStack";
 import { pushDeleted } from "@/lib/recentlyDeleted";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -27,7 +22,7 @@ import { describeRule, nextOccurrence } from "@/lib/recurrence";
 import {
   DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor, TouchSensor,
   closestCenter, useSensor, useSensors,
-  SortableTaskRow, ChildDropZone, RootDropZone,
+  SortableTaskRow, RootDropZone,
 } from "@/components/TaskDnDHelpers";
 import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 
@@ -43,39 +38,11 @@ import { DueDatePicker } from "@/components/DueDatePicker";
 import { RecurrenceEditor } from "@/components/RecurrenceEditor";
 import { MakeChildDialog } from "@/components/MakeChildDialog";
 import { PRIORITY_SELECTABLE, type Priority } from "@/lib/priority";
-import { Repeat, Network } from "lucide-react";
+import { Repeat } from "lucide-react";
 import type { RecurrenceRule } from "@/lib/recurrence";
 
 // Module-level cache shared across mounts: instantly hydrate from last fetch.
 const tasksCache = new Map<string, Task[]>();
-
-// Stable, self-contained quick subtask input. Keeping its state local prevents
-// TasksView from re-rendering on every keystroke (which would otherwise unmount
-// the input because TaskItem is re-defined each render → keyboard closes after 1 letter on mobile).
-function QuickSubInput({ onAdd }: { onAdd: (title: string) => Promise<void> | void }) {
-  const [val, setVal] = useState("");
-  const submit = async () => {
-    const t = val.trim();
-    if (!t) return;
-    setVal("");
-    await onAdd(t);
-  };
-  return (
-    <>
-      <Input
-        value={val}
-        onChange={(e) => setVal(e.target.value)}
-        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); submit(); } }}
-        placeholder="+ زیرتسک سریع..."
-        className="h-6 text-[11px] flex-1"
-        dir="auto"
-      />
-      <Button size="icon" variant="ghost" onClick={submit} className="h-6 w-6">
-        <Plus className="w-3 h-3" />
-      </Button>
-    </>
-  );
-}
 
 
 export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomorrow" | "next7" | "smart" | "folder" | "tag" }) {
@@ -89,12 +56,10 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
   }, [user]);
   const [allTasks, setAllTasks] = useState<Task[]>([]);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-  const [newTitle, setNewTitle] = useState("");
   // selected task removed — clicks navigate to /app/tasks/:id
   const [folderName, setFolderName] = useState("");
   const [tagName, setTagName] = useState("");
   const [confirm, setConfirm] = useState<ConfirmState>(null);
-  const [quickSub, setQuickSub] = useState<Record<string, string>>({});
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [moveTask, setMoveTask] = useState<Task | null>(null);
   const [makeChildOf, setMakeChildOf] = useState<Task | null>(null);
@@ -269,15 +234,17 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     let list = allTasks.filter(t => !t.parent_id);
     if (scope === "inbox") list = list.filter(t => !t.folder_id);
     else if (scope === "today") {
-      const s = startOfDay(new Date()).getTime(); const e = endOfDay(new Date()).getTime();
-      list = list.filter(t => t.due_date && new Date(t.due_date).getTime() >= s && new Date(t.due_date).getTime() <= e);
+      // Show overdue tasks plus today so the Today view matches TickTick (Overdue + Today groups)
+      const e = endOfDay(new Date()).getTime();
+      list = list.filter(t => t.due_date && new Date(t.due_date).getTime() <= e);
     } else if (scope === "tomorrow") {
       const s = startOfDay(addDays(new Date(), 1)).getTime();
       const e = endOfDay(addDays(new Date(), 1)).getTime();
       list = list.filter(t => t.due_date && new Date(t.due_date).getTime() >= s && new Date(t.due_date).getTime() <= e);
     } else if (scope === "next7") {
-      const s = startOfDay(new Date()).getTime(); const e = endOfDay(addDays(new Date(), 7)).getTime();
-      list = list.filter(t => t.due_date && new Date(t.due_date).getTime() >= s && new Date(t.due_date).getTime() <= e);
+      // Show overdue plus next 7 days for grouped Upcoming view
+      const e = endOfDay(addDays(new Date(), 7)).getTime();
+      list = list.filter(t => t.due_date && new Date(t.due_date).getTime() <= e);
     } else if (scope === "smart") {
       list = list.filter(t => t.priority === "high" && !t.completed);
     } else if (scope === "folder") {
@@ -320,26 +287,56 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     return list;
   }, [allTasks, scope, params.id, filters, taskTagsMap]);
 
-  const addTask = async (parent_id: string | null = null) => {
-    if (!newTitle.trim() || !user) return;
-    const folder_id = scope === "folder" ? params.id || null : null;
-    const due = scope === "today" ? new Date().toISOString()
-      : scope === "tomorrow" ? addDays(new Date(), 1).toISOString()
-      : scope === "next7" ? addDays(new Date(), 1).toISOString() : null;
-    const { data, error } = await supabase.from("tasks").insert({
-      user_id: user.id, title: newTitle, folder_id: parent_id ? null : folder_id,
-      due_date: parent_id ? null : due, parent_id,
-    }).select().single();
-    if (error) toast.error(error.message);
-    else {
-      setNewTitle("");
-      // optimistic update so user sees it immediately
-      if (data) setAllTasks((prev) => [data as any, ...prev]);
-      if (scope === "tag" && params.id && data && !parent_id) {
-        await supabase.from("task_tags").insert({ task_id: data.id, tag_id: params.id, user_id: user.id });
+  // Date-based grouping for Today/Next7 to mimic TickTick (Overdue, Today, Tomorrow, ...)
+  type TaskGroup = { key: string; label: string; tasks: Task[] };
+  const groupedTasks = useMemo<TaskGroup[] | null>(() => {
+    if (scope !== "today" && scope !== "next7") return null;
+    const now = new Date();
+    const todayStart = startOfDay(now).getTime();
+    const todayEnd = endOfDay(now).getTime();
+    const tomorrowStart = startOfDay(addDays(now, 1)).getTime();
+    const tomorrowEnd = endOfDay(addDays(now, 1)).getTime();
+    const sorted = [...topLevel].sort((a, b) => {
+      const da = a.due_date ? new Date(a.due_date).getTime() : Infinity;
+      const db = b.due_date ? new Date(b.due_date).getTime() : Infinity;
+      if (da !== db) return da - db;
+      if (a.completed !== b.completed) return a.completed ? 1 : -1;
+      return (PRIORITY_META[a.priority]?.rank ?? 3) - (PRIORITY_META[b.priority]?.rank ?? 3);
+    });
+    const groups = new Map<string, TaskGroup>();
+    for (const task of sorted) {
+      if (!task.due_date) continue;
+      const due = new Date(task.due_date).getTime();
+      let key: string;
+      let label: string;
+      if (due < todayStart) {
+        key = "overdue";
+        label = "تاخیر";
+      } else if (due <= todayEnd) {
+        key = "today";
+        label = "امروز";
+      } else if (due <= tomorrowEnd) {
+        key = "tomorrow";
+        label = "فردا";
+      } else {
+        const d = new Date(task.due_date);
+        key = format(d, "yyyy-MM-dd");
+        label = d.toLocaleDateString("fa-IR", { weekday: "long", month: "short", day: "numeric" });
       }
+      if (!groups.has(key)) groups.set(key, { key, label, tasks: [] });
+      groups.get(key)!.tasks.push(task);
     }
-  };
+    // Preserve Overdue -> Today -> Tomorrow -> chronological day order
+    const orderedKeys: string[] = [];
+    if (groups.has("overdue")) orderedKeys.push("overdue");
+    if (groups.has("today")) orderedKeys.push("today");
+    if (groups.has("tomorrow")) orderedKeys.push("tomorrow");
+    [...groups.keys()]
+      .filter(k => !["overdue", "today", "tomorrow"].includes(k))
+      .sort()
+      .forEach(k => orderedKeys.push(k));
+    return orderedKeys.map(k => groups.get(k)!);
+  }, [topLevel, scope]);
 
   const toggleTask = async (t: Task) => {
     const newCompleted = !t.completed;
@@ -433,22 +430,11 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     return { done, total };
   };
 
-  const quickAddSub = async (parent: Task, title: string) => {
-    if (!title || !user) return;
-    const { data, error } = await supabase.from("tasks").insert({
-      user_id: user.id, title, parent_id: parent.id, priority: "none" as const,
-    }).select().single();
-    if (error) return toast.error(error.message);
-    if (data) {
-      setAllTasks(prev => [data as any, ...prev]);
-      setExpanded(s => ({ ...s, [parent.id]: true }));
-    }
-  };
-
-
   // Drag & drop: drop a task onto another → set as child; drop in same parent zone → reorder
   const onDragEnd = async (e: DragEndEvent) => {
     setActiveDragId(null);
+    // Date-grouped views (Today/Next7) sort tasks by due date; manual reorder is disabled there.
+    if (scope === "today" || scope === "next7") return;
     const { active, over, delta } = e;
     if (!over || active.id === over.id) return;
     const activeId = String(active.id);
@@ -642,32 +628,25 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
                 )}
               </div>
 
-              {/* Row 2: drag handle + badges + actions */}
-              <div className="flex items-center justify-between gap-1 mt-1 ms-5 flex-wrap">
-                <div className="flex items-center gap-1 flex-wrap min-w-0">
-                  <button {...dragHandle} data-drag-handle data-no-swipe-nav className="text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing touch-none shrink-0 h-6 w-6 rounded bg-muted/50 hover:bg-muted flex items-center justify-center" aria-label="drag" title="جابجایی (روی موبایل لمس طولانی)">
-                    <GripVertical className="w-3.5 h-3.5" />
-                  </button>
-                  <button onClick={() => moveSibling(t, -1)} className="h-5 w-5 rounded hover:bg-accent flex items-center justify-center text-muted-foreground" aria-label="move up" title="بالا">
-                    <ArrowUp className="w-3 h-3" />
-                  </button>
-                  <button onClick={() => moveSibling(t, 1)} className="h-5 w-5 rounded hover:bg-accent flex items-center justify-center text-muted-foreground" aria-label="move down" title="پایین">
-                    <ArrowDown className="w-3 h-3" />
-                  </button>
-                  {t.is_avoidance && (
-                    <span className="inline-flex items-center gap-0.5 text-[9px] px-1.5 h-4 rounded bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30">
-                      <Ban className="w-2.5 h-2.5" /> اجتنابی
-                    </span>
-                  )}
-                  {/* Priority — tap to change */}
+              {/* Row 2: metadata */}
+              <div className="flex items-center gap-1.5 mt-1 ms-5 flex-wrap min-h-[20px]" dir="rtl">
+                <button {...dragHandle} data-drag-handle data-no-swipe-nav className="text-muted-foreground/60 hover:text-foreground cursor-grab active:cursor-grabbing touch-none shrink-0 h-5 w-5 rounded flex items-center justify-center" aria-label="drag" title="جابجایی">
+                  <GripVertical className="w-3 h-3" />
+                </button>
+                {t.is_avoidance && (
+                  <span className="inline-flex items-center gap-0.5 text-[9px] px-1.5 h-4 rounded bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+                    <Ban className="w-2.5 h-2.5" /> اجتنابی
+                  </span>
+                )}
+                {t.priority !== "none" && (
                   <Popover>
                     <PopoverTrigger asChild>
                       <button
                         onClick={(e) => e.stopPropagation()}
-                        className={`text-[10px] gap-0.5 px-1.5 py-0 h-[18px] inline-flex items-center rounded border ${t.priority !== "none" ? `${pm.bgClass} ${pm.textClass}` : "bg-muted/50 text-muted-foreground border-dashed"}`}
+                        className={`text-[10px] gap-0.5 px-1.5 py-0 h-[18px] inline-flex items-center rounded border ${pm.bgClass} ${pm.textClass}`}
                         title="تغییر اولویت"
                       >
-                        <Flag className="w-2.5 h-2.5" /> {t.priority !== "none" ? pm.label : "+ اولویت"}
+                        <Flag className="w-2.5 h-2.5" /> {pm.label}
                       </button>
                     </PopoverTrigger>
                     <PopoverContent className="w-44 p-1" align="start" onClick={(e) => e.stopPropagation()}>
@@ -689,17 +668,17 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
                       )}
                     </PopoverContent>
                   </Popover>
-
-                  {/* Date — tap to change */}
+                )}
+                {t.due_date && (
                   <Popover>
                     <PopoverTrigger asChild>
                       <button
                         onClick={(e) => e.stopPropagation()}
-                        className={`text-[10px] gap-0.5 px-1.5 py-0 h-[18px] inline-flex items-center rounded border ${t.due_date ? "bg-secondary text-secondary-foreground" : "bg-muted/50 text-muted-foreground border-dashed"}`}
+                        className="text-[10px] gap-0.5 px-1.5 py-0 h-[18px] inline-flex items-center rounded border bg-secondary text-secondary-foreground"
                         title="تغییر تاریخ"
                       >
                         <Calendar className="w-2.5 h-2.5" />
-                        {t.due_date ? format(new Date(t.due_date), "MMM d, HH:mm") : "+ تاریخ"}
+                        {format(new Date(t.due_date), "MMM d, HH:mm")}
                       </button>
                     </PopoverTrigger>
                     <PopoverContent className="w-72 p-3" align="start" onClick={(e) => e.stopPropagation()}>
@@ -712,18 +691,16 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
                       />
                     </PopoverContent>
                   </Popover>
-
-                  {t.due_date && !t.completed && <Countdown target={t.due_date} className="text-[10px]" />}
-
-                  {/* Recurrence — tap to change */}
+                )}
+                {t.recurrence_rule && (
                   <Popover>
                     <PopoverTrigger asChild>
                       <button
                         onClick={(e) => e.stopPropagation()}
-                        className={`text-[10px] gap-0.5 px-1.5 py-0 h-[18px] inline-flex items-center rounded border ${t.recurrence_rule ? "bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/25" : "bg-muted/50 text-muted-foreground border-dashed"}`}
+                        className="text-[10px] gap-0.5 px-1.5 py-0 h-[18px] inline-flex items-center rounded border bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/25"
                         title="تغییر تکرار"
                       >
-                        <Repeat className="w-2.5 h-2.5" /> {t.recurrence_rule ? describeRule(t.recurrence_rule) : "+ تکرار"}
+                        <Repeat className="w-2.5 h-2.5" /> {describeRule(t.recurrence_rule)}
                       </button>
                     </PopoverTrigger>
                     <PopoverContent className="w-80 p-2" align="start" onClick={(e) => e.stopPropagation()}>
@@ -733,49 +710,13 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
                       />
                     </PopoverContent>
                   </Popover>
-                  {prog.total > 0 && (
-                    <span className="text-[10px] text-muted-foreground">{prog.done}/{prog.total}</span>
-                  )}
-                </div>
-                <div className="flex items-center gap-0.5 shrink-0">
-                  <ChildDropZone parentId={t.id} />
-                  <Button
-                    size="icon" variant="ghost"
-                    onClick={() => setMakeChildOf(t)}
-                    title="تبدیل به زیرتسکِ…"
-                    className="h-6 w-6"
-                  >
-                    <Network className="w-3 h-3" />
-                  </Button>
-                  <Button
-                    size="icon" variant="ghost"
-                    onClick={() => setMoveTask(t)}
-                    title="انتقال"
-                    draggable
-                    onDragStart={(e) => startItemDrag(e, { kind: "task", id: t.id, title: t.title })}
-                    className="h-6 w-6 cursor-grab active:cursor-grabbing"
-                  >
-                    <FolderInput className="w-3 h-3" />
-                  </Button>
-                  <Button size="icon" variant="ghost" onClick={() => askDeleteTask(t)} className="h-6 w-6">
-                    <Trash2 className="w-3 h-3" />
-                  </Button>
-                </div>
+                )}
+                {subs.length > 0 && (
+                  <span className="text-[10px] text-muted-foreground inline-flex items-center gap-0.5">
+                    <CornerDownRight className="w-3 h-3" /> {prog.done}/{prog.total}
+                  </span>
+                )}
               </div>
-
-              {prog.total > 0 && (
-                <div className="mt-1 ms-10 flex items-center gap-1.5">
-                  <Progress value={pct} className="h-1 flex-1" />
-                  <span className="text-[10px] text-muted-foreground w-7 text-start">{pct}%</span>
-                </div>
-              )}
-
-              {/* Inline + subtask quick add */}
-              <div className="mt-1 flex items-center gap-1.5 ms-10">
-                <CornerDownRight className="w-3 h-3 text-muted-foreground shrink-0" />
-                <QuickSubInput onAdd={async (title) => { await quickAddSub(t, title); }} />
-              </div>
-
             </Card>
             </SwipeableRow>
           )}
@@ -813,32 +754,58 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
         <TaskFilterSheet filters={filters} onChange={setFilters} />
       </div>
 
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragStart={(e: DragStartEvent) => setActiveDragId(String(e.active.id))}
-        onDragEnd={onDragEnd}
-        onDragCancel={() => setActiveDragId(null)}
-      >
-        <RootDropZone />
-        <div className="space-y-1 mt-1">
-          {topLevel.length === 0 && (
-            <Card className="p-5 text-center text-muted-foreground text-sm border-dashed">هیچ تسکی نیست</Card>
-          )}
-          <SortableContext items={topLevel.map(t => t.id)} strategy={verticalListSortingStrategy}>
-            {topLevel.map((t) => <TaskItem key={t.id} t={t} />)}
-          </SortableContext>
-        </div>
-        <DragOverlay>
-          {activeDragId ? (
-            <Card className="p-3 shadow-lg opacity-90">
-              <p className="text-sm font-medium">
-                {allTasks.find(x => x.id === activeDragId)?.title || "..."}
-              </p>
-            </Card>
-          ) : null}
-        </DragOverlay>
-      </DndContext>
+      {(() => {
+        const isEmpty = groupedTasks ? groupedTasks.length === 0 : topLevel.length === 0;
+        const sortableItems = groupedTasks
+          ? groupedTasks.flatMap(g => g.tasks.map(t => t.id))
+          : topLevel.map(t => t.id);
+        return (
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={(e: DragStartEvent) => setActiveDragId(String(e.active.id))}
+            onDragEnd={onDragEnd}
+            onDragCancel={() => setActiveDragId(null)}
+          >
+            <RootDropZone />
+            <div className="space-y-1 mt-1">
+              {isEmpty && (
+                <Card className="p-5 text-center text-muted-foreground text-sm border-dashed">هیچ تسکی نیست</Card>
+              )}
+              <SortableContext items={sortableItems} strategy={verticalListSortingStrategy}>
+                {groupedTasks ? (
+                  <div className="space-y-3">
+                    {groupedTasks.map(group => (
+                      <div key={group.key}>
+                        <div className="sticky top-0 z-[5] bg-background/95 backdrop-blur py-1 px-1 text-sm font-semibold text-foreground/80 flex items-center justify-between">
+                          <span>{group.label}</span>
+                          <span className="text-xs text-muted-foreground font-normal">{group.tasks.length}</span>
+                        </div>
+                        <div className="space-y-1">
+                          {group.tasks.map(t => <TaskItem key={t.id} t={t} />)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    {topLevel.map((t) => <TaskItem key={t.id} t={t} />)}
+                  </div>
+                )}
+              </SortableContext>
+            </div>
+            <DragOverlay>
+              {activeDragId ? (
+                <Card className="p-3 shadow-lg opacity-90">
+                  <p className="text-sm font-medium">
+                    {allTasks.find(x => x.id === activeDragId)?.title || "..."}
+                  </p>
+                </Card>
+              ) : null}
+            </DragOverlay>
+          </DndContext>
+        );
+      })()}
     </PullToRefresh>
   );
 

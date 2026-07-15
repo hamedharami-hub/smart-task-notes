@@ -38,12 +38,13 @@ import { Switch } from "@/components/ui/switch";
 import { pushUndo } from "@/lib/undoStack";
 import type { Task, TaskNote, ConfirmState } from "@/lib/taskTypes";
 
-export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet" }: {
+export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet", allowDelete = false }: {
   task: Task;
   onClose: () => void;
   onChanged: () => void;
   setConfirm: (c: ConfirmState) => void;
   mode?: "sheet" | "page";
+  allowDelete?: boolean;
 }) {
   const { user } = useAuth();
   const { i18n } = useTranslation();
@@ -153,6 +154,18 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
     await supabase.from("tasks").update(patch as any).eq("id", t.id);
   };
 
+  const deleteTask = () => {
+    setConfirm({
+      kind: "task",
+      id: t.id,
+      title: t.title || T("بدون عنوان", "Untitled"),
+      onConfirm: async () => {
+        await supabase.from("tasks").delete().eq("id", t.id);
+        onClose();
+      },
+    });
+  };
+
   const addNote = async () => {
     if (!user) return;
     const { data, error } = await supabase.from("notes").insert({
@@ -208,7 +221,7 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
 
   // ── Rail icon button (MD3 tonal) ────────────────────────────────────
   const RailButton = ({
-    icon: Icon, label, active, badge, onClick, accent,
+    icon: Icon, label, active, badge, onClick, accent, className,
   }: any) => (
     <button
       type="button"
@@ -221,7 +234,7 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
             ? "bg-primary/15 text-primary"
             : "bg-secondary text-secondary-foreground"
           : "text-muted-foreground hover:bg-muted/60"
-      }`}
+      } ${className || ""}`}
     >
       <Icon className="w-4 h-4" />
       {badge != null && badge !== 0 && (
@@ -802,6 +815,18 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
           accent
           onClick={() => setAiOpen(true)}
         />
+
+        {allowDelete && (
+          <>
+            <span className="w-px h-5 bg-border/60 mx-0.5" />
+            <RailButton
+              icon={Trash2}
+              label={T("حذف", "Delete")}
+              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+              onClick={deleteTask}
+            />
+          </>
+        )}
       </div>
     </div>
   );
