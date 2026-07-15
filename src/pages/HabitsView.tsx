@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Plus, Flame, Trash2, Target, StickyNote } from "lucide-react";
+import { Plus, Flame, Trash2, Target, StickyNote, Trophy } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { format, subDays, isSameDay, startOfWeek } from "date-fns";
+import { format, subDays, isSameDay, startOfWeek, differenceInDays, parseISO } from "date-fns";
 import { getCalendarSystem, formatDate, jalaliDayOfWeek, WEEKDAY_SHORT_FA, type CalendarSystem } from "@/lib/jalali";
 import { toast } from "sonner";
 import { useTapGestures } from "@/lib/useTapGestures";
@@ -110,6 +110,39 @@ export default function HabitsView() {
     return { count, target: h.target_per_week || 7 };
   };
 
+  const bestStreak = (h: Habit) => {
+    const rows = logs.filter((l) => l.habit_id === h.id);
+    const met = new Set<string>();
+    if (h.frequency === "weekly") {
+      const counts = new Map<string, number>();
+      rows.forEach((l) => {
+        const wk = format(startOfWeek(parseISO(l.log_date), { weekStartsOn: 6 }), "yyyy-MM-dd");
+        counts.set(wk, (counts.get(wk) || 0) + 1);
+      });
+      counts.forEach((c, wk) => {
+        if (c >= (h.target_per_week || 1)) met.add(wk);
+      });
+    } else {
+      rows.forEach((l) => met.add(l.log_date));
+    }
+    const intervals = Array.from(met).sort();
+    if (intervals.length === 0) return 0;
+    let best = 1;
+    let cur = 1;
+    for (let i = 1; i < intervals.length; i++) {
+      const prev = parseISO(intervals[i - 1]);
+      const curr = parseISO(intervals[i]);
+      const step = h.frequency === "weekly" ? differenceInDays(curr, prev) / 7 : differenceInDays(curr, prev);
+      if (step === 1) {
+        cur++;
+        best = Math.max(best, cur);
+      } else {
+        cur = 1;
+      }
+    }
+    return best;
+  };
+
   // Note dialog state for long-press on a day
   const [noteDialog, setNoteDialog] = useState<{ habit_id: string; date: Date; note: string } | null>(null);
   const openNote = (habit_id: string, date: Date) => {
@@ -179,6 +212,8 @@ export default function HabitsView() {
           const wp = weekProgress(h);
           const met = wp.count >= wp.target;
           const s = streak(h);
+          const best = bestStreak(h);
+          const streakUnit = h.frequency === "weekly" ? "هفته" : "روز";
           return (
             <Card key={h.id} className="p-4 bg-card/60 border-border/60">
               <div className="flex items-center justify-between mb-3 gap-2">
@@ -188,7 +223,11 @@ export default function HabitsView() {
                     <div className="font-medium truncate">{h.name}</div>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
                       <span className="flex items-center gap-1">
-                        <Flame className={`w-3 h-3 ${s > 0 ? "text-orange-500" : "text-muted-foreground"}`} /> {s} روز پیاپی
+                        <Flame className={`w-3 h-3 ${s > 0 ? "text-orange-500" : "text-muted-foreground"}`} /> {s} {streakUnit} پیاپی
+                      </span>
+                      <span className="text-border">|</span>
+                      <span className="flex items-center gap-1">
+                        <Trophy className={`w-3 h-3 ${best > s ? "text-yellow-500" : "text-muted-foreground"}`} /> بهترین: {best}
                       </span>
                       <span className="text-border">|</span>
                       <span>{met ? "هدف هفتگی تأمین‌شد" : `${wp.count}/${wp.target} هفته`}</span>
