@@ -1,30 +1,59 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { Clock, ListChecks } from "lucide-react";
+import { Clock, ListChecks, TrendingUp } from "lucide-react";
 import PomodoroTimer from "@/components/PomodoroTimer";
+import { subDays, startOfDay, format, isSameDay } from "date-fns";
+import { getCalendarSystem, jalaliDayOfWeek, WEEKDAY_SHORT_FA, formatDate } from "@/lib/jalali";
+import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 type SessionRow = { duration_minutes: number; task_id: string | null; ended_at: string | null; tasks?: { title: string } | null };
+type WeekRow = { duration_minutes: number; started_at: string };
 
 export default function PomodoroView() {
   const { user } = useAuth();
   const [today, setToday] = useState<SessionRow[]>([]);
+  const [weekSessions, setWeekSessions] = useState<WeekRow[]>([]);
   const [refreshTick, setRefreshTick] = useState(0);
+  const system = getCalendarSystem();
 
   useEffect(() => {
     if (!user) return;
     const start = new Date(); start.setHours(0, 0, 0, 0);
+    const weekStart = startOfDay(subDays(new Date(), 6));
     supabase.from("pomodoro_sessions")
       .select("duration_minutes, task_id, ended_at, tasks(title)")
       .eq("user_id", user.id)
       .eq("completed", true)
       .gte("started_at", start.toISOString())
       .order("ended_at", { ascending: false })
-      .then(({ data }) => setToday((data as any) || []));
+      .then(({ data }) => setToday((data as SessionRow[] | null) || []));
+    supabase.from("pomodoro_sessions")
+      .select("duration_minutes, started_at")
+      .eq("user_id", user.id)
+      .eq("completed", true)
+      .gte("started_at", weekStart.toISOString())
+      .order("started_at", { ascending: true })
+      .then(({ data }) => setWeekSessions((data as WeekRow[] | null) || []));
   }, [user, refreshTick]);
 
   const totalMin = today.reduce((s, r) => s + (r.duration_minutes || 0), 0);
+
+  const weekData = useMemo(() => {
+    const days: { label: string; minutes: number; date: Date }[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = startOfDay(subDays(new Date(), i));
+      const minutes = weekSessions
+        .filter((s) => isSameDay(new Date(s.started_at), d))
+        .reduce((sum, s) => sum + (s.duration_minutes || 0), 0);
+      const weekday = system === "jalali" ? WEEKDAY_SHORT_FA[jalaliDayOfWeek(d)] : format(d, "EEE")[0];
+      const dayNum = system === "jalali" ? formatDate(d, "d", "jalali") : format(d, "d");
+      days.push({ label: `${weekday} ${dayNum}`, minutes, date: d });
+    }
+    return days;
+  }, [weekSessions, system]);
+
   const taskTotals = new Map<string, { title: string; min: number }>();
   let freeMin = 0;
   for (const r of today) {
@@ -72,6 +101,30 @@ export default function PomodoroView() {
               )}
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <TrendingUp className="w-4 h-4 text-primary" /> {system === "jalali" ? "۷ روز اخیر" : "Last 7 days"}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="h-40 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={weekData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+                <XAxis dataKey="label" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                <Tooltip
+                  contentStyle={{ borderRadius: "0.75rem" }}
+                  formatter={(value: number) => [`${value} دقیقه`, "تمرکز"]}
+                  labelFormatter={(label: string) => label}
+                />
+                <Bar dataKey="minutes" radius={[4, 4, 0, 0]} fill="hsl(var(--primary))" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </CardContent>
       </Card>
     </div>
