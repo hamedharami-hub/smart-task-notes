@@ -28,6 +28,7 @@ import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-ki
 
 import { TaskFilterSheet, DEFAULT_FILTERS, type TaskFilters, type SortLevel } from "@/components/TaskFilterSheet";
 import { QuickAddTask } from "@/components/QuickAddTask";
+import { TaskDetail } from "@/components/TaskDetail";
 import type { Task, ConfirmState } from "@/lib/taskTypes";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import SwipeableRow from "@/components/gestures/SwipeableRow";
@@ -65,6 +66,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
   const [makeChildOf, setMakeChildOf] = useState<Task | null>(null);
   const [delFolderOpen, setDelFolderOpen] = useState(false);
   const [actionTask, setActionTask] = useState<Task | null>(null);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const navigate = useNavigate();
 
   // Patch a task field optimistically + persist
@@ -604,7 +606,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
                   className="flex-1 min-w-0 cursor-pointer select-none"
                   onClick={() => {
                     if (t.title.startsWith("چک‌این روزانه")) { navigate("/app/checkin"); return; }
-                    navigate(`/app/tasks/${t.id}`);
+                    setSelectedTask(t);
                   }}
                   onDoubleClick={(e) => {
                     e.stopPropagation();
@@ -913,6 +915,17 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
         />
       )}
 
+      {selectedTask && (
+        <TaskDetail
+          task={selectedTask}
+          mode="drawer"
+          onClose={() => setSelectedTask(null)}
+          onChanged={load}
+          setConfirm={setConfirm}
+          allowDelete
+        />
+      )}
+
       <TaskActionSheet
         task={actionTask}
         onOpenChange={(v) => !v && setActionTask(null)}
@@ -921,7 +934,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
         onMove={() => actionTask && setMoveTask(actionTask)}
         onMakeChild={() => actionTask && setMakeChildOf(actionTask)}
         onPin={() => actionTask && patchTask(actionTask.id, { pinned: !actionTask.pinned })}
-        onEdit={() => actionTask && navigate(`/app/tasks/${actionTask.id}`)}
+        onEdit={() => actionTask && setSelectedTask(actionTask)}
       />
     </div>
   );

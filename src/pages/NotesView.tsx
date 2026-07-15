@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Plus, Pin, Trash2, Search, Sparkles, Loader2, FolderInput, PinOff, Share2 } from "lucide-react";
+import { Plus, Pin, Trash2, Search, Sparkles, Loader2, FolderInput, PinOff, Share2, X } from "lucide-react";
 import ShareDialog from "@/components/ShareDialog";
 import SwipeableRow from "@/components/gestures/SwipeableRow";
 import { MoveToDialog } from "@/components/MoveToDialog";
@@ -18,6 +18,7 @@ import { callAI, getAILanguage, type AILanguage } from "@/lib/ai";
 import { AILangToggle } from "@/components/AILangToggle";
 import { pushUndo } from "@/lib/undoStack";
 import { pushDeleted } from "@/lib/recentlyDeleted";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 
 
 
@@ -166,6 +167,61 @@ export default function NotesView() {
   // Plain-preview helper (strip MD chars) for sidebar
   const stripMd = (s: string) => (s || "").replace(/[#*`>_\-!\[\]()~]+/g, "").replace(/\n+/g, " ").slice(0, 80);
 
+  const emptyState = (
+    <div className="flex items-center justify-center h-full text-muted-foreground">
+      یک نوت انتخاب کن یا جدید بساز
+    </div>
+  );
+
+  const editor = selected ? (
+    <div className="px-3 sm:px-4 py-2 w-full min-h-0 flex flex-col">
+      <div className="flex items-center gap-2 mb-3 flex-wrap">
+        <Input value={selected.title} onChange={(e) => save({ title: e.target.value })}
+          className="text-xl font-bold border-none focus-visible:ring-0 px-0 flex-1 min-w-[120px]" dir="auto" />
+        <AILangToggle value={aiLang} onChange={setAiLang} />
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button size="sm" variant="default" className="gap-1" disabled={aiBusy}>
+              {aiBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+              AI
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="max-h-[70vh] overflow-y-auto w-64">
+            {AI_GROUPS.map((g, gi) => (
+              <div key={g.label}>
+                {gi > 0 && <DropdownMenuSeparator />}
+                <DropdownMenuLabel className="text-xs text-muted-foreground">{g.label}</DropdownMenuLabel>
+                {g.items.map((it) => (
+                  <DropdownMenuItem key={it.key} onClick={() => runNoteAI(it.key)}>
+                    {it.label}
+                  </DropdownMenuItem>
+                ))}
+              </div>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <Button size="icon" variant="ghost" onClick={() => save({ pinned: !selected.pinned })}>
+          <Pin className={`w-4 h-4 ${selected.pinned ? "text-primary fill-primary" : ""}`} />
+        </Button>
+        <Button size="icon" variant="ghost" onClick={() => setMoveOpen(true)} title="انتقال به فولدر">
+          <FolderInput className="w-4 h-4" />
+        </Button>
+        <Button size="icon" variant="ghost" onClick={() => setShareOpen(true)} title="اشتراک‌گذاری">
+          <Share2 className="w-4 h-4" />
+        </Button>
+        <Button size="icon" variant="ghost" onClick={() => setConfirmDel(selected)}>
+          <Trash2 className="w-4 h-4" />
+        </Button>
+      </div>
+
+      <NoteEditorTabs
+        noteId={selected.id}
+        markdown={draft?.md ?? selected.content ?? ""}
+        onChange={(md, html) => setDraft({ html, md })}
+      />
+    </div>
+  ) : null;
+
   return (
     <div className="flex flex-col md:flex-row h-full">
       <div className="md:w-80 border-s md:border-s border-e-0 md:border-e flex flex-col bg-card/30">
@@ -215,60 +271,26 @@ export default function NotesView() {
         </div>
       </div>
 
-      <div className="flex-1 min-w-0 overflow-y-auto">
-        {selected ? (
-          <div className="px-1 sm:px-2 py-2 w-full">
-            <div className="flex items-center gap-2 mb-3 flex-wrap">
-              <Input value={selected.title} onChange={(e) => save({ title: e.target.value })}
-                className="text-xl font-bold border-none focus-visible:ring-0 px-0 flex-1 min-w-[120px]" dir="auto" />
-              <AILangToggle value={aiLang} onChange={setAiLang} />
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button size="sm" variant="default" className="gap-1" disabled={aiBusy}>
-                    {aiBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-                    AI
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="max-h-[70vh] overflow-y-auto w-64">
-                  {AI_GROUPS.map((g, gi) => (
-                    <div key={g.label}>
-                      {gi > 0 && <DropdownMenuSeparator />}
-                      <DropdownMenuLabel className="text-xs text-muted-foreground">{g.label}</DropdownMenuLabel>
-                      {g.items.map((it) => (
-                        <DropdownMenuItem key={it.key} onClick={() => runNoteAI(it.key)}>
-                          {it.label}
-                        </DropdownMenuItem>
-                      ))}
-                    </div>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <Button size="icon" variant="ghost" onClick={() => save({ pinned: !selected.pinned })}>
-                <Pin className={`w-4 h-4 ${selected.pinned ? "text-primary fill-primary" : ""}`} />
-              </Button>
-              <Button size="icon" variant="ghost" onClick={() => setMoveOpen(true)} title="انتقال به فولدر">
-                <FolderInput className="w-4 h-4" />
-              </Button>
-              <Button size="icon" variant="ghost" onClick={() => setShareOpen(true)} title="اشتراک‌گذاری">
-                <Share2 className="w-4 h-4" />
-              </Button>
-              <Button size="icon" variant="ghost" onClick={() => setConfirmDel(selected)}>
-                <Trash2 className="w-4 h-4" />
+      <div className="hidden md:flex flex-1 min-w-0 overflow-y-auto">
+        {selected ? editor : emptyState}
+      </div>
+
+      {selected && (
+        <Drawer open={true} onOpenChange={(v) => !v && setSelected(null)} snapPoints={[0.55, 0.92]} shouldScaleBackground={false}>
+          <DrawerContent className="max-h-[95vh] overflow-y-auto" aria-describedby="note-drawer-desc">
+            <DrawerHeader className="sr-only">
+              <DrawerTitle>{selected.title}</DrawerTitle>
+            </DrawerHeader>
+            <div className="flex items-center justify-end px-3 pt-3 pb-1">
+              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setSelected(null)} title="بستن">
+                <X className="w-4 h-4" />
               </Button>
             </div>
-
-            <NoteEditorTabs
-              noteId={selected.id}
-              markdown={draft?.md ?? selected.content ?? ""}
-              onChange={(md, html) => setDraft({ html, md })}
-            />
-          </div>
-        ) : (
-          <div className="flex items-center justify-center h-full text-muted-foreground">
-            یک نوت انتخاب کن یا جدید بساز
-          </div>
-        )}
-      </div>
+            {editor}
+            <p id="note-drawer-desc" className="sr-only">جزئیات و ویرایش نوت</p>
+          </DrawerContent>
+        </Drawer>
+      )}
 
       <AlertDialog open={!!confirmDel} onOpenChange={(v) => !v && setConfirmDel(null)}>
         <AlertDialogContent>
