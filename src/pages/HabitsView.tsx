@@ -31,6 +31,7 @@ export default function HabitsView() {
   const [frequency, setFrequency] = useState<"daily" | "weekly">("daily");
   const [target, setTarget] = useState<number>(7);
   const [system, setSystem] = useState<CalendarSystem>(getCalendarSystem());
+  const [view, setView] = useState<"week" | "month">("week");
 
   const load = async () => {
     if (!user) return;
@@ -67,7 +68,7 @@ export default function HabitsView() {
     load();
   };
 
-  const days = Array.from({ length: 7 }, (_, i) => subDays(new Date(), 6 - i));
+  const days = Array.from({ length: view === "week" ? 7 : 30 }, (_, i) => subDays(new Date(), (view === "week" ? 6 : 29) - i));
 
   // Streak that respects frequency:
   // - daily: consecutive days
@@ -168,9 +169,23 @@ export default function HabitsView() {
 
   return (
     <div dir="rtl" className="max-w-5xl mx-auto p-4 md:p-8 space-y-6 pb-20 animate-fade-in">
-      <div>
-        <h1 className="text-2xl md:text-3xl font-bold">عادت‌ها</h1>
-        <p className="text-xs md:text-sm text-muted-foreground mt-1">پیگیری روزانه، بدون فشار.</p>
+      <div className="flex items-start justify-between gap-2 flex-wrap">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold">عادت‌ها</h1>
+          <p className="text-xs md:text-sm text-muted-foreground mt-1">پیگیری روزانه، بدون فشار.</p>
+        </div>
+        <div className="flex rounded-lg bg-muted p-0.5">
+          <button
+            type="button"
+            onClick={() => setView("week")}
+            className={`px-2.5 py-1 text-xs rounded-md transition ${view === "week" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          >هفته</button>
+          <button
+            type="button"
+            onClick={() => setView("month")}
+            className={`px-2.5 py-1 text-xs rounded-md transition ${view === "month" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          >ماه</button>
+        </div>
       </div>
       <Card className="p-4 space-y-3 bg-card/60 border-border/60">
         <Input placeholder="عادت جدید..." value={name} onChange={(e) => setName(e.target.value)}
@@ -242,7 +257,7 @@ export default function HabitsView() {
               <div className="h-1.5 w-full bg-muted rounded-full mb-3 overflow-hidden">
                 <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${Math.min(100, (wp.count / wp.target) * 100)}%` }} />
               </div>
-              <div className="flex gap-1 justify-between">
+              <div className={view === "week" ? "flex gap-1 justify-between" : "grid grid-cols-7 gap-1"}>
                 {days.map((d) => {
                   const log = logs.find((l) => l.habit_id === h.id && isSameDay(new Date(l.log_date), d));
                   const done = !!log;
@@ -254,6 +269,7 @@ export default function HabitsView() {
                       system={system}
                       done={done}
                       hasNote={hasNote}
+                      compact={view === "month"}
                       onTap={() => toggle(h.id, d)}
                       onLongPress={() => openNote(h.id, d)}
                     />
@@ -295,6 +311,7 @@ function DayCell({
   system,
   done,
   hasNote,
+  compact,
   onTap,
   onLongPress,
 }: {
@@ -302,6 +319,7 @@ function DayCell({
   system: CalendarSystem;
   done: boolean;
   hasNote: boolean;
+  compact?: boolean;
   onTap: () => void;
   onLongPress: () => void;
 }) {
@@ -315,15 +333,18 @@ function DayCell({
       {...(isTouch ? handlers : {})}
       onClick={isTouch ? undefined : onTap}
       onContextMenu={(e) => { e.preventDefault(); onLongPress(); }}
-      className={`relative flex-1 aspect-square rounded-lg flex flex-col items-center justify-center text-xs transition select-none border
+      className={`relative aspect-square rounded-lg flex flex-col items-center justify-center transition select-none border
+        ${compact ? "text-[10px] p-0.5" : "flex-1 text-xs"}
         ${done ? "bg-primary/15 text-primary border-primary/40" : "bg-muted/50 border-transparent hover:border-primary/30 hover:bg-accent/30"}`}
     >
-      <span className="text-[10px] text-muted-foreground">
-        {system === "jalali" ? WEEKDAY_SHORT_FA[jalaliDayOfWeek(date)] : format(date, "EEE")[0]}
-      </span>
+      {!compact && (
+        <span className="text-[10px] text-muted-foreground">
+          {system === "jalali" ? WEEKDAY_SHORT_FA[jalaliDayOfWeek(date)] : format(date, "EEE")[0]}
+        </span>
+      )}
       <span className="font-semibold">{system === "jalali" ? formatDate(date, "d", "jalali") : format(date, "d")}</span>
       {hasNote && (
-        <StickyNote className="w-2.5 h-2.5 absolute top-1 end-1 text-primary opacity-80" />
+        <StickyNote className={`${compact ? "w-1.5 h-1.5" : "w-2.5 h-2.5"} absolute top-1 end-1 text-primary opacity-80`} />
       )}
     </button>
   );
