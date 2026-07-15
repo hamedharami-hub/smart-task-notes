@@ -1,12 +1,31 @@
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 import { VitePWA } from "vite-plugin-pwa";
 import { mcpPlugin } from "@lovable.dev/mcp-js/stacks/supabase/vite";
 
+const CLOUD_DEFAULTS = {
+  VITE_SUPABASE_PROJECT_ID: "aeyhgdlacoqsabsbrzia",
+  VITE_SUPABASE_URL: "https://aeyhgdlacoqsabsbrzia.supabase.co",
+  VITE_SUPABASE_PUBLISHABLE_KEY:
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFleWhnZGxhY29xc2Fic2JyemlhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MDQ4MjMsImV4cCI6MjA5MjI4MDgyM30.s9ht6_cvQYmvkSlhhU5re-JbSlsv637cTe72lghRSco",
+};
+
 // https://vitejs.dev/config/
-export default defineConfig(({ mode }) => ({
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), "");
+  const cloudEnv = {
+    VITE_SUPABASE_PROJECT_ID:
+      env.VITE_SUPABASE_PROJECT_ID || CLOUD_DEFAULTS.VITE_SUPABASE_PROJECT_ID,
+    VITE_SUPABASE_URL: env.VITE_SUPABASE_URL || CLOUD_DEFAULTS.VITE_SUPABASE_URL,
+    VITE_SUPABASE_PUBLISHABLE_KEY:
+      env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+      env.VITE_SUPABASE_ANON_KEY ||
+      CLOUD_DEFAULTS.VITE_SUPABASE_PUBLISHABLE_KEY,
+  };
+
+  return ({
   server: {
     host: "::",
     port: 8080,
@@ -142,4 +161,11 @@ export default defineConfig(({ mode }) => ({
     // undefined (reading 'forwardRef')". Vite's default chunking is safe and
     // already splits per-route via the lazy() dynamic imports in App.tsx.
   },
-}));
+  define: {
+    "import.meta.env.VITE_SUPABASE_PROJECT_ID": JSON.stringify(cloudEnv.VITE_SUPABASE_PROJECT_ID),
+    "import.meta.env.VITE_SUPABASE_URL": JSON.stringify(cloudEnv.VITE_SUPABASE_URL),
+    "import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY": JSON.stringify(cloudEnv.VITE_SUPABASE_PUBLISHABLE_KEY),
+    "import.meta.env.VITE_SUPABASE_ANON_KEY": JSON.stringify(cloudEnv.VITE_SUPABASE_PUBLISHABLE_KEY),
+  },
+});
+});

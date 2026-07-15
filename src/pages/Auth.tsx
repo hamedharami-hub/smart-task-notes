@@ -17,6 +17,14 @@ import { useTranslation } from "react-i18next";
 const DISCLAIMER_KEY = "clinical_disclaimer_accepted_v1";
 const OAUTH_RETURN_KEY = "oauth_return_to";
 
+async function getAuthenticatedUser() {
+  const { data, error } = await supabase.auth.getUser();
+  if (!error && data.user) return data.user;
+
+  const { data: sessionData } = await supabase.auth.getSession();
+  return sessionData.session?.user ?? null;
+}
+
 export default function Auth() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
@@ -59,7 +67,7 @@ export default function Auth() {
     e.preventDefault();
     if (!requireDisclaimer()) return;
     setLoading(true);
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -69,7 +77,8 @@ export default function Auth() {
     });
     setLoading(false);
     if (error) toast.error(error.message);
-    else { toast.success("حساب ساخته شد!"); navigate(returnTo); }
+    else if (data.session) { toast.success("حساب ساخته شد!"); navigate(returnTo); }
+    else toast.success("حساب ساخته شد؛ لطفاً ایمیل تأیید را بررسی کن.");
   };
 
   const handleGoogle = async () => {
@@ -86,6 +95,11 @@ export default function Auth() {
         return;
       }
       if (result.redirected) return;
+      const signedInUser = await getAuthenticatedUser();
+      if (!signedInUser) {
+        toast.error("ورود گوگل کامل نشد. لطفاً دوباره تلاش کن.");
+        return;
+      }
       navigate(returnTo, { replace: true });
     } catch (err) {
       const message = err instanceof Error ? err.message : "خطا در ورود با گوگل";
