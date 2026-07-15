@@ -34,6 +34,8 @@ VITE_SUPABASE_URL=
 3. اکانت/سازمان و نام ریپوی `arshnaz` را انتخاب کن و **Create Repository** را بزن.
 4. بعد از این، sync دوطرفه است: هر تغییر در Lovable به GitHub push می‌شود و هر push به GitHub در Lovable نمایش داده می‌شود.
 
+> این مخزن (`smart-task-notes-bcbdf89d`) در حال حاضر به Lovable متصل است و sync دوطرفه فعال است. جزئیات بیشتر و عیب‌یابی در [SYNC.md](./SYNC.md).
+
 ### ۲) push کردن کد محلی به GitHub
 
 بعد از اینکه Lovable ریپو را ساخت، این دستورات را در ترمینال اجرا کن:
