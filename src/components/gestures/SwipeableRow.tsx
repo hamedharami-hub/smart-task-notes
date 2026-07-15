@@ -63,6 +63,8 @@ export default function SwipeableRow({
   if (disabled) return <>{children}</>;
 
   const onTouchStart = (e: TouchEvent) => {
+    const target = e.target as HTMLElement | null;
+    if (target?.closest?.("[data-drag-handle], [data-no-swipe]")) return;
     const t = e.touches[0];
     if (!t) return;
     if (wrapRef.current) widthRef.current = wrapRef.current.clientWidth;
@@ -128,12 +130,13 @@ export default function SwipeableRow({
     tracking.current = false;
   };
 
-  const onTouchEnd = () => {
+  const onTouchEnd = (e: TouchEvent) => {
     if (!tracking.current) return;
     if (decided.current !== "h") {
       reset();
       return;
     }
+    e.preventDefault();
     const final = dx;
     if (final >= ACTION_THRESHOLD && onComplete) {
       haptic("success");
@@ -185,7 +188,7 @@ export default function SwipeableRow({
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
-        onTouchCancel={reset}
+        onTouchCancel={(e) => { e.preventDefault(); reset(); }}
         style={{
           transform: `translate3d(${dx}px,0,0)`,
           transition: animating ? "transform 180ms ease-out" : "none",

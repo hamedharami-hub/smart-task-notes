@@ -575,10 +575,12 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
         <SortableTaskRow id={t.id}>
           {(dragHandle) => (
             <SwipeableRow
-              disabled
               onComplete={() => toggleTask(t)}
               onDelete={() => askDeleteTask(t)}
               isCompleted={t.completed}
+              rightLabel="تکمیل"
+              rightLabelAlt="بازگشایی"
+              leftLabel="حذف"
             >
             <Card className={`rounded-lg ${layout === "compact" ? "p-1.5" : "p-2"} border-s-[3px] ${pm.borderClass} ${t.is_avoidance ? "bg-amber-500/[0.04] border-amber-500/30" : ""} ${depth > 0 ? "bg-muted/20" : "bg-card/50"} hover:bg-accent/20 transition-colors`}>
               {depth > 0 && parent && (
