@@ -156,19 +156,18 @@ const Sidebar = React.forwardRef<
         <SheetContent
           data-sidebar="sidebar"
           data-mobile="true"
-          className="h-[100dvh] w-screen max-w-none p-0 border-0 rounded-none
+          className="h-[100dvh] w-[--sidebar-width-mobile] max-w-[--sidebar-width-mobile] p-0 border-0 rounded-none
             bg-gradient-to-b from-sidebar via-sidebar to-sidebar/95
-            backdrop-blur-xl shadow-2xl [&>button]:top-3 [&>button]:right-3
+            backdrop-blur-xl shadow-2xl [&>button]:top-3 [&>button]:left-3 [&>button]:right-auto
             text-sidebar-foreground"
-          side="top"
+          side="right"
         >
-          <div className="flex h-full w-full flex-col overflow-hidden">
-            {/* Notification-shade drag handle */}
-            <div className="flex justify-center pt-2 pb-1 shrink-0"
-              style={{ paddingTop: "calc(env(safe-area-inset-top) + 0.5rem)" }}>
-              <span className="block h-1.5 w-12 rounded-full bg-foreground/20" />
+          <div className="relative flex h-full w-full flex-col overflow-hidden">
+            {/* Drawer edge drag handle */}
+            <div className="absolute left-2 top-1/2 -translate-y-1/2 z-10">
+              <span className="block h-8 w-1 rounded-full bg-foreground/20" />
             </div>
-            <div className="flex-1 overflow-y-auto px-2 pb-6">
+            <div className="flex-1 overflow-y-auto px-2 pb-6 pt-[calc(env(safe-area-inset-top)+0.5rem)]">
               {children}
             </div>
           </div>
