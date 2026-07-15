@@ -228,7 +228,7 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
       onClick={onClick}
       title={label}
       aria-label={label}
-      className={`relative flex flex-col items-center justify-center gap-0 min-w-[42px] h-9 rounded-xl transition active:scale-95 ${
+      className={`relative flex flex-col items-center justify-center gap-0 min-w-[52px] h-11 rounded-xl transition active:scale-95 ${
         active
           ? accent
             ? "bg-primary/15 text-primary"
@@ -242,6 +242,7 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
           {badge}
         </span>
       )}
+      <span className="text-[9px] mt-0.5 leading-none line-clamp-1 px-1 text-center">{label}</span>
     </button>
   );
 
