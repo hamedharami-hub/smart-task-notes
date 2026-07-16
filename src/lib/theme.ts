@@ -39,3 +39,10 @@ export function getStoredTheme(): string | null {
     return null;
   }
 }
+
+export function getBaseTheme(t: AppTheme | string | null | undefined): "light" | "dark" | "system" {
+  if (!t) return "system";
+  if (t === "dark" || t === "arshnaz-dark") return "dark";
+  if (t === "system") return "system";
+  return "light";
+}

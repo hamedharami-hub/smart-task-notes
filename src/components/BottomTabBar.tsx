@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { ListTodo, Calendar, Plus, Settings, PanelRight } from "lucide-react";
+import { ListTodo, Calendar, Plus, Brain, PanelRight } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { haptic } from "@/lib/haptics";
@@ -32,9 +32,9 @@ export function BottomTabBar() {
   };
 
   const tabs: Tab[] = [
-    { key: "today", to: "/app/today", icon: ListTodo, fa: "امروز", en: "Today", match: (p) => p === "/app/today" || p === "/app/home" || p === "/app" },
+    { key: "mind", to: "/app/mind", icon: Brain, fa: "ذهن", en: "Mind", match: (p) => p === "/app/mind" || p.startsWith("/app/checkin") || p.startsWith("/app/thoughts") || p.startsWith("/app/abc") || p.startsWith("/app/worry") || p.startsWith("/app/values") || p.startsWith("/app/breathing") || p.startsWith("/app/socratic") || p.startsWith("/app/screener") || p.startsWith("/app/self") },
     { key: "calendar", to: "/app/calendar", icon: Calendar, fa: "تقویم", en: "Calendar", match: (p) => p.startsWith("/app/calendar") },
-    { key: "settings", to: "/app/settings", icon: Settings, fa: "تنظیمات", en: "Settings", match: (p) => p.startsWith("/app/settings") },
+    { key: "today", to: "/app/today", icon: ListTodo, fa: "امروز", en: "Today", match: (p) => p === "/app/today" || p === "/app/home" || p === "/app" },
   ];
 
   const go = (to: string) => { haptic("light"); navigate(to); };

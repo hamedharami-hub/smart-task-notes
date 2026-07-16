@@ -24,10 +24,12 @@ import { useLocation } from "react-router-dom";
 import { useEffect } from "react";
 import { useTwoFingerSwipe } from "@/lib/useTwoFingerSwipe";
 import { useThreeFingerGestures } from "@/lib/useThreeFingerGestures";
-import { applyTheme, getStoredTheme } from "@/lib/theme";
+import { applyTheme, getStoredTheme, getBaseTheme } from "@/lib/theme";
+import { useTheme } from "next-themes";
 
 export default function AppLayout() {
   const [aiOpen, setAiOpen] = useState(false);
+  const { setTheme } = useTheme();
   const loc = useLocation();
   useTwoFingerSwipe();
   useThreeFingerGestures({
@@ -42,9 +44,10 @@ export default function AppLayout() {
   }, [loc.pathname]);
 
   useEffect(() => {
-    const stored = getStoredTheme();
-    if (stored) applyTheme(stored);
-  }, []);
+    const stored = getStoredTheme() || "system";
+    applyTheme(stored);
+    setTheme(getBaseTheme(stored));
+  }, [setTheme]);
   return (
     <SidebarProvider defaultOpen={false}>
       <div className="min-h-screen flex w-full bg-background">

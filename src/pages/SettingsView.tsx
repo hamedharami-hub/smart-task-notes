@@ -27,7 +27,7 @@ import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ALL_BUCKET_KINDS, getEnabledBuckets, setEnabledBuckets, kindLabel, type BucketKind } from "@/lib/timeBuckets";
 import { getCalendarSystem, setCalendarSystem, type CalendarSystem } from "@/lib/jalali";
 import { useTheme } from "next-themes";
-import { applyTheme } from "@/lib/theme";
+import { applyTheme, getBaseTheme } from "@/lib/theme";
 import { TaskDefaultSettings } from "@/components/TaskDefaultSettings";
 import type { TaskDefaults } from "@/lib/reminders";
 
@@ -306,6 +306,12 @@ export default function SettingsView() {
     }
   };
 
+  const setAppTheme = (t: string) => {
+    applyTheme(t);
+    setTheme(getBaseTheme(t));
+    updateReminder({ theme: t });
+  };
+
   const enableNotifs = async () => {
     const ok = await ensureNotificationPermission();
     if (ok) {
@@ -317,8 +323,11 @@ export default function SettingsView() {
   };
 
   useEffect(() => {
-    if (reminders?.theme) applyTheme(reminders.theme);
-  }, [reminders?.theme]);
+    if (reminders?.theme) {
+      applyTheme(reminders.theme);
+      setTheme(getBaseTheme(reminders.theme));
+    }
+  }, [reminders?.theme, setTheme]);
 
   useEffect(() => {
     if (reminders?.ui_scale) applyUIScale(reminders.ui_scale);
@@ -488,21 +497,21 @@ export default function SettingsView() {
             <Button
               size="sm"
               variant={theme === "light" ? "default" : "outline"}
-              onClick={() => setTheme("light")}
+              onClick={() => setAppTheme("light")}
             >
               <Sun className="w-4 h-4" />
             </Button>
             <Button
               size="sm"
               variant={theme === "dark" ? "default" : "outline"}
-              onClick={() => setTheme("dark")}
+              onClick={() => setAppTheme("dark")}
             >
               <Moon className="w-4 h-4" />
             </Button>
             <Button
               size="sm"
               variant={theme === "system" ? "default" : "outline"}
-              onClick={() => setTheme("system")}
+              onClick={() => setAppTheme("system")}
             >
               <Settings2 className="w-4 h-4" />
             </Button>
@@ -592,7 +601,7 @@ export default function SettingsView() {
             <Palette className="w-4 h-4 text-primary" />
             <h2 className="font-semibold">{t("settings.theme")}</h2>
           </div>
-          <Select value={reminders.theme} onValueChange={(v) => updateReminder({ theme: v })}>
+          <Select value={reminders.theme} onValueChange={(v) => setAppTheme(v)}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="system">🖥️ {t("settings.themeSystem")}</SelectItem>
