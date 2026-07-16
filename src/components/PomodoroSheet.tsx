@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Clock } from "lucide-react";
 import PomodoroTimer from "@/components/PomodoroTimer";
@@ -25,19 +25,21 @@ export default function PomodoroSheet({ task, open, onOpenChange }: Props) {
   const system = getCalendarSystem();
   const [sessions, setSessions] = useState<Session[]>([]);
 
+  const load = useCallback(async () => {
+    if (!user || !task) return;
+    const { data } = await supabase
+      .from("pomodoro_sessions")
+      .select("id,duration_minutes,started_at,ended_at,completed")
+      .eq("user_id", user.id)
+      .eq("task_id", task.id)
+      .eq("completed", true)
+      .order("started_at", { ascending: false });
+    setSessions((data || []) as Session[]);
+  }, [user, task]);
+
   useEffect(() => {
-    if (!open || !user || !task) return;
-    (async () => {
-      const { data } = await supabase
-        .from("pomodoro_sessions")
-        .select("id,duration_minutes,started_at,ended_at,completed")
-        .eq("user_id", user.id)
-        .eq("task_id", task.id)
-        .eq("completed", true)
-        .order("started_at", { ascending: false });
-      setSessions((data || []) as Session[]);
-    })();
-  }, [open, task, user]);
+    if (open) load();
+  }, [open, load]);
 
   const count = sessions.length;
   const total = sessions.reduce((s, r) => s + (r.duration_minutes || 0), 0);
