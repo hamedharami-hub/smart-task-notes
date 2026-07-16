@@ -34,6 +34,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import SwipeableRow from "@/components/gestures/SwipeableRow";
 import PullToRefresh from "@/components/gestures/PullToRefresh";
 import TaskActionSheet from "@/components/TaskActionSheet";
+import PomodoroSheet from "@/components/PomodoroSheet";
 import { useLongPress } from "@/lib/useLongPress";
 import { DueDatePicker } from "@/components/DueDatePicker";
 import { RecurrenceEditor } from "@/components/RecurrenceEditor";
@@ -67,6 +68,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
   const [delFolderOpen, setDelFolderOpen] = useState(false);
   const [actionTask, setActionTask] = useState<Task | null>(null);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [pomoTask, setPomoTask] = useState<Task | null>(null);
   const navigate = useNavigate();
 
   // Patch a task field optimistically + persist
@@ -935,7 +937,14 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
         onMove={() => actionTask && setMoveTask(actionTask)}
         onMakeChild={() => actionTask && setMakeChildOf(actionTask)}
         onPin={() => actionTask && patchTask(actionTask.id, { pinned: !actionTask.pinned })}
+        onPomodoro={() => actionTask && setPomoTask(actionTask)}
         onEdit={() => actionTask && setSelectedTask(actionTask)}
+      />
+
+      <PomodoroSheet
+        task={pomoTask}
+        open={!!pomoTask}
+        onOpenChange={(v) => !v && setPomoTask(null)}
       />
     </div>
   );

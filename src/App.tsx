@@ -10,6 +10,7 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import { installUndoShortcuts } from "@/lib/undoStack";
 import { toast } from "sonner";
 import { ThemeProvider } from "next-themes";
+import { getStoredTheme, getBaseTheme } from "@/lib/theme";
 
 function usePwaUpdateToast() {
   useEffect(() => {
@@ -94,7 +95,7 @@ const App = () => {
   usePwaUpdateToast();
   return (
   <QueryClientProvider client={queryClient}>
-    <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+    <ThemeProvider attribute="class" defaultTheme={getBaseTheme(getStoredTheme() || "system")} storageKey="__arshnaz_base_theme" enableSystem>
       <TooltipProvider>
         <Toaster />
         <Sonner />

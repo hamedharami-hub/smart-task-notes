@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import {
   Check, Trash2, FolderInput, Network, Pencil, Copy, Share2,
-  Sparkles, CopyPlus, Calendar as CalendarIcon, Flag, Pin, PinOff,
+  Sparkles, CopyPlus, Calendar as CalendarIcon, Flag, Pin, PinOff, Timer,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { Task } from "@/lib/taskTypes";
@@ -24,11 +24,12 @@ interface Props {
   onMakeChild: () => void;
   onEdit: () => void;
   onPin?: () => void;
+  onPomodoro?: () => void;
   onPatch?: (patch: Partial<Task>) => void;
 }
 
 export default function TaskActionSheet({
-  task, onOpenChange, onComplete, onDelete, onMove, onMakeChild, onEdit, onPin,
+  task, onOpenChange, onComplete, onDelete, onMove, onMakeChild, onEdit, onPin, onPomodoro, onPatch,
 }: Props) {
   const { i18n } = useTranslation();
   const { user } = useAuth();
@@ -159,6 +160,12 @@ export default function TaskActionSheet({
             <Tile icon={FolderInput} label={T("انتقال", "Move")} onClick={() => { onMove(); close(); }} />
             <Tile icon={Network} label={T("زیرتسک", "Subtask")} onClick={() => { onMakeChild(); close(); }} />
             <Tile icon={CopyPlus} label={T("تکثیر", "Duplicate")} onClick={duplicate} />
+            <Tile
+              icon={Timer}
+              label={T("پومودورو", "Pomodoro")}
+              onClick={() => { onPomodoro?.(); close(); }}
+              accent
+            />
 
             <Tile
               icon={Copy}
