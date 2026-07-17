@@ -1,6 +1,7 @@
-import { useEffect, useState, useMemo } from "react";
-import { Sparkles, Save, Trash2, Languages, Download, ShieldOff, Settings2, Bell, Moon, Palette, Type, ZoomIn, LayoutGrid, Home, Heart, Coffee, Star, Wand2, RotateCw, Sun, Upload } from "lucide-react";
+import { useEffect, useState, useMemo, useCallback } from "react";
+import { Sparkles, Save, Trash2, Languages, Download, ShieldOff, Settings2, Bell, Moon, Palette, Type, ZoomIn, LayoutGrid, Home, Heart, Coffee, Star, Wand2, RotateCw, Sun, Upload, CheckCircle2, AlertCircle, Clock, Zap } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
+import { Badge } from "@/components/ui/badge";
 import { applyFontSize, applyUIScale, type FontSize } from "@/lib/uiScale";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -161,16 +162,71 @@ function ProviderEditor({ value, onChange, isEn }: { value: ProviderConfig; onCh
   );
 }
 
+const AUTO_UPDATE_KEY = "arshnaz_auto_update";
+
 function AppUpdateCard({ isEn }: { isEn: boolean }) {
   const [checking, setChecking] = useState(false);
+  const [updateAvailable, setUpdateAvailable] = useState(false);
+  const [lastChecked, setLastChecked] = useState<number | null>(() => {
+    try {
+      const v = localStorage.getItem("arshnaz_update_last_checked");
+      return v ? parseInt(v, 10) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [autoUpdate, setAutoUpdate] = useState(() => {
+    try {
+      return localStorage.getItem(AUTO_UPDATE_KEY) !== "false";
+    } catch {
+      return true;
+    }
+  });
+
   const version = (import.meta.env.VITE_APP_VERSION as string) || "live";
   const buildTime = (import.meta.env.VITE_BUILD_TIME as string) || "";
+
+  const applyUpdate = useCallback(() => {
+    const apply = (window as unknown as { __applyPwaUpdate?: () => void }).__applyPwaUpdate;
+    if (typeof apply === "function") apply();
+    else window.location.reload();
+  }, []);
 
   const getCurrentEntryHash = () => {
     const scripts = Array.from(document.querySelectorAll('script[type="module"][src]')) as HTMLScriptElement[];
     const entry = scripts.find((s) => /\/assets\/(index|main)[-.]/.test(s.src)) || scripts[0];
     return entry ? entry.src.split("/").pop() || "" : "";
   };
+
+  useEffect(() => {
+    (async () => {
+      if (!("serviceWorker" in navigator)) return;
+      const reg = await navigator.serviceWorker.getRegistration();
+      if (reg?.waiting || reg?.installing) {
+        setUpdateAvailable(true);
+        if (autoUpdate) {
+          toast.info(isEn ? "New version found — installing now…" : "نسخه‌ی جدید پیدا شد — در حال نصب…");
+          setTimeout(applyUpdate, 800);
+        }
+      }
+    })();
+    const onUpdate = () => {
+      setUpdateAvailable(true);
+      if (autoUpdate) {
+        toast.info(isEn ? "New version found — installing now…" : "نسخه‌ی جدید پیدا شد — در حال نصب…");
+        setTimeout(applyUpdate, 800);
+      }
+    };
+    window.addEventListener("pwa-update-available", onUpdate);
+    return () => window.removeEventListener("pwa-update-available", onUpdate);
+  }, [autoUpdate, isEn, applyUpdate]);
+
+  useEffect(() => {
+    if (!lastChecked) return;
+    try {
+      localStorage.setItem("arshnaz_update_last_checked", String(lastChecked));
+    } catch { /* ignore */ }
+  }, [lastChecked]);
 
   const check = async () => {
     setChecking(true);
@@ -186,13 +242,13 @@ function AppUpdateCard({ isEn }: { isEn: boolean }) {
         const reg = await navigator.serviceWorker.getRegistration();
         if (reg) {
           const before = reg.waiting || reg.installing;
-          await Promise.race([reg.update().catch(() => {}), new Promise((r) => setTimeout(r, 4000))]);
+          await Promise.race([reg.update().catch(() => undefined), new Promise((r) => setTimeout(r, 4000))]);
           const after = reg.waiting || reg.installing;
           if (after && after !== before) {
+            setUpdateAvailable(true);
+            setLastChecked(Date.now());
             toast.success(isEn ? "New version found — applying…" : "نسخه‌ی جدید پیدا شد — در حال اعمال…");
-            const apply = (window as any).__applyPwaUpdate;
-            if (typeof apply === "function") apply();
-            else setTimeout(() => window.location.reload(), 600);
+            applyUpdate();
             return;
           }
         }
@@ -209,52 +265,109 @@ function AppUpdateCard({ isEn }: { isEn: boolean }) {
       const remoteHash = remoteSrc.split("/").pop() || "";
 
       if (remoteHash && currentHash && remoteHash !== currentHash) {
+        setUpdateAvailable(true);
+        setLastChecked(Date.now());
         toast.success(isEn ? "Update available — reloading…" : "نسخه‌ی جدید پیدا شد — در حال نصب…");
-        // Clear caches so we definitely pick up the new bundle
         try {
           if ("caches" in window) {
             const keys = await caches.keys();
             await Promise.all(keys.map((k) => caches.delete(k)));
           }
-        } catch {}
+        } catch { /* ignore */ }
         setTimeout(() => window.location.reload(), 700);
       } else {
+        setUpdateAvailable(false);
+        setLastChecked(Date.now());
         toast.success(isEn ? "You're on the latest version." : "نسخه‌ی شما به‌روز است.");
       }
-    } catch (e: any) {
-      toast.error((isEn ? "Update check failed: " : "بررسی به‌روزرسانی ناموفق: ") + (e?.message || e));
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      toast.error((isEn ? "Update check failed: " : "بررسی به‌روزرسانی ناموفق: ") + message);
     } finally {
       clearTimeout(hardTimeout);
       setChecking(false);
     }
   };
 
+  const toggleAutoUpdate = (v: boolean) => {
+    setAutoUpdate(v);
+    try {
+      localStorage.setItem(AUTO_UPDATE_KEY, String(v));
+    } catch { /* ignore */ }
+  };
+
+  const formatTime = (ts: number) => {
+    try {
+      return new Intl.DateTimeFormat(isEn ? "en-US" : "fa-IR", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(new Date(ts));
+    } catch {
+      return "";
+    }
+  };
+
   return (
-    <Card className="p-5 space-y-3 bg-card/60 border-border/60">
-      <div className="flex items-center gap-2">
-        <Download className="w-4 h-4 text-primary" />
-        <h2 className="font-semibold">{isEn ? "App version & updates" : "نسخه و به‌روزرسانی"}</h2>
+    <Card className="p-5 space-y-4 bg-card/60 border-border/60">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Download className="w-4 h-4 text-primary" />
+          <h2 className="font-semibold">{isEn ? "App version & updates" : "نسخه و به‌روزرسانی"}</h2>
+        </div>
+        <Badge variant={updateAvailable ? "default" : "secondary"} className="gap-1 text-[10px]">
+          {updateAvailable ? (
+            <>
+              <AlertCircle className="w-3 h-3" />
+              {isEn ? "Update available" : "نسخه جدید آماده"}
+            </>
+          ) : (
+            <>
+              <CheckCircle2 className="w-3 h-3" />
+              {isEn ? "Up to date" : "به‌روز"}
+            </>
+          )}
+        </Badge>
       </div>
-      <div className="text-xs text-muted-foreground">
-        {isEn ? "Version" : "نسخه"}: <span className="ltr inline-block font-mono">{version}</span>
-        {buildTime && (
-          <>
-            <span className="mx-1">·</span>
-            <span className="ltr inline-block font-mono">{buildTime}</span>
-          </>
+
+      <div className="text-xs text-muted-foreground space-y-1">
+        <div>
+          {isEn ? "Version" : "نسخه"}: <span className="ltr inline-block font-mono">{version}</span>
+          {buildTime && (
+            <>
+              <span className="mx-1">·</span>
+              <span className="ltr inline-block font-mono">{buildTime}</span>
+            </>
+          )}
+        </div>
+        {lastChecked && (
+          <div className="flex items-center gap-1">
+            <Clock className="w-3 h-3" />
+            {isEn ? "Last checked" : "آخرین بررسی"}: {formatTime(lastChecked)}
+          </div>
         )}
       </div>
-      <p className="text-xs text-muted-foreground">
-        {isEn
-          ? "Auto-check runs every 60s when the app is open. Use this button to check now."
-          : "هر ۶۰ ثانیه به‌صورت خودکار چک می‌شود. برای بررسی فوری از این دکمه استفاده کن."}
-      </p>
-      <Button size="sm" onClick={check} disabled={checking} className="gap-2">
-        <RotateCw className={`w-4 h-4 ${checking ? "animate-spin" : ""}`} />
-        {checking
-          ? isEn ? "Checking…" : "در حال بررسی…"
-          : isEn ? "Check for updates" : "بررسی به‌روزرسانی"}
-      </Button>
+
+      <div className="flex items-center justify-between rounded-xl border border-border/60 bg-card/40 p-3">
+        <div className="flex items-center gap-2">
+          <Zap className="w-4 h-4 text-primary" />
+          <div className="text-sm">{isEn ? "Auto-install updates" : "نصب خودکار به‌روزرسانی"}</div>
+        </div>
+        <Switch checked={autoUpdate} onCheckedChange={toggleAutoUpdate} />
+      </div>
+
+      {updateAvailable ? (
+        <Button size="sm" onClick={applyUpdate} className="gap-2 w-full sm:w-auto">
+          <Download className="w-4 h-4" />
+          {isEn ? "Install update" : "نصب به‌روزرسانی"}
+        </Button>
+      ) : (
+        <Button size="sm" onClick={check} disabled={checking} className="gap-2">
+          <RotateCw className={`w-4 h-4 ${checking ? "animate-spin" : ""}`} />
+          {checking
+            ? isEn ? "Checking…" : "در حال بررسی…"
+            : isEn ? "Check for updates" : "بررسی به‌روزرسانی"}
+        </Button>
+      )}
     </Card>
   );
 }
