@@ -3,15 +3,11 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ListTodo, FileText, Type, AlignLeft, Share2, ArrowRight } from "lucide-react";
+import { ListTodo, FileText, Type, AlignLeft, Share2, ArrowRight, Wand2, ClipboardPaste } from "lucide-react";
+import { toast } from "sonner";
 
-/**
- * Landing route for shared text from Android (PWA Web Share Target / Capacitor SEND intent).
- * Lets the user pick:
- *   - destination: Task or Note
- *   - field: Title (short) or Description/Content (body)
- * Then forwards to the matching "new" page with the right query params.
- */
+const URL_RE = /https?:\/\/[^\s<>"'{}|\\`[\]]+/i;
+
 export default function ShareTargetView() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
@@ -24,10 +20,22 @@ export default function ShareTargetView() {
   }, [params]);
 
   const [content, setContent] = useState(incoming);
-  const [target, setTarget] = useState<"task" | "note">("task");
+  const [target, setTarget] = useState<"task" | "note" | "article">("task");
   const [field, setField] = useState<"title" | "body">(() =>
     incoming.length > 80 || incoming.includes("\n") ? "body" : "title",
   );
+
+  const urlInContent = useMemo(() => content.match(URL_RE)?.[0] || "", [content]);
+
+  const paste = async () => {
+    try {
+      const s = await navigator.clipboard.readText();
+      if (!s) return;
+      setContent((prev) => (prev ? prev + "\n" + s : s));
+    } catch {
+      toast.error("دسترسی به کلیپ‌بورد داده نشد.");
+    }
+  };
 
   const submit = () => {
     const text = content.trim();
@@ -35,6 +43,15 @@ export default function ShareTargetView() {
       navigate("/app/home", { replace: true });
       return;
     }
+
+    if (target === "article") {
+      const qp = new URLSearchParams();
+      if (urlInContent) qp.set("url", urlInContent);
+      qp.set("text", text);
+      navigate(`/app/rewrite-article?${qp.toString()}`, { replace: true });
+      return;
+    }
+
     const qp = new URLSearchParams();
     if (field === "title") {
       qp.set("title", text.slice(0, 200));
@@ -63,10 +80,26 @@ export default function ShareTargetView() {
         </div>
 
         <Card className="p-4 space-y-5">
+          <div className="flex items-center justify-between">
+            <div className="text-xs text-muted-foreground">متن دریافتی:</div>
+            <Button type="button" size="sm" variant="outline" onClick={paste} className="gap-1 h-7 text-xs">
+              <ClipboardPaste className="w-3.5 h-3.5" /> چسباندن
+            </Button>
+          </div>
+
+          <Textarea
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            dir="auto"
+            rows={6}
+            className="text-sm"
+            placeholder="متن share شده..."
+          />
+
           {/* 1. destination */}
           <div>
             <div className="text-xs text-muted-foreground mb-2">۱. کجا ذخیره بشه؟</div>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               <button
                 type="button"
                 onClick={() => setTarget("task")}
@@ -91,55 +124,59 @@ export default function ShareTargetView() {
                 <FileText className="w-5 h-5" />
                 <span className="text-sm font-medium">نوت</span>
               </button>
-            </div>
-          </div>
-
-          {/* 2. field */}
-          <div>
-            <div className="text-xs text-muted-foreground mb-2">۲. متن در کجا قرار بگیره؟</div>
-            <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
-                onClick={() => setField("title")}
+                onClick={() => setTarget("article")}
                 className={`rounded-xl border p-3 flex flex-col items-center gap-1 transition-all ${
-                  field === "title"
+                  target === "article"
                     ? "border-primary bg-primary/10 ring-2 ring-primary/30"
                     : "border-border hover:bg-accent/40"
                 }`}
               >
-                <Type className="w-5 h-5" />
-                <span className="text-sm font-medium">عنوان</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setField("body")}
-                className={`rounded-xl border p-3 flex flex-col items-center gap-1 transition-all ${
-                  field === "body"
-                    ? "border-primary bg-primary/10 ring-2 ring-primary/30"
-                    : "border-border hover:bg-accent/40"
-                }`}
-              >
-                <AlignLeft className="w-5 h-5" />
-                <span className="text-sm font-medium">{target === "task" ? "توضیحات" : "محتوا"}</span>
+                <Wand2 className="w-5 h-5" />
+                <span className="text-sm font-medium">بازنویسی</span>
               </button>
             </div>
           </div>
 
-          {/* 3. preview / edit */}
-          <div>
-            <div className="text-xs text-muted-foreground mb-2">۳. متن (قابل ویرایش)</div>
-            <Textarea
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              dir="auto"
-              rows={6}
-              className="text-sm"
-              placeholder="متن share شده..."
-            />
-          </div>
+          {target !== "article" && (
+            <div>
+              <div className="text-xs text-muted-foreground mb-2">۲. متن در کجا قرار بگیره؟</div>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setField("title")}
+                  className={`rounded-xl border p-3 flex flex-col items-center gap-1 transition-all ${
+                    field === "title"
+                      ? "border-primary bg-primary/10 ring-2 ring-primary/30"
+                      : "border-border hover:bg-accent/40"
+                  }`}
+                >
+                  <Type className="w-5 h-5" />
+                  <span className="text-sm font-medium">عنوان</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setField("body")}
+                  className={`rounded-xl border p-3 flex flex-col items-center gap-1 transition-all ${
+                    field === "body"
+                      ? "border-primary bg-primary/10 ring-2 ring-primary/30"
+                      : "border-border hover:bg-accent/40"
+                  }`}
+                >
+                  <AlignLeft className="w-5 h-5" />
+                  <span className="text-sm font-medium">{target === "task" ? "توضیحات" : "محتوا"}</span>
+                </button>
+              </div>
+            </div>
+          )}
 
-          <Button onClick={submit} className="w-full" disabled={!content.trim()}>
-            ادامه
+          {target === "article" && !urlInContent && (
+            <p className="text-xs text-muted-foreground">هیچ لینکی در متن پیدا نشد. لطفاً یک URL اضافه کنید.</p>
+          )}
+
+          <Button onClick={submit} className="w-full" disabled={!content.trim() || (target === "article" && !urlInContent)}>
+            {target === "article" ? "بازنویسی خبر" : "ادامه"}
           </Button>
         </Card>
       </div>
