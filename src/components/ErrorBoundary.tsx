@@ -16,6 +16,41 @@ export class ErrorBoundary extends React.Component<Props, State> {
   componentDidCatch(error: Error, info: React.ErrorInfo) {
     // eslint-disable-next-line no-console
     console.error("[ErrorBoundary]", error, info);
+
+    // Stale chunk after a new deploy — force a one-time hard reload so the
+    // browser fetches the fresh index.html with current chunk hashes.
+    const msg = String(error?.message || "");
+    const isChunkError =
+      /Failed to fetch dynamically imported module/i.test(msg) ||
+      /Importing a module script failed/i.test(msg) ||
+      /ChunkLoadError/i.test(msg) ||
+      /Loading chunk [\w-]+ failed/i.test(msg);
+    if (isChunkError) {
+      try {
+        const KEY = "__chunk_reload_at";
+        const last = Number(sessionStorage.getItem(KEY) || 0);
+        if (Date.now() - last > 10_000) {
+          sessionStorage.setItem(KEY, String(Date.now()));
+          Promise.resolve()
+            .then(() =>
+              "serviceWorker" in navigator
+                ? navigator.serviceWorker
+                    .getRegistrations()
+                    .then((rs) => Promise.all(rs.map((r) => r.unregister())))
+                    .catch(() => {})
+                : undefined,
+            )
+            .then(() =>
+              "caches" in window
+                ? caches.keys().then((keys) => Promise.all(keys.map((k) => caches.delete(k)))).catch(() => {})
+                : undefined,
+            )
+            .finally(() => window.location.reload());
+        }
+      } catch {
+        window.location.reload();
+      }
+    }
   }
 
   reset = () => this.setState({ hasError: false, error: null });
