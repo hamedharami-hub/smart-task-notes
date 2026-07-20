@@ -34,7 +34,7 @@ export function BottomTabBar() {
   const tabs: Tab[] = [
     { key: "mind", to: "/app/mind", icon: Brain, fa: "ذهن", en: "Mind", match: (p) => p === "/app/mind" || p.startsWith("/app/checkin") || p.startsWith("/app/thoughts") || p.startsWith("/app/abc") || p.startsWith("/app/worry") || p.startsWith("/app/values") || p.startsWith("/app/breathing") || p.startsWith("/app/socratic") || p.startsWith("/app/screener") || p.startsWith("/app/self") },
     { key: "calendar", to: "/app/calendar", icon: Calendar, fa: "تقویم", en: "Calendar", match: (p) => p.startsWith("/app/calendar") },
-    { key: "today", to: "/app/today", icon: ListTodo, fa: "امروز", en: "Today", match: (p) => p === "/app/today" || p === "/app/home" || p === "/app" },
+    { key: "today", to: "/app/today", icon: ListTodo, fa: "امروز", en: "Today", match: (p) => p === "/app/today" || p === "/app" },
   ];
 
   const go = (to: string) => { haptic("light"); navigate(to); };

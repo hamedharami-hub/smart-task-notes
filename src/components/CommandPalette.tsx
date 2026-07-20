@@ -7,14 +7,13 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import {
-  Home, ListTodo, FileText, Calendar, Target, Heart, Brain, Sparkles,
+  ListTodo, FileText, Calendar, Target, Heart, Brain, Sparkles,
   Timer, Settings, BarChart3, BookOpen, Folder, Hash,
 } from "lucide-react";
 
 type Hit = { kind: "task" | "note" | "folder" | "tag"; id: string; title: string };
 
 const NAV = [
-  { label: "خانه", to: "/app/home", icon: Home, keywords: "home dashboard خانه داشبورد" },
   { label: "اینباکس", to: "/app/inbox", icon: ListTodo, keywords: "inbox اینباکس ورودی" },
   { label: "امروز", to: "/app/today", icon: ListTodo, keywords: "today امروز" },
   { label: "فردا", to: "/app/tomorrow", icon: Calendar, keywords: "tomorrow فردا" },

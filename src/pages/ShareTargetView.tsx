@@ -40,7 +40,7 @@ export default function ShareTargetView() {
   const submit = () => {
     const text = content.trim();
     if (!text) {
-      navigate("/app/home", { replace: true });
+      navigate("/app/today", { replace: true });
       return;
     }
 
@@ -70,7 +70,7 @@ export default function ShareTargetView() {
     <div dir="rtl" className="min-h-screen bg-background p-4 pb-24">
       <div className="max-w-md mx-auto">
         <div className="flex items-center justify-between mb-4">
-          <Button variant="ghost" size="sm" onClick={() => navigate("/app/home", { replace: true })} className="gap-1">
+          <Button variant="ghost" size="sm" onClick={() => navigate("/app/today", { replace: true })} className="gap-1">
             <ArrowRight className="w-4 h-4" /> لغو
           </Button>
           <h1 className="text-base font-bold flex items-center gap-2">

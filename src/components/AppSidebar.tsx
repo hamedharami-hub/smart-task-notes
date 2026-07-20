@@ -3,9 +3,10 @@ import {
   Inbox, Calendar as CalIcon, CalendarDays, Filter, FolderTree, Tag, FileText,
   Target, Timer, Calendar, Plus, ChevronRight, ChevronDown, LogOut, Sparkles, Settings, LayoutGrid,
   Brain, TrendingUp, Moon, HeartPulse, Activity, MessageCircleQuestion, Zap, Clock4, Heart, ShieldAlert, BookOpen, Sun,
-  ListTodo, BrainCircuit, Wrench, GripVertical, RotateCcw, User, Trash2, Shield, Users, Home,
+  ListTodo, BrainCircuit, Wrench, GripVertical, RotateCcw, User, Trash2, Shield, Users, Flame,
   BarChart3,
 } from "lucide-react";
+import { StreakCard } from "@/components/StreakCard";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
   SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar, SidebarHeader, SidebarFooter,
@@ -518,26 +519,39 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent>
-        {/* Always-visible Home link (top of sidebar) */}
-        <SidebarGroup>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild>
-                  <NavLink
-                    to="/app/home"
-                    onClick={closeOnMobile}
-                    className="flex items-center gap-2"
-                    activeClassName="bg-accent text-accent-foreground font-medium"
-                  >
-                    <Home className="w-4 h-4 text-primary" />
-                    {!collapsed && <span>{tr("خانه") === "خانه" && isEn ? "Home" : "خانه"}</span>}
-                  </NavLink>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {/* Daily progress replaces the old Home link at the top of the sidebar */}
+        {collapsed ? (
+          <SidebarGroup>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <NavLink
+                      to="/app/stats"
+                      onClick={closeOnMobile}
+                      className="flex items-center gap-2"
+                      activeClassName="bg-accent text-accent-foreground font-medium"
+                    >
+                      <Flame className="w-4 h-4 text-primary" />
+                      <span className="sr-only">پیشرفت روزانه</span>
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        ) : (
+          <div className="px-3 py-2">
+            <NavLink
+              to="/app/stats"
+              onClick={closeOnMobile}
+              className="block"
+              activeClassName=""
+            >
+              <StreakCard />
+            </NavLink>
+          </div>
+        )}
 
         {collapsed ? (
           // collapsed: render in default order, no drag
