@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 // Routes considered "root" — no back button should appear.
 const ROOT_PATHS = new Set([
   "/app",
-  "/app/home",
   "/app/today",
   "/app/inbox",
 ]);
@@ -21,7 +20,7 @@ export default function HeaderBackButton() {
     if (window.history.length > 1) {
       navigate(-1);
     } else {
-      navigate("/app/home");
+      navigate("/app/today");
     }
   };
 

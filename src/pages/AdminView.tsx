@@ -37,7 +37,7 @@ export default function AdminView() {
   if (loading) {
     return <div className="p-6 flex justify-center"><Loader2 className="w-6 h-6 animate-spin" /></div>;
   }
-  if (!isAdmin) return <Navigate to="/app/home" replace />;
+  if (!isAdmin) return <Navigate to="/app/today" replace />;
 
   const filtered = users.filter((u) => {
     if (!q) return true;

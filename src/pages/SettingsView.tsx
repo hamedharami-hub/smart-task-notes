@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
-import { Sparkles, Save, Trash2, Languages, Download, ShieldOff, Settings2, Bell, Moon, Palette, Type, ZoomIn, LayoutGrid, Home, Heart, Coffee, Star, Wand2, RotateCw, Sun, Upload, CheckCircle2, AlertCircle, Clock, Zap } from "lucide-react";
+import { Sparkles, Save, Trash2, Languages, Download, ShieldOff, Settings2, Bell, Moon, Palette, Type, ZoomIn, LayoutGrid, Heart, Coffee, Star, Wand2, RotateCw, Sun, Upload, CheckCircle2, AlertCircle, Clock, Zap } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { applyFontSize, applyUIScale, type FontSize } from "@/lib/uiScale";
@@ -797,20 +797,24 @@ export default function SettingsView() {
       {reminders && (
         <Card className="p-5 space-y-4 bg-card/60 border-border/60">
           <div className="flex items-center gap-2">
-            <Home className="w-4 h-4 text-primary" />
+            <LayoutGrid className="w-4 h-4 text-primary" />
             <h2 className="font-semibold">{t("settings.defaultLanding")}</h2>
           </div>
-          <Select
-            value={(reminders as any).default_landing || "home"}
-            onValueChange={(v) => updateReminder({ default_landing: v as any })}
-          >
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="home">{t("settings.landingHome")}</SelectItem>
-              <SelectItem value="today">{t("settings.landingToday")}</SelectItem>
-              <SelectItem value="last">{t("settings.landingLast")}</SelectItem>
-            </SelectContent>
-          </Select>
+          {(() => {
+            const landing = (reminders as { default_landing?: string }).default_landing;
+            return (
+              <Select
+                value={landing === "home" ? "today" : (landing || "today")}
+                onValueChange={(v) => updateReminder({ default_landing: v })}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="today">{t("settings.landingToday")}</SelectItem>
+                  <SelectItem value="last">{t("settings.landingLast")}</SelectItem>
+                </SelectContent>
+              </Select>
+            );
+          })()}
         </Card>
       )}
 

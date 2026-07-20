@@ -5,7 +5,7 @@ import { useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { toast } from "sonner";
 
-const ROOT_PREFIXES = ["/app/home", "/app/today", "/app/tomorrow", "/app/inbox"];
+const ROOT_PREFIXES = ["/app/today", "/app/tomorrow", "/app/inbox"];
 
 function isRoot(pathname: string) {
   return ROOT_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + "/"));

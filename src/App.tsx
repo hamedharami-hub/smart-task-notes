@@ -61,7 +61,6 @@ const ABCView = lazy(() => import("./pages/ABCView"));
 const SocraticView = lazy(() => import("./pages/SocraticView"));
 const AboutMeView = lazy(() => import("./pages/AboutMeView"));
 const BreathingView = lazy(() => import("./pages/BreathingView"));
-const HomeView = lazy(() => import("./pages/HomeView"));
 const ScreenerView = lazy(() => import("./pages/ScreenerView"));
 const ValuesGoalsView = lazy(() => import("./pages/ValuesGoalsView"));
 const WorryView = lazy(() => import("./pages/WorryView"));
@@ -110,7 +109,6 @@ const App = () => {
               <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
               <Route path="/app" element={<ProtectedRoute><ErrorBoundary><AppLayout /></ErrorBoundary></ProtectedRoute>}>
                 <Route index element={<Navigate to="today" replace />} />
-                <Route path="home" element={<HomeView />} />
                 
                 <Route path="inbox" element={<TasksView scope="inbox" />} />
                 <Route path="today" element={<TasksView scope="today" />} />
@@ -149,8 +147,8 @@ const App = () => {
                 <Route path="share-target" element={<ShareTargetView />} />
                 <Route path="rewrite-article" element={<ArticleRewriteView />} />
                 <Route path="tasks/:id" element={<TaskDetailView />} />
-                <Route path="widgets" element={<Navigate to="/app/home" replace />} />
-                <Route path="widget/:id" element={<Navigate to="/app/home" replace />} />
+                <Route path="widgets" element={<Navigate to="/app/today" replace />} />
+                <Route path="widget/:id" element={<Navigate to="/app/today" replace />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>

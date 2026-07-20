@@ -12,7 +12,7 @@ import { haptic } from "@/lib/haptics";
 const EDGE = 22;
 const TRIGGER = 80;
 const NO_BACK_PATHS = new Set([
-  "/app/home", "/app/today", "/app/tomorrow", "/app/inbox",
+  "/app/today", "/app/tomorrow", "/app/inbox",
   "/app/notes", "/app/calendar", "/app/habits", "/app/next7",
 ]);
 
