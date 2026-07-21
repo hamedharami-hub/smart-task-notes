@@ -1,34 +1,47 @@
-import { ReactNode, useRef, useState, TouchEvent, useEffect } from "react";
-import { Check, Trash2, Zap } from "lucide-react";
+import { ReactNode, useRef, useState, TouchEvent, useEffect, type ComponentType } from "react";
+import { Check, Trash2 } from "lucide-react";
 import { haptic } from "@/lib/haptics";
+
+export interface SwipeAction {
+  id: string;
+  label: string;
+  icon: ComponentType<{ className?: string }>;
+  baseClass?: string;
+  activeClass?: string;
+  textClass?: string;
+  onActivate: () => void;
+  /** If true, a full swipe past {@link fullRatio} triggers this action instantly. */
+  fullSwipe?: boolean;
+}
 
 interface Props {
   children: ReactNode;
+  rightActions?: SwipeAction[];
+  leftActions?: SwipeAction[];
+  /** Legacy shorthand: creates a single right action (Complete). */
   onComplete?: () => void;
+  /** Legacy shorthand: creates a single left action (Delete). */
   onDelete?: () => void;
   disabled?: boolean;
   isCompleted?: boolean;
   rightLabel?: string;
   rightLabelAlt?: string;
   leftLabel?: string;
-  RightIcon?: typeof Check;
+  RightIcon?: ComponentType<{ className?: string }>;
   rightColor?: "emerald" | "amber" | "primary";
+  segmentWidth?: number;
+  /** Ratio of row width that triggers a full-swipe (default 0.55). */
+  fullRatio?: number;
 }
 
-const ACTION_THRESHOLD = 96;     // px past which the action commits on release
-const FULL_RATIO = 0.6;          // % of width past which we commit instantly (full-swipe)
-const REVEAL_MAX_RATIO = 0.85;   // visual cap relative to row width
+const DEFAULT_SEGMENT = 84; // px per action slot
+const FULL_RATIO = 0.55;
+const MIN_COMMIT = 28; // px past which a partial release commits the active action
 
-/**
- * Touch-only horizontal swipe wrapper (iOS-Mail-style).
- * - Swipe past ACTION_THRESHOLD on release → run action.
- * - Full-swipe past 60% of row width → instant commit (no release needed),
- *   strong haptic, and the underlay color intensifies.
- * - Swipe LEFT  → delete (red).
- * - Swipe RIGHT → complete (green).
- */
 export default function SwipeableRow({
   children,
+  rightActions: propRight,
+  leftActions: propLeft,
   onComplete,
   onDelete,
   disabled,
@@ -38,29 +51,74 @@ export default function SwipeableRow({
   leftLabel,
   RightIcon = Check,
   rightColor = "emerald",
+  segmentWidth = DEFAULT_SEGMENT,
+  fullRatio = FULL_RATIO,
 }: Props) {
   const colorMap = {
-    emerald: { full: "bg-emerald-700", armed: "bg-emerald-600", base: "bg-emerald-500/80" },
-    amber: { full: "bg-amber-700", armed: "bg-amber-600", base: "bg-amber-500/80" },
-    primary: { full: "bg-primary", armed: "bg-primary/90", base: "bg-primary/70" },
+    emerald: { base: "bg-emerald-500/80", active: "bg-emerald-700", text: "text-white" },
+    amber: { base: "bg-amber-500/80", active: "bg-amber-700", text: "text-white" },
+    primary: { base: "bg-primary/70", active: "bg-primary", text: "text-white" },
   } as const;
   const rc = colorMap[rightColor];
+
+  const rightActions: SwipeAction[] =
+    propRight ??
+    (onComplete
+      ? [
+          {
+            id: "complete",
+            label: isCompleted ? rightLabelAlt ?? "بازگشایی" : rightLabel ?? "تکمیل",
+            icon: RightIcon,
+            baseClass: rc.base,
+            activeClass: rc.active,
+            textClass: rc.text,
+            onActivate: onComplete,
+            fullSwipe: true,
+          },
+        ]
+      : []);
+
+  const leftActions: SwipeAction[] =
+    propLeft ??
+    (onDelete
+      ? [
+          {
+            id: "delete",
+            label: leftLabel ?? "حذف",
+            icon: Trash2,
+            baseClass: "bg-destructive/80",
+            activeClass: "bg-red-700",
+            textClass: "text-white",
+            onActivate: onDelete,
+            fullSwipe: true,
+          },
+        ]
+      : []);
+
   const [dx, setDx] = useState(0);
   const [animating, setAnimating] = useState(false);
-  const [committedFull, setCommittedFull] = useState<"none" | "right" | "left">("none");
+  const [commitSide, setCommitSide] = useState<"none" | "right" | "left">("none");
   const wrapRef = useRef<HTMLDivElement>(null);
   const widthRef = useRef(0);
   const startX = useRef(0);
   const startY = useRef(0);
   const tracking = useRef(false);
   const decided = useRef<"h" | "v" | null>(null);
-  const armed = useRef(false);
+  const activeIndex = useRef(-1);
 
   useEffect(() => {
     if (wrapRef.current) widthRef.current = wrapRef.current.clientWidth;
   });
 
   if (disabled) return <>{children}</>;
+
+  const getActions = (side: "right" | "left") => (side === "right" ? rightActions : leftActions);
+
+  const activeAction = (side: "right" | "left", pos: number) => {
+    const actions = getActions(side);
+    if (actions.length === 0 || pos <= 0) return -1;
+    return Math.min(Math.floor((pos - 1) / segmentWidth), actions.length - 1);
+  };
 
   const onTouchStart = (e: TouchEvent) => {
     const target = e.target as HTMLElement | null;
@@ -72,9 +130,9 @@ export default function SwipeableRow({
     startY.current = t.clientY;
     tracking.current = true;
     decided.current = null;
-    armed.current = false;
+    activeIndex.current = -1;
     setAnimating(false);
-    setCommittedFull("none");
+    setCommitSide("none");
   };
 
   const onTouchMove = (e: TouchEvent) => {
@@ -87,39 +145,38 @@ export default function SwipeableRow({
       decided.current = Math.abs(ddx) > Math.abs(ddy) ? "h" : "v";
     }
     if (decided.current !== "h") return;
-    const w = widthRef.current || 320;
-    const cap = w * REVEAL_MAX_RATIO;
-    const clamped = Math.max(-cap, Math.min(cap, ddx));
+
+    const actions = ddx > 0 ? rightActions : leftActions;
+    const maxActions = actions.length;
+    const maxDx = Math.max(0, maxActions * segmentWidth);
+    const clamped = Math.max(-maxDx, Math.min(maxDx, ddx));
     setDx(clamped);
 
-    // Threshold haptic
-    if (!armed.current && Math.abs(clamped) >= ACTION_THRESHOLD) {
-      armed.current = true;
+    const side: "right" | "left" = clamped > 0 ? "right" : "left";
+    const pos = Math.abs(clamped);
+    const idx = activeAction(side, pos);
+    if (idx !== activeIndex.current && idx >= 0) {
+      activeIndex.current = idx;
       haptic("light");
-    } else if (armed.current && Math.abs(clamped) < ACTION_THRESHOLD) {
-      armed.current = false;
     }
 
-    // Full-swipe instant commit
-    const fullPx = w * FULL_RATIO;
-    if (committedFull === "none" && Math.abs(clamped) >= fullPx) {
-      if (clamped > 0 && onComplete) {
-        setCommittedFull("right");
-        haptic("success");
-        onComplete();
-        // animate out then reset
+    const w = widthRef.current || 320;
+    const fullPx = w * fullRatio;
+    if (commitSide === "none" && pos >= fullPx) {
+      const fullAction = getActions(side).find((a) => a.fullSwipe) || getActions(side)[0];
+      if (fullAction) {
+        setCommitSide(side);
+        haptic(side === "right" ? "success" : "warning");
+        fullAction.onActivate();
         tracking.current = false;
         setAnimating(true);
-        setDx(w);
-        window.setTimeout(() => { setAnimating(true); setDx(0); setCommittedFull("none"); }, 180);
-      } else if (clamped < 0 && onDelete) {
-        setCommittedFull("left");
-        haptic("warning");
-        onDelete();
-        tracking.current = false;
-        setAnimating(true);
-        setDx(-w);
-        window.setTimeout(() => { setAnimating(true); setDx(0); setCommittedFull("none"); }, 180);
+        setDx(side === "right" ? w : -w);
+        window.setTimeout(() => {
+          setAnimating(true);
+          setDx(0);
+          setCommitSide("none");
+          activeIndex.current = -1;
+        }, 180);
       }
     }
   };
@@ -128,6 +185,7 @@ export default function SwipeableRow({
     setAnimating(true);
     setDx(0);
     tracking.current = false;
+    activeIndex.current = -1;
   };
 
   const onTouchEnd = (e: TouchEvent) => {
@@ -137,51 +195,73 @@ export default function SwipeableRow({
       return;
     }
     e.preventDefault();
-    const final = dx;
-    if (final >= ACTION_THRESHOLD && onComplete) {
-      haptic("success");
-      onComplete();
+    const pos = Math.abs(dx);
+    if (pos < MIN_COMMIT) {
       reset();
-    } else if (final <= -ACTION_THRESHOLD && onDelete) {
-      haptic("warning");
-      onDelete();
-      reset();
-    } else {
-      reset();
+      return;
     }
+    const side: "right" | "left" = dx > 0 ? "right" : "left";
+    const idx = activeAction(side, pos);
+    const actions = getActions(side);
+    if (idx >= 0 && actions[idx]) {
+      haptic("light");
+      actions[idx].onActivate();
+    }
+    reset();
   };
 
-  const showRight = dx > 4;
-  const showLeft = dx < -4;
-  const w = widthRef.current || 320;
-  const isFull = Math.abs(dx) >= w * FULL_RATIO;
+  const showRight = dx > 4 && rightActions.length > 0;
+  const showLeft = dx < -4 && leftActions.length > 0;
+  const pos = Math.abs(dx);
+  const activeRight = dx > 0 ? activeAction("right", pos) : -1;
+  const activeLeft = dx < 0 ? activeAction("left", pos) : -1;
+
+  const segmentWidthFor = (i: number, side: "right" | "left") => {
+    const actions = getActions(side);
+    if (i >= actions.length) return 0;
+    return Math.min(segmentWidth, Math.max(0, pos - i * segmentWidth));
+  };
 
   return (
     <div ref={wrapRef} className="relative overflow-hidden rounded-lg" style={{ touchAction: "pan-y" }}>
       {showRight && (
-        <div
-          className={`absolute inset-y-0 start-0 flex items-center gap-2 px-4 text-white ${
-            isFull ? rc.full : armed.current ? rc.armed : rc.base
-          }`}
-          style={{ width: Math.abs(dx) + 16 }}
-          aria-hidden
-        >
-          {isFull ? <Zap className="w-5 h-5" /> : <RightIcon className="w-5 h-5" />}
-          <span className="text-xs font-medium">
-            {isFull ? "آنی!" : (isCompleted ? (rightLabelAlt ?? "بازگشایی") : (rightLabel ?? "تکمیل"))}
-          </span>
+        <div className="absolute inset-y-0 start-0 flex flex-row overflow-hidden" style={{ width: pos }} aria-hidden>
+          {rightActions.map((a, i) => {
+            const w = segmentWidthFor(i, "right");
+            if (w <= 0) return null;
+            const active = i === activeRight && pos > MIN_COMMIT;
+            const Icon = a.icon;
+            return (
+              <div
+                key={a.id}
+                className={`flex-shrink-0 flex flex-col items-center justify-center gap-1 px-1 ${a.textClass || "text-white"} ${active ? a.activeClass || a.baseClass : a.baseClass}`}
+                style={{ width: w }}
+              >
+                <Icon className="w-5 h-5" />
+                <span className="text-[10px] font-medium leading-tight text-center line-clamp-2">{a.label}</span>
+              </div>
+            );
+          })}
         </div>
       )}
       {showLeft && (
-        <div
-          className={`absolute inset-y-0 end-0 flex items-center justify-end gap-2 px-4 text-white ${
-            isFull ? "bg-red-700" : armed.current ? "bg-destructive" : "bg-destructive/80"
-          }`}
-          style={{ width: Math.abs(dx) + 16 }}
-          aria-hidden
-        >
-          <span className="text-xs font-medium">{isFull ? "آنی!" : (leftLabel ?? "حذف")}</span>
-          {isFull ? <Zap className="w-5 h-5" /> : <Trash2 className="w-5 h-5" />}
+        <div className="absolute inset-y-0 end-0 flex flex-row-reverse overflow-hidden" style={{ width: pos }} aria-hidden>
+          {leftActions.map((a, i) => {
+            const w = segmentWidthFor(i, "left");
+            if (w <= 0) return null;
+            const active = i === activeLeft && pos > MIN_COMMIT;
+            const Icon = a.icon;
+            return (
+              <div
+                key={a.id}
+                className={`flex-shrink-0 flex flex-col items-center justify-center gap-1 px-1 ${a.textClass || "text-white"} ${active ? a.activeClass || a.baseClass : a.baseClass}`}
+                style={{ width: w }}
+              >
+                <Icon className="w-5 h-5" />
+                <span className="text-[10px] font-medium leading-tight text-center line-clamp-2">{a.label}</span>
+              </div>
+            );
+          })}
         </div>
       )}
       <div

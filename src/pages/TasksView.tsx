@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { startOfDay, endOfDay, addDays, format } from "date-fns";
-import { Plus, Calendar, Trash2, ChevronRight, ChevronDown, Flag, GripVertical, CornerDownRight, Ban, Pin } from "lucide-react";
+import { Plus, Calendar, Trash2, ChevronRight, ChevronDown, Flag, GripVertical, CornerDownRight, Ban, Pin, Clock, FolderInput, Check } from "lucide-react";
 import { MoveToDialog } from "@/components/MoveToDialog";
 import { FolderDeleteDialog } from "@/components/FolderDeleteDialog";
 import { useNavigate } from "react-router-dom";
@@ -31,7 +31,7 @@ import { QuickAddTask } from "@/components/QuickAddTask";
 import { TaskDetail } from "@/components/TaskDetail";
 import type { Task, ConfirmState } from "@/lib/taskTypes";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import SwipeableRow from "@/components/gestures/SwipeableRow";
+import SwipeableRow, { type SwipeAction } from "@/components/gestures/SwipeableRow";
 import PullToRefresh from "@/components/gestures/PullToRefresh";
 import TaskActionSheet from "@/components/TaskActionSheet";
 import PomodoroSheet from "@/components/PomodoroSheet";
@@ -593,13 +593,67 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
         <SortableTaskRow id={t.id}>
           {(dragHandle) => (
             <SwipeableRow
-              onComplete={() => toggleTask(t)}
-              onDelete={() => askDeleteTask(t)}
               disabled={t.user_id !== user?.id}
-              isCompleted={t.completed}
-              rightLabel="تکمیل"
-              rightLabelAlt="بازگشایی"
-              leftLabel="حذف"
+              rightActions={[
+                {
+                  id: "complete",
+                  label: t.completed ? "بازگشایی" : "تکمیل",
+                  icon: Check,
+                  baseClass: "bg-emerald-500/80",
+                  activeClass: "bg-emerald-700",
+                  textClass: "text-white",
+                  fullSwipe: true,
+                  onActivate: () => toggleTask(t),
+                },
+                {
+                  id: "pin",
+                  label: t.pinned ? "حذف پین" : "پین",
+                  icon: Pin,
+                  baseClass: "bg-primary/70",
+                  activeClass: "bg-primary",
+                  textClass: "text-white",
+                  onActivate: () => patchTask(t.id, { pinned: !t.pinned }),
+                },
+                {
+                  id: "today",
+                  label: "امروز",
+                  icon: Calendar,
+                  baseClass: "bg-blue-500/80",
+                  activeClass: "bg-blue-700",
+                  textClass: "text-white",
+                  onActivate: () => patchTask(t.id, { due_date: startOfDay(new Date()).toISOString() }),
+                },
+              ] as SwipeAction[]}
+              leftActions={[
+                {
+                  id: "delete",
+                  label: "حذف",
+                  icon: Trash2,
+                  baseClass: "bg-destructive/80",
+                  activeClass: "bg-red-700",
+                  textClass: "text-white",
+                  fullSwipe: true,
+                  onActivate: () => askDeleteTask(t),
+                },
+                {
+                  id: "tomorrow",
+                  label: "فردا",
+                  icon: Clock,
+                  baseClass: "bg-amber-500/80",
+                  activeClass: "bg-amber-700",
+                  textClass: "text-white",
+                  onActivate: () => patchTask(t.id, { due_date: addDays(startOfDay(new Date()), 1).toISOString() }),
+                },
+                {
+                  id: "move",
+                  label: "انتقال",
+                  icon: FolderInput,
+                  baseClass: "bg-slate-500/80",
+                  activeClass: "bg-slate-700",
+                  textClass: "text-white",
+                  onActivate: () => setMoveTask(t),
+                },
+              ] as SwipeAction[]}
             >
             <Card className={`rounded-lg ${layout === "compact" ? "p-1.5" : "p-2"} border-s-[3px] ${pm.borderClass} ${t.is_avoidance ? "bg-amber-500/[0.04] border-amber-500/30" : ""} ${depth > 0 ? "bg-muted/20" : "bg-card/50"} hover:bg-accent/20 transition-colors`}>
               {depth > 0 && parent && (
