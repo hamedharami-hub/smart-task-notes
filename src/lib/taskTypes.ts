@@ -3,6 +3,7 @@ import type { RecurrenceRule } from "@/lib/recurrence";
 
 export type Task = {
   id: string;
+  user_id?: string;
   title: string;
   description: string | null;
   priority: Priority;

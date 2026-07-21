@@ -1,14 +1,16 @@
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Pencil, Trash2, Sparkles, FolderPlus, Copy, Palette, Share2 } from "lucide-react";
-import { useState } from "react";
+import { useState, type ComponentType } from "react";
 import { useTranslation } from "react-i18next";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import ShareDialog from "@/components/ShareDialog";
+import { useShareAccess } from "@/hooks/useShareAccess";
+import { useAuth } from "@/hooks/useAuth";
 
-type Item = { id: string; name: string; color?: string };
+type Item = { id: string; user_id?: string; name: string; color?: string };
 type Kind = "folder" | "tag";
 
 interface Props {
@@ -30,13 +32,25 @@ export default function SidebarItemSheet({ item, kind, onOpenChange, onDelete, o
   const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState("");
   const [shareOpen, setShareOpen] = useState(false);
+  const { user } = useAuth();
+  const { isOwner } = useShareAccess(kind === "folder" ? "folder" : "folder", kind === "folder" && item ? item.id : "", item?.user_id);
+  const owns = kind === "tag" ? item?.user_id === user?.id : isOwner;
   if (!item) return null;
   const table = kind === "folder" ? "folders" : "tags";
 
-  const Item = ({ icon: Icon, label, onClick, danger }: any) => (
+  const Item = ({ icon: Icon, label, onClick, danger, disabled }: {
+    icon: ComponentType<{ className?: string }>;
+    label: string;
+    onClick: () => void;
+    danger?: boolean;
+    disabled?: boolean;
+  }) => (
     <button
-      onClick={() => { onClick(); }}
-      className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-accent active:scale-[0.98] transition text-start ${danger ? "text-destructive" : ""}`}
+      onClick={disabled ? undefined : () => { onClick(); }}
+      disabled={disabled}
+      className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg transition text-start ${
+        disabled ? "opacity-40 cursor-not-allowed" : "hover:bg-accent active:scale-[0.98]"
+      } ${danger ? "text-destructive" : ""}`}
     >
       <Icon className="w-4 h-4" />
       <span className="text-sm">{label}</span>
@@ -44,6 +58,7 @@ export default function SidebarItemSheet({ item, kind, onOpenChange, onDelete, o
   );
 
   const submitRename = async () => {
+    if (!owns) { toast(T("فقط صاحب می‌تواند نام را تغییر دهد", "Only the owner can rename")); return; }
     const v = name.trim();
     if (!v) return;
     const { error } = await supabase.from(table).update({ name: v }).eq("id", item.id);
@@ -52,6 +67,7 @@ export default function SidebarItemSheet({ item, kind, onOpenChange, onDelete, o
   };
 
   const setColor = async (c: string) => {
+    if (!owns) { toast(T("فقط صاحب می‌تواند رنگ را تغییر دهد", "Only the owner can change color")); return; }
     const { error } = await supabase.from(table).update({ color: c }).eq("id", item.id);
     if (error) toast.error(error.message);
     else { onChanged?.(); }
@@ -77,18 +93,18 @@ export default function SidebarItemSheet({ item, kind, onOpenChange, onDelete, o
           </div>
         ) : (
           <div className="mt-3 space-y-1">
-            <Item icon={Pencil} label={T("تغییر نام", "Rename")} onClick={() => { setName(item.name); setRenaming(true); }} />
+            <Item icon={Pencil} label={T("تغییر نام", "Rename")} disabled={!owns} onClick={() => { setName(item.name); setRenaming(true); }} />
             {kind === "folder" && (
-              <Item icon={Share2} label={T("اشتراک‌گذاری…", "Share…")} onClick={() => setShareOpen(true)} />
+              <Item icon={Share2} label={T("اشتراک‌گذاری…", "Share…")} disabled={!owns} onClick={() => setShareOpen(true)} />
             )}
             {kind === "folder" && onAIChat && (
-              <Item icon={Sparkles} label={T("چت AI روی این فولدر", "AI chat on this folder")} onClick={() => { onAIChat(); onOpenChange(false); }} />
+              <Item icon={Sparkles} label={T("چت AI روی این فولدر", "AI chat on this folder")} disabled={!owns} onClick={() => { onAIChat(); onOpenChange(false); }} />
             )}
             {kind === "folder" && onAddSubfolder && (
-              <Item icon={FolderPlus} label={T("افزودن زیرفولدر", "Add subfolder")} onClick={() => { onAddSubfolder(); onOpenChange(false); }} />
+              <Item icon={FolderPlus} label={T("افزودن زیرفولدر", "Add subfolder")} disabled={!owns} onClick={() => { onAddSubfolder(); onOpenChange(false); }} />
             )}
             <Item icon={Copy} label={T("کپی نام", "Copy name")} onClick={async () => {
-              try { await navigator.clipboard.writeText(item.name); toast.success(T("کپی شد", "Copied")); } catch {}
+              try { await navigator.clipboard.writeText(item.name); toast.success(T("کپی شد", "Copied")); } catch { /* noop */ }
               onOpenChange(false);
             }} />
             <div className="px-3 py-3 rounded-lg">
@@ -97,13 +113,13 @@ export default function SidebarItemSheet({ item, kind, onOpenChange, onDelete, o
               </div>
               <div className="flex flex-wrap gap-2">
                 {COLORS.map((c) => (
-                  <button key={c} onClick={() => setColor(c)} aria-label={c}
-                    className="w-7 h-7 rounded-full ring-2 ring-transparent hover:ring-primary active:scale-90 transition"
+                  <button key={c} onClick={() => setColor(c)} disabled={!owns} aria-label={c}
+                    className={`w-7 h-7 rounded-full ring-2 ring-transparent transition ${owns ? "hover:ring-primary active:scale-90" : "opacity-40 cursor-not-allowed"}`}
                     style={{ backgroundColor: c, borderColor: item.color === c ? "white" : "transparent" }} />
                 ))}
               </div>
             </div>
-            <Item icon={Trash2} label={T("حذف", "Delete")} danger onClick={() => { onOpenChange(false); onDelete(); }} />
+            <Item icon={Trash2} label={T("حذف", "Delete")} danger disabled={!owns} onClick={() => { onOpenChange(false); onDelete(); }} />
           </div>
         )}
       </SheetContent>

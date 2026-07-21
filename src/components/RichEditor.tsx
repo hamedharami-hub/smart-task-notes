@@ -50,11 +50,13 @@ export function RichEditor({
   initialMarkdown = "",
   onChange,
   placeholder = "شروع به نوشتن کنید...",
+  readOnly = false,
 }: {
   initialHtml?: string;
   initialMarkdown?: string;
   onChange?: (html: string, markdown: string) => void;
   placeholder?: string;
+  readOnly?: boolean;
 }) {
   const { user } = useAuth();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -65,6 +67,7 @@ export function RichEditor({
   const [toolbarOnScreen, setToolbarOnScreen] = useState(true);
 
   const editor = useEditor({
+    editable: !readOnly,
     extensions: [
       StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
       Underline,
@@ -88,6 +91,7 @@ export function RichEditor({
         class: "prose-note focus:outline-none min-h-[50vh] px-1",
       },
       handleDrop: (_view, event, _slice, moved) => {
+        if (readOnly) { event.preventDefault(); return true; }
         if (moved) return false;
         const files = Array.from(event.dataTransfer?.files || []);
         if (!files.length) return false;
@@ -96,6 +100,7 @@ export function RichEditor({
         return true;
       },
       handlePaste: (_view, event) => {
+        if (readOnly) { event.preventDefault(); return true; }
         const files = Array.from(event.clipboardData?.files || []);
         if (!files.length) return false;
         event.preventDefault();
