@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Plus, Pin, Trash2, Search, Sparkles, Loader2, FolderInput, PinOff, Share2, X, Maximize2 } from "lucide-react";
 import ShareDialog from "@/components/ShareDialog";
 import SwipeableRow from "@/components/gestures/SwipeableRow";
@@ -19,10 +20,11 @@ import { AILangToggle } from "@/components/AILangToggle";
 import { pushUndo } from "@/lib/undoStack";
 import { pushDeleted } from "@/lib/recentlyDeleted";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
+import { useShareAccess } from "@/hooks/useShareAccess";
 
 
 
-type Note = { id: string; title: string; content: string; pinned: boolean; updated_at: string; task_id?: string | null; folder_id?: string | null };
+type Note = { id: string; user_id?: string; title: string; content: string; pinned: boolean; updated_at: string; task_id?: string | null; folder_id?: string | null };
 
 const AI_GROUPS: { label: string; items: { key: string; label: string }[] }[] = [
   {
@@ -73,6 +75,7 @@ const AI_GROUPS: { label: string; items: { key: string; label: string }[] }[] = 
 
 export default function NotesView() {
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [notes, setNotes] = useState<Note[]>([]);
   const [selected, setSelected] = useState<Note | null>(null);
   const [snap, setSnap] = useState<number | string>(0.55);
@@ -84,12 +87,14 @@ export default function NotesView() {
   const [moveOpen, setMoveOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
 
+  const { canEdit, isOwner } = useShareAccess("note", selected?.id, selected?.user_id);
+
   const load = async () => {
     if (!user) return;
     const { data } = await supabase.from("notes").select("*")
       .is("task_id", null)
       .order("pinned", { ascending: false }).order("updated_at", { ascending: false });
-    setNotes((data || []) as any);
+    setNotes(((data || []) as unknown) as Note[]);
   };
 
   useEffect(() => { load(); }, [user]);
@@ -99,6 +104,18 @@ export default function NotesView() {
     return () => { supabase.removeChannel(ch); };
   }, [user]);
 
+  const preselectId = searchParams.get("select");
+  useEffect(() => {
+    if (!preselectId || notes.length === 0) return;
+    const found = notes.find(n => n.id === preselectId);
+    if (found) {
+      setSelected(found);
+      setDraft({ html: markdownToHtml(found.content || ""), md: found.content || "" });
+    }
+    setSearchParams({}, { replace: true });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preselectId, notes]);
+
   const create = async () => {
     if (!user) return;
     const { data, error } = await supabase.from("notes").insert({
@@ -106,14 +123,16 @@ export default function NotesView() {
     }).select().single();
     if (error) toast.error(error.message);
     else if (data) {
-      setNotes(prev => [data as any, ...prev]);
-      setSelected(data as any);
+      const note = data as Note;
+      setNotes(prev => [note, ...prev]);
+      setSelected(note);
       setDraft({ html: "", md: "" });
     }
   };
 
   const save = async (patch: Partial<Note>) => {
     if (!selected) return;
+    if (!canEdit) { toast("دسترسی ویرایش ندارید"); return; }
     const updated = { ...selected, ...patch };
     setSelected(updated);
     await supabase.from("notes").update(patch).eq("id", selected.id);
@@ -128,6 +147,7 @@ export default function NotesView() {
 
   const del = async (id: string) => {
     const note = notes.find(n => n.id === id);
+    if (note && note.user_id !== user?.id) { toast("فقط صاحب نوت می‌تواند حذف کند"); return; }
     setNotes(prev => prev.filter(n => n.id !== id));
     await supabase.from("notes").delete().eq("id", id);
     if (selected?.id === id) { setSelected(null); setDraft(null); }
@@ -143,6 +163,7 @@ export default function NotesView() {
 
   const runNoteAI = async (action: string) => {
     if (!selected) return;
+    if (!canEdit) { toast("دسترسی ویرایش ندارید"); return; }
     const md = (draft?.md ?? selected.content ?? "").trim();
     if (!md) return toast.error("نوت خالی است");
     setAiBusy(true);
@@ -153,8 +174,8 @@ export default function NotesView() {
       setDraft({ md: newMd, html: markdownToHtml(newMd) });
       await save({ content: newMd });
       toast.success("اعمال شد ✨");
-    } catch (e: any) {
-      toast.error(e.message);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "خطا");
     } finally {
       setAiBusy(false);
     }
@@ -166,7 +187,7 @@ export default function NotesView() {
   );
 
   // Plain-preview helper (strip MD chars) for sidebar
-  const stripMd = (s: string) => (s || "").replace(/[#*`>_\-!\[\]()~]+/g, "").replace(/\n+/g, " ").slice(0, 80);
+  const stripMd = (s: string) => (s || "").replace(/[#*`>_![\]()~-]+/g, "").replace(/\n+/g, " ").slice(0, 80);
 
   const emptyState = (
     <div className="flex items-center justify-center h-full text-muted-foreground">
@@ -178,11 +199,12 @@ export default function NotesView() {
     <div className="px-3 sm:px-4 py-2 w-full min-h-0 flex flex-col">
       <div className="flex items-center gap-2 mb-3 flex-wrap">
         <Input value={selected.title} onChange={(e) => save({ title: e.target.value })}
+          disabled={!canEdit}
           className="text-xl font-bold border-none focus-visible:ring-0 px-0 flex-1 min-w-[120px]" dir="auto" />
         <AILangToggle value={aiLang} onChange={setAiLang} />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button size="sm" variant="default" className="gap-1" disabled={aiBusy}>
+            <Button size="sm" variant="default" className="gap-1" disabled={aiBusy || !canEdit}>
               {aiBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
               AI
             </Button>
@@ -193,7 +215,7 @@ export default function NotesView() {
                 {gi > 0 && <DropdownMenuSeparator />}
                 <DropdownMenuLabel className="text-xs text-muted-foreground">{g.label}</DropdownMenuLabel>
                 {g.items.map((it) => (
-                  <DropdownMenuItem key={it.key} onClick={() => runNoteAI(it.key)}>
+                  <DropdownMenuItem key={it.key} onClick={() => runNoteAI(it.key)} disabled={!canEdit}>
                     {it.label}
                   </DropdownMenuItem>
                 ))}
@@ -201,16 +223,16 @@ export default function NotesView() {
             ))}
           </DropdownMenuContent>
         </DropdownMenu>
-        <Button size="icon" variant="ghost" onClick={() => save({ pinned: !selected.pinned })}>
+        <Button size="icon" variant="ghost" onClick={() => save({ pinned: !selected.pinned })} disabled={!canEdit}>
           <Pin className={`w-4 h-4 ${selected.pinned ? "text-primary fill-primary" : ""}`} />
         </Button>
-        <Button size="icon" variant="ghost" onClick={() => setMoveOpen(true)} title="انتقال به فولدر">
+        <Button size="icon" variant="ghost" onClick={() => setMoveOpen(true)} title="انتقال به فولدر" disabled={!canEdit}>
           <FolderInput className="w-4 h-4" />
         </Button>
-        <Button size="icon" variant="ghost" onClick={() => setShareOpen(true)} title="اشتراک‌گذاری">
+        <Button size="icon" variant="ghost" onClick={() => setShareOpen(true)} title="اشتراک‌گذاری" disabled={!isOwner}>
           <Share2 className="w-4 h-4" />
         </Button>
-        <Button size="icon" variant="ghost" onClick={() => setConfirmDel(selected)}>
+        <Button size="icon" variant="ghost" onClick={() => setConfirmDel(selected)} disabled={!isOwner}>
           <Trash2 className="w-4 h-4" />
         </Button>
       </div>
@@ -219,6 +241,7 @@ export default function NotesView() {
         noteId={selected.id}
         markdown={draft?.md ?? selected.content ?? ""}
         onChange={(md, html) => setDraft({ html, md })}
+        readOnly={!canEdit}
       />
     </div>
   ) : null;
@@ -326,7 +349,7 @@ export default function NotesView() {
             kind="note"
             itemId={selected.id}
             currentFolderId={selected.folder_id ?? null}
-            onMoved={(fid) => { setSelected({ ...selected, folder_id: fid } as any); load(); }}
+            onMoved={(fid) => { setSelected((prev) => prev ? { ...prev, folder_id: fid } : null); load(); }}
           />
           <ShareDialog
             open={shareOpen}

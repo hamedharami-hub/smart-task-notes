@@ -15,10 +15,11 @@ type Sub = {
 };
 
 export function TaskSubtasksInline({
-  taskId, onOpenSubtask,
+  taskId, onOpenSubtask, readOnly = false,
 }: {
   taskId: string;
   onOpenSubtask?: (id: string) => void;
+  readOnly?: boolean;
 }) {
   const { user } = useAuth();
   const [subs, setSubs] = useState<Sub[]>([]);
@@ -60,6 +61,7 @@ export function TaskSubtasksInline({
 
 
   const add = async () => {
+    if (readOnly) return;
     const title = newTitle.trim();
     if (!title || !user) return;
     const { data, error } = await supabase
@@ -73,11 +75,12 @@ export function TaskSubtasksInline({
       .select("id,title,completed,position")
       .single();
     if (error) return toast.error(error.message);
-    setSubs((prev) => [...prev, data as any]);
+    if (data) setSubs((prev) => [...prev, data as Sub]);
     setNewTitle("");
   };
 
   const toggle = async (s: Sub) => {
+    if (readOnly) return;
     const next = !s.completed;
     setSubs((prev) => prev.map((x) => (x.id === s.id ? { ...x, completed: next } : x)));
     await supabase
@@ -87,6 +90,7 @@ export function TaskSubtasksInline({
   };
 
   const updateTitle = (id: string, title: string) => {
+    if (readOnly) return;
     editingRef.current.add(id);
     setSubs((prev) => prev.map((x) => (x.id === id ? { ...x, title } : x)));
     if (writeTimers.current[id]) clearTimeout(writeTimers.current[id]);
@@ -98,6 +102,7 @@ export function TaskSubtasksInline({
   };
 
   const remove = async (id: string) => {
+    if (readOnly) return;
     setSubs((prev) => prev.filter((x) => x.id !== id));
     await supabase.from("tasks").delete().eq("id", id);
   };
@@ -113,10 +118,11 @@ export function TaskSubtasksInline({
       <ul className="space-y-1">
         {subs.map((s) => (
           <li key={s.id} className="flex items-start gap-2 group">
-            <div className="pt-1.5"><Checkbox checked={s.completed} onCheckedChange={() => toggle(s)} /></div>
+            <div className="pt-1.5"><Checkbox checked={s.completed} onCheckedChange={() => toggle(s)} disabled={readOnly} /></div>
             <AutoTextarea
               value={s.title}
               onChange={(e) => updateTitle(s.id, e.target.value)}
+              disabled={readOnly}
               minHeight={28}
               maxHeight={240}
               rows={1}
@@ -134,14 +140,16 @@ export function TaskSubtasksInline({
                 باز کردن
               </Button>
             )}
-            <Button
-              size="icon"
-              variant="ghost"
-              onClick={() => remove(s.id)}
-              className="h-6 w-6 opacity-0 group-hover:opacity-100"
-            >
-              <Trash2 className="w-3 h-3" />
-            </Button>
+            {!readOnly && (
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={() => remove(s.id)}
+                className="h-6 w-6 opacity-0 group-hover:opacity-100"
+              >
+                <Trash2 className="w-3 h-3" />
+              </Button>
+            )}
           </li>
         ))}
         {subs.length === 0 && (
@@ -154,11 +162,12 @@ export function TaskSubtasksInline({
           value={newTitle}
           onChange={(e) => setNewTitle(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && add()}
-          placeholder="+ زیرتسک جدید..."
+          disabled={readOnly}
+          placeholder={readOnly ? "" : "+ زیرتسک جدید..."}
           className="h-7 text-xs flex-1"
           dir="auto"
         />
-        <Button size="icon" variant="ghost" onClick={add} className="h-7 w-7">
+        <Button size="icon" variant="ghost" onClick={add} disabled={readOnly} className="h-7 w-7">
           <Plus className="w-3 h-3" />
         </Button>
       </div>
