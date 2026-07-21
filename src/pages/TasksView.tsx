@@ -73,9 +73,12 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
 
   // Patch a task field optimistically + persist
   const patchTask = async (id: string, patch: Partial<Task>) => {
-    setAllTasks(prev => prev.map(x => x.id === id ? { ...x, ...patch } as Task : x));
+    const target = allTasks.find(t => t.id === id);
+    const owner = target ? target.user_id === user?.id : true;
+    if (owner) setAllTasks(prev => prev.map(x => x.id === id ? { ...x, ...patch } as Task : x));
     const { error } = await supabase.from("tasks").update(patch as any).eq("id", id);
-    if (error) toast.error(error.message);
+    if (error) { toast.error(error.message); if (!owner) return; }
+    if (!owner && !error) setAllTasks(prev => prev.map(x => x.id === id ? { ...x, ...patch } as Task : x));
   };
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -166,7 +169,6 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     const p = (async () => {
       const { data: allData } = await supabase.from("tasks")
         .select("*")
-        .eq("user_id", user.id)
         .order("position").order("created_at", { ascending: false })
         .limit(2000);
       const all = ((allData || []) as unknown) as Task[];
@@ -348,6 +350,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
 
   const toggleTask = async (t: Task) => {
     const newCompleted = !t.completed;
+    const isOwner = t.user_id === user?.id;
 
     // Recurring task: instead of marking complete, roll forward to next occurrence
     if (newCompleted && t.recurrence_rule && user) {
@@ -375,20 +378,26 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
           completed: false,
           completed_at: null,
         };
-        setAllTasks(prev => prev.map(x => x.id === t.id ? { ...x, ...patch } : x));
-        await supabase.from("tasks").update(patch).eq("id", t.id);
+        if (isOwner) setAllTasks(prev => prev.map(x => x.id === t.id ? { ...x, ...patch } : x));
+        const { error } = await supabase.from("tasks").update(patch).eq("id", t.id);
+        if (error) { toast.error(error.message); return; }
+        if (!isOwner) setAllTasks(prev => prev.map(x => x.id === t.id ? { ...x, ...patch } : x));
         toast.success(`نمونه بعدی به ${format(next, "yyyy-MM-dd HH:mm")} منتقل شد 🔁`);
         return;
       }
     }
 
-    setAllTasks(prev => prev.map(x => x.id === t.id ? { ...x, completed: newCompleted } : x));
-    await supabase.from("tasks").update({
+    if (isOwner) setAllTasks(prev => prev.map(x => x.id === t.id ? { ...x, completed: newCompleted } : x));
+    const { error } = await supabase.from("tasks").update({
       completed: newCompleted, completed_at: newCompleted ? new Date().toISOString() : null,
     }).eq("id", t.id);
+    if (error) { toast.error(error.message); return; }
+    if (!isOwner) setAllTasks(prev => prev.map(x => x.id === t.id ? { ...x, completed: newCompleted } : x));
   };
 
   const delTask = async (id: string) => {
+    const target = allTasks.find(t => t.id === id);
+    if (target && target.user_id !== user?.id) { toast("فقط صاحب تسک می‌تواند حذف کند"); return; }
     // snapshot task + descendants + tag links for undo
     const collectIds = (rid: string): string[] => {
       const out = [rid];
@@ -412,6 +421,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
   };
 
   const askDeleteTask = (t: Task) => {
+    if (t.user_id !== user?.id) { toast("فقط صاحب تسک می‌تواند حذف کند"); return; }
     const childCount = (childrenMap[t.id] || []).length;
     setConfirm({
       kind: "task",
@@ -585,6 +595,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
             <SwipeableRow
               onComplete={() => toggleTask(t)}
               onDelete={() => askDeleteTask(t)}
+              disabled={t.user_id !== user?.id}
               isCompleted={t.completed}
               rightLabel="تکمیل"
               rightLabelAlt="بازگشایی"
@@ -606,7 +617,8 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
                 ) : <span className="w-4 shrink-0" />}
                 <button
                   onClick={(e) => { e.stopPropagation(); patchTask(t.id, { pinned: !t.pinned }); }}
-                  className={`shrink-0 inline-flex items-center justify-center w-5 h-5 rounded transition mt-0.5 ${t.pinned ? "text-primary" : "text-muted-foreground/40 hover:text-foreground"}`}
+                  disabled={t.user_id !== user?.id}
+                  className={`shrink-0 inline-flex items-center justify-center w-5 h-5 rounded transition mt-0.5 ${t.pinned ? "text-primary" : "text-muted-foreground/40 hover:text-foreground"} ${t.user_id !== user?.id ? "opacity-40 cursor-not-allowed" : ""}`}
                   title={t.pinned ? "حذف پین" : "پین کردن"}
                   data-no-longpress
                 >

@@ -1,15 +1,17 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Trash2, UserPlus, Loader2, Eye, MessageSquare, Pencil, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { z } from "zod";
+import { BidiText } from "@/components/BidiText";
 
 export type ShareResourceType = "task" | "note" | "folder";
 export type SharePermission = "view" | "comment" | "edit";
@@ -29,15 +31,20 @@ type Share = {
   permission: SharePermission;
   accepted_at: string | null;
   created_at: string;
+  display_name?: string;
 };
 
 const emailSchema = z.string().trim().email().max(255).toLowerCase();
 
-const PERM_META: Record<SharePermission, { icon: any; label_fa: string; label_en: string; desc_fa: string; desc_en: string }> = {
+const PERM_META: Record<SharePermission, { icon: typeof Eye; label_fa: string; label_en: string; desc_fa: string; desc_en: string }> = {
   view:    { icon: Eye,          label_fa: "فقط دیدن",   label_en: "View only",     desc_fa: "می‌تواند ببیند ولی تغییر نمی‌دهد",        desc_en: "Can see but not change anything" },
   comment: { icon: MessageSquare,label_fa: "تعامل",       label_en: "Interact",      desc_fa: "می‌تواند تکمیل/زیرتسک اضافه کند",        desc_en: "Can complete and add subtasks" },
   edit:    { icon: Pencil,       label_fa: "ویرایش کامل", label_en: "Full edit",     desc_fa: "دسترسی کامل برای ویرایش",                desc_en: "Full edit access" },
 };
+
+function emailInitial(email: string) {
+  return (email?.[0] || "?").toUpperCase();
+}
 
 export default function ShareDialog({ open, onOpenChange, resourceType, resourceId, resourceTitle }: Props) {
   const { user } = useAuth();
@@ -55,17 +62,29 @@ export default function ShareDialog({ open, onOpenChange, resourceType, resource
     if (!open || !user) return;
     setLoading(true);
     const { data, error } = await supabase
-      .from("shares" as any)
-      .select("*")
+      .from("shares")
+      .select("id,recipient_email,recipient_id,permission,accepted_at,created_at")
       .eq("resource_type", resourceType)
       .eq("resource_id", resourceId)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .returns<Share[]>();
     if (error) toast.error(error.message);
-    setShares(((data as any) || []) as Share[]);
+
+    const rows = (data as Share[] || []);
+    const ids = Array.from(new Set(rows.map((s) => s.recipient_id).filter(Boolean)));
+    const names: Record<string, string> = {};
+    if (ids.length) {
+      const { data: profs } = await supabase.from("profiles").select("id,display_name").in("id", ids);
+      (profs || []).forEach((p: { id: string; display_name?: string | null }) => { names[p.id] = p.display_name || ""; });
+    }
+    setShares(rows.map((s) => ({ ...s, display_name: s.recipient_id ? names[s.recipient_id] : undefined })));
     setLoading(false);
   };
 
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [open, resourceType, resourceId, user]);
+  useEffect(() => {
+    if (open) load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, resourceType, resourceId, user]);
 
   const add = async () => {
     if (!user) return;
@@ -75,7 +94,7 @@ export default function ShareDialog({ open, onOpenChange, resourceType, resource
       toast.error(T("نمی‌توانی با خودت share کنی", "Can't share with yourself")); return;
     }
     setAdding(true);
-    const { error } = await supabase.from("shares" as any).insert({
+    const { error } = await supabase.from("shares").insert({
       owner_id: user.id,
       recipient_email: parsed.data,
       resource_type: resourceType,
@@ -94,21 +113,28 @@ export default function ShareDialog({ open, onOpenChange, resourceType, resource
   };
 
   const updatePerm = async (id: string, newPerm: SharePermission) => {
-    setShares(prev => prev.map(s => s.id === id ? { ...s, permission: newPerm } : s));
-    const { error } = await supabase.from("shares" as any).update({ permission: newPerm }).eq("id", id);
-    if (error) toast.error(error.message);
+    setShares((prev) => prev.map((s) => s.id === id ? { ...s, permission: newPerm } : s));
+    const { error } = await supabase.from("shares").update({ permission: newPerm }).eq("id", id);
+    if (error) {
+      toast.error(error.message);
+      load();
+    }
   };
 
   const remove = async (id: string) => {
-    setShares(prev => prev.filter(s => s.id !== id));
-    const { error } = await supabase.from("shares" as any).delete().eq("id", id);
-    if (error) toast.error(error.message);
-    else toast.success(T("اشتراک لغو شد", "Share revoked"));
+    setShares((prev) => prev.filter((s) => s.id !== id));
+    const { error } = await supabase.from("shares").delete().eq("id", id);
+    if (error) {
+      toast.error(error.message);
+      load();
+    } else {
+      toast.success(T("اشتراک لغو شد", "Share revoked"));
+    }
   };
 
   const resourceLabel = T(
     resourceType === "task" ? "تسک" : resourceType === "note" ? "نوت" : "فولدر",
-    resourceType === "task" ? "task" : resourceType === "note" ? "note" : "folder"
+    resourceType === "task" ? "task" : resourceType === "note" ? "note" : "folder",
   );
 
   return (
@@ -120,7 +146,9 @@ export default function ShareDialog({ open, onOpenChange, resourceType, resource
             {T(`اشتراک‌گذاری ${resourceLabel}`, `Share ${resourceLabel}`)}
           </DialogTitle>
           {resourceTitle && (
-            <DialogDescription className="truncate">{resourceTitle}</DialogDescription>
+            <DialogDescription className="truncate">
+              <BidiText text={resourceTitle} />
+            </DialogDescription>
           )}
         </DialogHeader>
 
@@ -176,17 +204,17 @@ export default function ShareDialog({ open, onOpenChange, resourceType, resource
             const Icon = m.icon;
             return (
               <div key={s.id} className="flex items-center gap-2 p-2 rounded-lg bg-muted/40">
-                <div className="w-8 h-8 rounded-full bg-primary/15 text-primary flex items-center justify-center text-xs font-semibold shrink-0">
-                  {s.recipient_email.charAt(0).toUpperCase()}
-                </div>
+                <Avatar className="w-8 h-8 text-[10px]">
+                  <AvatarFallback>{emailInitial(s.recipient_email)}</AvatarFallback>
+                </Avatar>
                 <div className="flex-1 min-w-0">
                   <div className="text-xs truncate" dir="ltr">{s.recipient_email}</div>
                   <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
                     <Icon className="w-2.5 h-2.5" />
-                    {s.accepted_at
+                    {s.display_name || (s.accepted_at
                       ? T("پذیرفته شد", "Accepted")
                       : <Badge variant="outline" className="h-4 text-[9px] px-1">{T("در انتظار", "Pending")}</Badge>
-                    }
+                    )}
                   </div>
                 </div>
                 <Select value={s.permission} onValueChange={(v) => updatePerm(s.id, v as SharePermission)}>

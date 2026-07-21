@@ -18,11 +18,13 @@ export function TaskDescriptionEditor({
   value,
   onChange,
   onSave,
+  readOnly = false,
 }: {
   taskId: string;
   value: string;
   onChange: (v: string) => void;
   onSave: (v: string) => void;
+  readOnly?: boolean;
 }) {
   const { i18n } = useTranslation();
   const isEn = (i18n.language || "fa").startsWith("en");
@@ -40,7 +42,8 @@ export function TaskDescriptionEditor({
         <AutoTextarea
           placeholder={T("توضیحات…", "Description…")}
           value={value || ""}
-          onFocus={() => setEditing(true)}
+          disabled={readOnly}
+          onFocus={() => !readOnly && setEditing(true)}
           onChange={(e) => onChange(e.target.value)}
           onBlur={() => { setEditing(false); onSave(value || ""); }}
           minHeight={32}
@@ -51,9 +54,10 @@ export function TaskDescriptionEditor({
       ) : (
         <button
           type="button"
-          onClick={() => setEditing(true)}
+          onClick={() => !readOnly && setEditing(true)}
+          disabled={readOnly}
           dir="auto"
-          className="w-full text-start px-0 py-1 text-[14px] text-foreground/90 hover:bg-accent/30 rounded transition pe-8"
+          className={`w-full text-start px-0 py-1 text-[14px] text-foreground/90 rounded transition pe-8 ${readOnly ? "" : "hover:bg-accent/30"}`}
         >
           <div className="prose-note prose-sm max-w-none">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>{value}</ReactMarkdown>
@@ -61,14 +65,16 @@ export function TaskDescriptionEditor({
         </button>
       )}
 
-      <button
-        type="button"
-        onClick={() => { setDraft(value || ""); setFull(true); }}
-        aria-label={T("تمام صفحه", "Fullscreen")}
-        className="absolute top-1 end-0 p-1 rounded-md text-muted-foreground/70 hover:text-foreground hover:bg-accent/50 transition opacity-70 group-hover:opacity-100"
-      >
-        <Maximize2 className="w-3.5 h-3.5" />
-      </button>
+      {!readOnly && (
+        <button
+          type="button"
+          onClick={() => { setDraft(value || ""); setFull(true); }}
+          aria-label={T("تمام صفحه", "Fullscreen")}
+          className="absolute top-1 end-0 p-1 rounded-md text-muted-foreground/70 hover:text-foreground hover:bg-accent/50 transition opacity-70 group-hover:opacity-100"
+        >
+          <Maximize2 className="w-3.5 h-3.5" />
+        </button>
+      )}
 
       <Sheet open={full} onOpenChange={setFull}>
         <SheetContent side="bottom" className="h-[95vh] p-0 flex flex-col">

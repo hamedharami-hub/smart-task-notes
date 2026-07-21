@@ -13,10 +13,12 @@ export function NoteEditorTabs({
   noteId,
   markdown,
   onChange,
+  readOnly = false,
 }: {
   noteId: string;
   markdown: string;
   onChange: (md: string, html: string) => void;
+  readOnly?: boolean;
 }) {
   return (
     <Tabs defaultValue="visual" className="w-full">
@@ -31,6 +33,7 @@ export function NoteEditorTabs({
           key={noteId}
           initialMarkdown={markdown}
           onChange={(html, md) => onChange(md, html)}
+          readOnly={readOnly}
         />
       </TabsContent>
 
@@ -38,6 +41,7 @@ export function NoteEditorTabs({
         <Textarea
           value={markdown}
           onChange={(e) => onChange(e.target.value, markdownToHtml(e.target.value))}
+          disabled={readOnly}
           className="min-h-[40vh] font-mono text-sm w-full border-0 focus-visible:ring-0 px-0"
           dir="ltr"
         />
