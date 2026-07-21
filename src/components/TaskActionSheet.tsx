@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ComponentType } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
@@ -14,6 +14,7 @@ import { DueDatePicker } from "@/components/DueDatePicker";
 import { PRIORITY_SELECTABLE, PRIORITY_META, type Priority } from "@/lib/priority";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useShareAccess } from "@/hooks/useShareAccess";
 
 interface Props {
   task: Task | null;
@@ -37,20 +38,31 @@ export default function TaskActionSheet({
   const isEn = (i18n.language || "fa").startsWith("en");
   const T = (fa: string, en: string) => (isEn ? en : fa);
   const [shareOpen, setShareOpen] = useState(false);
+  const { canEdit, canComment, isOwner } = useShareAccess("task", task?.id, task?.user_id);
 
   if (!task) return null;
 
   const close = () => onOpenChange(false);
 
-  const Tile = ({ icon: Icon, label, onClick, danger, accent }: any) => (
+  const Tile = ({ icon: Icon, label, onClick, danger, accent, disabled }: {
+    icon: ComponentType<{ className?: string }>;
+    label: string;
+    onClick?: () => void;
+    danger?: boolean;
+    accent?: boolean;
+    disabled?: boolean;
+  }) => (
     <button
-      onClick={onClick}
+      onClick={disabled ? undefined : onClick}
+      disabled={disabled}
       className={`flex flex-col items-center justify-center gap-1 p-2 rounded-xl transition active:scale-95 ${
-        danger
-          ? "bg-destructive/10 text-destructive hover:bg-destructive/15"
-          : accent
-            ? "bg-primary/10 text-primary hover:bg-primary/15"
-            : "bg-muted/60 hover:bg-muted text-foreground"
+        disabled
+          ? "opacity-40 cursor-not-allowed bg-muted/40 text-muted-foreground"
+          : danger
+            ? "bg-destructive/10 text-destructive hover:bg-destructive/15"
+            : accent
+              ? "bg-primary/10 text-primary hover:bg-primary/15"
+              : "bg-muted/60 hover:bg-muted text-foreground"
       }`}
     >
       <Icon className="w-4 h-4" />
@@ -59,18 +71,21 @@ export default function TaskActionSheet({
   );
 
   const setPriority = async (p: Priority) => {
+    if (!canEdit) { toast(T("دسترسی ویرایش ندارید", "No edit permission")); return; }
     onPatch?.({ priority: p });
-    if (!onPatch) await supabase.from("tasks").update({ priority: p } as any).eq("id", task.id);
+    if (!onPatch) await supabase.from("tasks").update({ priority: p }).eq("id", task.id);
     close();
   };
 
   const setDate = async (iso: string | null) => {
+    if (!canEdit) { toast(T("دسترسی ویرایش ندارید", "No edit permission")); return; }
     onPatch?.({ due_date: iso });
-    if (!onPatch) await supabase.from("tasks").update({ due_date: iso } as any).eq("id", task.id);
+    if (!onPatch) await supabase.from("tasks").update({ due_date: iso }).eq("id", task.id);
   };
 
   const duplicate = async () => {
     if (!user) return;
+    if (!canEdit) { toast(T("دسترسی ویرایش ندارید", "No edit permission")); return; }
     const { id, created_at, updated_at, ...rest } = task as any;
     const { error } = await supabase.from("tasks").insert({
       ...rest, user_id: user.id, title: `${task.title} (copy)`,
@@ -97,9 +112,10 @@ export default function TaskActionSheet({
                 <button
                   key={p}
                   onClick={() => setPriority(p as Priority)}
+                  disabled={!canEdit}
                   className={`flex-1 text-[10px] px-1.5 py-1 rounded-md border transition ${
                     active ? `${m.bgClass} ${m.textClass} border-current` : "bg-muted/40 text-muted-foreground border-transparent hover:bg-muted"
-                  }`}
+                  } ${!canEdit ? "opacity-40 cursor-not-allowed" : ""}`}
                 >
                   {m.label}
                 </button>
@@ -108,7 +124,8 @@ export default function TaskActionSheet({
             {task.priority !== "none" && (
               <button
                 onClick={() => setPriority("none" as Priority)}
-                className="text-[10px] px-1.5 py-1 rounded-md text-muted-foreground hover:bg-muted"
+                disabled={!canEdit}
+                className={`text-[10px] px-1.5 py-1 rounded-md text-muted-foreground ${canEdit ? "hover:bg-muted" : "opacity-40 cursor-not-allowed"}`}
                 title={T("حذف", "Clear")}
               >
                 ×
@@ -122,20 +139,22 @@ export default function TaskActionSheet({
               icon={Check}
               label={task.completed ? T("بازگشایی", "Reopen") : T("تکمیل", "Done")}
               onClick={() => { onComplete(); close(); }}
+              disabled={!canComment}
               accent
             />
-            <Tile icon={Pencil} label={T("ویرایش", "Edit")} onClick={() => { onEdit(); close(); }} />
+            <Tile icon={Pencil} label={T("باز کردن", "Open")} onClick={() => { onEdit(); close(); }} />
             <Tile
               icon={Sparkles}
               label="AI"
+              disabled={!canEdit}
               onClick={() => { close(); navigate(`/app/tasks/${task.id}?ai=1`); }}
               accent
             />
-            <Tile icon={Share2} label={T("اشتراک", "Share")} onClick={() => setShareOpen(true)} />
+            <Tile icon={Share2} label={T("اشتراک", "Share")} disabled={!isOwner} onClick={() => setShareOpen(true)} />
 
             <Popover>
               <PopoverTrigger asChild>
-                <button className="flex flex-col items-center justify-center gap-1 p-2 rounded-xl bg-muted/60 hover:bg-muted active:scale-95 transition">
+                <button disabled={!canEdit} className={`flex flex-col items-center justify-center gap-1 p-2 rounded-xl transition ${canEdit ? "bg-muted/60 hover:bg-muted active:scale-95" : "opacity-40 cursor-not-allowed bg-muted/40 text-muted-foreground"}`}>
                   <CalendarIcon className="w-4 h-4" />
                   <span className="text-[10px]">{T("تاریخ", "Date")}</span>
                 </button>
@@ -155,14 +174,16 @@ export default function TaskActionSheet({
               icon={task.pinned ? PinOff : Pin}
               label={task.pinned ? T("حذف پین", "Unpin") : T("پین", "Pin")}
               onClick={() => { onPin?.(); close(); }}
+              disabled={!canEdit}
               accent={task.pinned}
             />
-            <Tile icon={FolderInput} label={T("انتقال", "Move")} onClick={() => { onMove(); close(); }} />
-            <Tile icon={Network} label={T("زیرتسک", "Subtask")} onClick={() => { onMakeChild(); close(); }} />
-            <Tile icon={CopyPlus} label={T("تکثیر", "Duplicate")} onClick={duplicate} />
+            <Tile icon={FolderInput} label={T("انتقال", "Move")} disabled={!canEdit} onClick={() => { onMove(); close(); }} />
+            <Tile icon={Network} label={T("زیرتسک", "Subtask")} disabled={!canEdit} onClick={() => { onMakeChild(); close(); }} />
+            <Tile icon={CopyPlus} label={T("تکثیر", "Duplicate")} disabled={!canEdit} onClick={duplicate} />
             <Tile
               icon={Timer}
               label={T("پومودورو", "Pomodoro")}
+              disabled={!isOwner}
               onClick={() => { onPomodoro?.(); close(); }}
               accent
             />
@@ -171,11 +192,11 @@ export default function TaskActionSheet({
               icon={Copy}
               label={T("کپی عنوان", "Copy")}
               onClick={async () => {
-                try { await navigator.clipboard.writeText(task.title); toast.success(T("کپی شد", "Copied")); } catch {}
+                try { await navigator.clipboard.writeText(task.title); toast.success(T("کپی شد", "Copied")); } catch { /* noop */ }
                 close();
               }}
             />
-            <Tile icon={Trash2} label={T("حذف", "Delete")} onClick={() => { onDelete(); close(); }} danger />
+            <Tile icon={Trash2} label={T("حذف", "Delete")} disabled={!isOwner} onClick={() => { onDelete(); close(); }} danger />
           </div>
         </SheetContent>
       </Sheet>

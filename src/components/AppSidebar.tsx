@@ -78,8 +78,8 @@ function useLabel() {
   return (label: string) => (lang === "en" && EN_LABELS[label]) || label;
 }
 
-type Folder = { id: string; name: string; parent_id: string | null; color: string };
-type TagT = { id: string; name: string; color: string };
+type Folder = { id: string; user_id?: string; name: string; parent_id: string | null; color: string };
+type TagT = { id: string; user_id?: string; name: string; color: string };
 
 type NavItem = { url: string; icon: any; label: string };
 type Section = { id: string; title: string; icon: any; defaultOpen: boolean; items: NavItem[] };
