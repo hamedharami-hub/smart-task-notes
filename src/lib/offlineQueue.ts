@@ -8,10 +8,11 @@ type QueuedOp = {
   id?: number;
   table: string;
   op: "insert" | "update" | "delete" | "upsert";
-  payload?: any;
-  match?: Record<string, any>;
+  payload?: unknown;
+  match?: Record<string, unknown>;
   createdAt: number;
   attempts: number;
+  nextRetryAt?: number;
 };
 
 const DB_NAME = "taskflow-offline";
@@ -35,10 +36,14 @@ function getDB() {
   return dbPromise;
 }
 
-export async function enqueueOp(op: Omit<QueuedOp, "id" | "createdAt" | "attempts">) {
+export async function enqueueOp(op: Omit<QueuedOp, "id" | "createdAt" | "attempts" | "nextRetryAt">) {
   const db = await getDB();
   await db.add(STORE, { ...op, createdAt: Date.now(), attempts: 0 });
   notifyChange();
+  if (typeof navigator !== "undefined" && navigator.onLine) {
+    // try to flush immediately; if it fails, retry loop will pick it up
+    setTimeout(() => flushQueue(), 50);
+  }
 }
 
 export async function getQueue(): Promise<QueuedOp[]> {
@@ -52,14 +57,14 @@ export async function clearQueue() {
   notifyChange();
 }
 
-export async function cacheSet(key: string, value: any) {
+export async function cacheSet(key: string, value: unknown) {
   const db = await getDB();
   await db.put(CACHE_STORE, value, key);
 }
 
-export async function cacheGet<T = any>(key: string): Promise<T | undefined> {
+export async function cacheGet<T = unknown>(key: string): Promise<T | undefined> {
   const db = await getDB();
-  return db.get(CACHE_STORE, key);
+  return db.get(CACHE_STORE, key) as Promise<T | undefined>;
 }
 
 const listeners = new Set<() => void>();
@@ -79,15 +84,19 @@ export async function flushQueue(): Promise<{ ok: number; failed: number }> {
   let failed = 0;
   try {
     const db = await getDB();
-    const items = (await db.getAll(STORE)) as QueuedOp[];
+    const items = await db.getAll(STORE);
+    const now = Date.now();
     for (const item of items) {
+      if (item.nextRetryAt && item.nextRetryAt > now) continue;
       try {
-        const q: any = (supabase.from as any)(item.table);
+        const q = (supabase.from as (t: string) => ReturnType<typeof supabase.from>)(item.table);
         let res;
-        if (item.op === "insert") res = await q.insert(item.payload);
-        else if (item.op === "upsert") res = await q.upsert(item.payload);
-        else if (item.op === "update") {
-          let b = q.update(item.payload);
+        if (item.op === "insert") {
+          res = await q.insert(item.payload as Record<string, unknown>);
+        } else if (item.op === "upsert") {
+          res = await q.upsert(item.payload as Record<string, unknown>);
+        } else if (item.op === "update") {
+          let b = q.update(item.payload as Record<string, unknown>);
           for (const [k, v] of Object.entries(item.match || {})) b = b.eq(k, v);
           res = await b;
         } else if (item.op === "delete") {
@@ -101,6 +110,8 @@ export async function flushQueue(): Promise<{ ok: number; failed: number }> {
       } catch (e) {
         failed++;
         item.attempts++;
+        const backoff = Math.min(2 ** item.attempts * 1000, 30000);
+        item.nextRetryAt = Date.now() + backoff;
         if (item.attempts >= 5) {
           // give up after 5 attempts to avoid infinite retry
           await db.delete(STORE, item.id!);
@@ -118,15 +129,18 @@ export async function flushQueue(): Promise<{ ok: number; failed: number }> {
 
 export function initOfflineSync() {
   if (typeof window === "undefined") return;
+
   window.addEventListener("online", () => {
     flushQueue();
   });
+
   // try once on startup
   if (navigator.onLine) {
     setTimeout(() => flushQueue(), 1500);
   }
-  // periodic retry
+
+  // periodic retry — the queue itself skips items that are not due yet
   setInterval(() => {
     if (navigator.onLine) flushQueue();
-  }, 30_000);
+  }, 15_000);
 }

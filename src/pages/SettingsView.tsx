@@ -164,9 +164,15 @@ function ProviderEditor({ value, onChange, isEn }: { value: ProviderConfig; onCh
 
 const AUTO_UPDATE_KEY = "arshnaz_auto_update";
 
+type PwaGlobals = {
+  __applyPwaUpdate?: () => void;
+  __pwaCheckUpdate?: () => Promise<boolean>;
+};
+
 function AppUpdateCard({ isEn }: { isEn: boolean }) {
   const [checking, setChecking] = useState(false);
   const [updateAvailable, setUpdateAvailable] = useState(false);
+  const [pwaReady, setPwaReady] = useState(false);
   const [lastChecked, setLastChecked] = useState<number | null>(() => {
     try {
       const v = localStorage.getItem("arshnaz_update_last_checked");
@@ -186,11 +192,30 @@ function AppUpdateCard({ isEn }: { isEn: boolean }) {
   const version = (import.meta.env.VITE_APP_VERSION as string) || "live";
   const buildTime = (import.meta.env.VITE_BUILD_TIME as string) || "";
 
-  const applyUpdate = useCallback(() => {
-    const apply = (window as unknown as { __applyPwaUpdate?: () => void }).__applyPwaUpdate;
-    if (typeof apply === "function") apply();
-    else window.location.reload();
+  const forceReload = useCallback(async () => {
+    try {
+      if ("caches" in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map((k) => caches.delete(k)));
+      }
+      if ("serviceWorker" in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map((r) => r.unregister()));
+      }
+    } catch { /* ignore */ }
+    setTimeout(() => window.location.reload(), 200);
   }, []);
+
+  const applyUpdate = useCallback(() => {
+    const apply = (window as unknown as PwaGlobals).__applyPwaUpdate;
+    if (typeof apply === "function") {
+      try { apply(); } catch { /* ignore */ }
+      // If the SW hand-off doesn't reload within 3s, force it.
+      setTimeout(() => window.location.reload(), 3000);
+      return;
+    }
+    forceReload();
+  }, [forceReload]);
 
   const getCurrentEntryHash = () => {
     const scripts = Array.from(document.querySelectorAll('script[type="module"][src]')) as HTMLScriptElement[];
@@ -198,10 +223,43 @@ function AppUpdateCard({ isEn }: { isEn: boolean }) {
     return entry ? entry.src.split("/").pop() || "" : "";
   };
 
+  const swHashCheck = async () => {
+    // If the PWA helper from main.tsx is available, use it (reliable).
+    const check = (window as unknown as PwaGlobals).__pwaCheckUpdate;
+    if (check) return await check();
+
+    if (!("serviceWorker" in navigator)) return false;
+    const reg = await navigator.serviceWorker.getRegistration();
+    if (!reg) return false;
+    const before = reg.waiting || reg.installing;
+    let found = false;
+    let listener: (() => void) | undefined;
+    const promise = new Promise<void>((resolve) => {
+      listener = () => {
+        const after = reg.installing || reg.waiting;
+        if (after && after !== before) {
+          found = true;
+          resolve();
+        }
+      };
+      reg.addEventListener("updatefound", listener);
+      listener();
+      setTimeout(() => resolve(), 5000);
+    });
+    await Promise.race([
+      reg.update().catch(() => {}),
+      new Promise<void>((r) => setTimeout(r, 3000)),
+    ]);
+    await promise;
+    if (listener) reg.removeEventListener("updatefound", listener);
+    return found;
+  };
+
   useEffect(() => {
     (async () => {
       if (!("serviceWorker" in navigator)) return;
       const reg = await navigator.serviceWorker.getRegistration();
+      setPwaReady(!!reg);
       if (reg?.waiting || reg?.installing) {
         setUpdateAvailable(true);
         if (autoUpdate) {
@@ -235,26 +293,19 @@ function AppUpdateCard({ isEn }: { isEn: boolean }) {
       toast.info(
         isEn ? "Check timed out. Try again with internet on." : "بررسی طولانی شد. اتصال اینترنت را بررسی کن."
       );
-    }, 10000);
+    }, 12000);
     try {
-      // 1) Try service-worker update path (PWA)
-      if ("serviceWorker" in navigator) {
-        const reg = await navigator.serviceWorker.getRegistration();
-        if (reg) {
-          const before = reg.waiting || reg.installing;
-          await Promise.race([reg.update().catch(() => undefined), new Promise((r) => setTimeout(r, 4000))]);
-          const after = reg.waiting || reg.installing;
-          if (after && after !== before) {
-            setUpdateAvailable(true);
-            setLastChecked(Date.now());
-            toast.success(isEn ? "New version found — applying…" : "نسخه‌ی جدید پیدا شد — در حال اعمال…");
-            applyUpdate();
-            return;
-          }
-        }
+      // 1) PWA route: ask the registered service worker to check for updates
+      const hasSwUpdate = await swHashCheck();
+      if (hasSwUpdate) {
+        setUpdateAvailable(true);
+        setLastChecked(Date.now());
+        toast.success(isEn ? "New version found — applying…" : "نسخه‌ی جدید پیدا شد — در حال اعمال…");
+        applyUpdate();
+        return;
       }
 
-      // 2) Fallback: fetch live index.html and compare the entry-script hash with the running one
+      // 2) Non-PWA / fallback: fetch the current entry-script hash
       const currentHash = getCurrentEntryHash();
       const origin = window.location.origin;
       const res = await fetch(`${origin}/?_v=${Date.now()}`, { cache: "no-store" });
@@ -268,18 +319,13 @@ function AppUpdateCard({ isEn }: { isEn: boolean }) {
         setUpdateAvailable(true);
         setLastChecked(Date.now());
         toast.success(isEn ? "Update available — reloading…" : "نسخه‌ی جدید پیدا شد — در حال نصب…");
-        try {
-          if ("caches" in window) {
-            const keys = await caches.keys();
-            await Promise.all(keys.map((k) => caches.delete(k)));
-          }
-        } catch { /* ignore */ }
-        setTimeout(() => window.location.reload(), 700);
-      } else {
-        setUpdateAvailable(false);
-        setLastChecked(Date.now());
-        toast.success(isEn ? "You're on the latest version." : "نسخه‌ی شما به‌روز است.");
+        forceReload();
+        return;
       }
+
+      setUpdateAvailable(false);
+      setLastChecked(Date.now());
+      toast.success(isEn ? "You're on the latest version." : "نسخه‌ی شما به‌روز است.");
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
       toast.error((isEn ? "Update check failed: " : "بررسی به‌روزرسانی ناموفق: ") + message);
@@ -339,6 +385,10 @@ function AppUpdateCard({ isEn }: { isEn: boolean }) {
             </>
           )}
         </div>
+        <div className="flex items-center gap-1">
+          <Clock className="w-3 h-3" />
+          {pwaReady ? (isEn ? "PWA installed" : "PWA نصب شده") : (isEn ? "Web app" : "نسخه وب")}
+        </div>
         {lastChecked && (
           <div className="flex items-center gap-1">
             <Clock className="w-3 h-3" />
@@ -355,19 +405,25 @@ function AppUpdateCard({ isEn }: { isEn: boolean }) {
         <Switch checked={autoUpdate} onCheckedChange={toggleAutoUpdate} />
       </div>
 
-      {updateAvailable ? (
-        <Button size="sm" onClick={applyUpdate} className="gap-2 w-full sm:w-auto">
-          <Download className="w-4 h-4" />
-          {isEn ? "Install update" : "نصب به‌روزرسانی"}
+      <div className="flex flex-wrap items-center gap-2">
+        {updateAvailable ? (
+          <Button size="sm" onClick={applyUpdate} className="gap-2">
+            <Download className="w-4 h-4" />
+            {isEn ? "Install update" : "نصب به‌روزرسانی"}
+          </Button>
+        ) : (
+          <Button size="sm" onClick={check} disabled={checking} className="gap-2">
+            <RotateCw className={`w-4 h-4 ${checking ? "animate-spin" : ""}`} />
+            {checking
+              ? isEn ? "Checking…" : "در حال بررسی…"
+              : isEn ? "Check for updates" : "بررسی به‌روزرسانی"}
+          </Button>
+        )}
+        <Button size="sm" variant="outline" onClick={forceReload} className="gap-2">
+          <Trash2 className="w-4 h-4" />
+          {isEn ? "Clear cache & reload" : "پاکسازی کش و بارگذاری"}
         </Button>
-      ) : (
-        <Button size="sm" onClick={check} disabled={checking} className="gap-2">
-          <RotateCw className={`w-4 h-4 ${checking ? "animate-spin" : ""}`} />
-          {checking
-            ? isEn ? "Checking…" : "در حال بررسی…"
-            : isEn ? "Check for updates" : "بررسی به‌روزرسانی"}
-        </Button>
-      )}
+      </div>
     </Card>
   );
 }

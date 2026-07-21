@@ -19,7 +19,7 @@ const host = window.location.hostname;
 const isPreviewHost =
   host.includes("id-preview--") ||
   host.includes("lovableproject.com") ||
-  host.includes("lovable.app") && host.includes("id-preview");
+  (host.includes("lovable.app") && host.includes("id-preview"));
 
 if (isPreviewHost || isInIframe) {
   // Cleanup any previously registered SW so preview never serves stale content
@@ -40,6 +40,8 @@ if (isPreviewHost || isInIframe) {
       };
 
       let autoUpdateTimer: number | undefined;
+      let registrationRef: ServiceWorkerRegistration | undefined;
+
       const updateSW = registerSW({
         immediate: true,
         onNeedRefresh() {
@@ -53,18 +55,54 @@ if (isPreviewHost || isInIframe) {
             window.clearTimeout(autoUpdateTimer);
             autoUpdateTimer = window.setTimeout(() => {
               updateSW(true);
-            }, 2500);
+            }, 1500);
           }
         },
         onRegisteredSW(_swUrl, registration) {
-          // Poll for updates every 60s so new publishes are picked up fast
           if (registration) {
+            registrationRef = registration;
+            // Poll for updates every 30s so new publishes are picked up fast
             setInterval(() => {
               registration.update().catch(() => {});
-            }, 60 * 1000);
+            }, 30 * 1000);
           }
         },
+        onRegisterError(error) {
+          console.error("SW registration failed:", error);
+        },
       });
+
+      // Expose helpers for SettingsView and other UI
+      (window as unknown as { __pwaRegistration?: ServiceWorkerRegistration }).__pwaRegistration =
+        registrationRef;
+      (window as unknown as { __pwaCheckUpdate?: () => Promise<boolean> }).__pwaCheckUpdate =
+        async () => {
+          const reg = registrationRef || (await navigator.serviceWorker.getRegistration());
+          if (!reg) return false;
+          const before = reg.waiting || reg.installing;
+          let found = false;
+          let listener: (() => void) | undefined;
+          const promise = new Promise<void>((resolve) => {
+            const onFound = () => {
+              const after = reg.installing || reg.waiting;
+              if (after && after !== before) {
+                found = true;
+                resolve();
+              }
+            };
+            listener = onFound;
+            reg.addEventListener("updatefound", onFound);
+            onFound();
+            setTimeout(() => resolve(), 5000);
+          });
+          await Promise.race([
+            reg.update().catch(() => {}),
+            new Promise<void>((r) => setTimeout(r, 3000)),
+          ]);
+          await promise;
+          if (listener) reg.removeEventListener("updatefound", listener);
+          return found;
+        };
 
       // Reload the page once the new SW takes control (after user accepts).
       let refreshing = false;
@@ -74,8 +112,8 @@ if (isPreviewHost || isInIframe) {
         window.location.reload();
       });
     })
-    .catch(() => {
-      /* ignore */
+    .catch((err) => {
+      console.error("PWA registration failed:", err);
     });
 }
 
