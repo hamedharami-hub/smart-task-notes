@@ -17,6 +17,7 @@ import { PRIORITY_META } from "@/lib/priority";
 import { FolderKanban } from "@/components/FolderKanban";
 import { pushUndo } from "@/lib/undoStack";
 import { pushDeleted } from "@/lib/recentlyDeleted";
+import { enqueueOp } from "@/lib/offlineQueue";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { describeRule, nextOccurrence } from "@/lib/recurrence";
 import {
@@ -76,6 +77,13 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     const target = allTasks.find(t => t.id === id);
     const owner = target ? target.user_id === user?.id : true;
     if (owner) setAllTasks(prev => prev.map(x => x.id === id ? { ...x, ...patch } as Task : x));
+
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      await enqueueOp({ table: "tasks", op: "update", payload: patch, match: { id } });
+      toast.info("تغییر ذخیره شد؛ با اتصال اینترنت همگام می‌شود");
+      return;
+    }
+
     const { error } = await supabase.from("tasks").update(patch as any).eq("id", id);
     if (error) { toast.error(error.message); if (!owner) return; }
     if (!owner && !error) setAllTasks(prev => prev.map(x => x.id === id ? { ...x, ...patch } as Task : x));
@@ -379,6 +387,13 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
           completed_at: null,
         };
         if (isOwner) setAllTasks(prev => prev.map(x => x.id === t.id ? { ...x, ...patch } : x));
+
+        if (typeof navigator !== "undefined" && !navigator.onLine) {
+          await enqueueOp({ table: "tasks", op: "update", payload: patch, match: { id: t.id } });
+          toast.info("تغییر ذخیره شد؛ با اتصال اینترنت همگام می‌شود");
+          return;
+        }
+
         const { error } = await supabase.from("tasks").update(patch).eq("id", t.id);
         if (error) { toast.error(error.message); return; }
         if (!isOwner) setAllTasks(prev => prev.map(x => x.id === t.id ? { ...x, ...patch } : x));
@@ -388,9 +403,17 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     }
 
     if (isOwner) setAllTasks(prev => prev.map(x => x.id === t.id ? { ...x, completed: newCompleted } : x));
-    const { error } = await supabase.from("tasks").update({
+    const patch = {
       completed: newCompleted, completed_at: newCompleted ? new Date().toISOString() : null,
-    }).eq("id", t.id);
+    };
+
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      await enqueueOp({ table: "tasks", op: "update", payload: patch, match: { id: t.id } });
+      toast.info("تغییر ذخیره شد؛ با اتصال اینترنت همگام می‌شود");
+      return;
+    }
+
+    const { error } = await supabase.from("tasks").update(patch).eq("id", t.id);
     if (error) { toast.error(error.message); return; }
     if (!isOwner) setAllTasks(prev => prev.map(x => x.id === t.id ? { ...x, completed: newCompleted } : x));
   };
@@ -407,13 +430,24 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     };
     const ids = collectIds(id);
     const snaps = allTasks.filter(t => ids.includes(t.id));
-    const { data: tagLinks } = await supabase.from("task_tags").select("*").in("task_id", ids);
+    let tagLinks: Record<string, unknown>[] | null = null;
+    if (typeof navigator === "undefined" || navigator.onLine) {
+      const { data } = await supabase.from("task_tags").select("*").in("task_id", ids);
+      tagLinks = (data as Record<string, unknown>[] | null) || null;
+    }
     setAllTasks(prev => prev.filter(t => !ids.includes(t.id)));
+
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      await enqueueOp({ table: "tasks", op: "delete", match: { id } });
+      toast.info("حذف ذخیره شد؛ با اتصال اینترنت همگام می‌شود");
+      return;
+    }
+
     await supabase.from("tasks").delete().eq("id", id);
     const title = snaps.find(s => s.id === id)?.title || "";
     const restore = async () => {
-      await supabase.from("tasks").insert(snaps as any);
-      if (tagLinks?.length) await supabase.from("task_tags").insert(tagLinks as any);
+      await supabase.from("tasks").insert(snaps as Record<string, unknown>[]);
+      if (tagLinks?.length) await supabase.from("task_tags").insert(tagLinks);
       load();
     };
     pushUndo({ label: `تسک «${title}» حذف شد`, undo: restore });
