@@ -79,8 +79,26 @@ export async function fetchProviderModels(provider: Provider, apiKey: string, ba
   return models;
 }
 
+import { loadAISettings, type Provider } from "./aiSettings";
+
 // Merge static + cached, dedupe, keep order: cached fresh first, then static fallbacks.
-export function getMergedModels(provider: Provider, staticModels: string[]): string[] {
+// If `hidden` is not supplied, hidden model IDs saved in AI settings are filtered out.
+export function getMergedModels(provider: Provider, staticModels: string[], hidden?: string[]): string[] {
+  const hiddenSet = new Set(hidden ?? loadAISettings().providerHiddenModels?.[provider] ?? []);
+  const cached = getCachedModels(provider) || [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const m of [...cached, ...staticModels]) {
+    if (hiddenSet.has(m) || !seen.has(m)) {
+      if (!hiddenSet.has(m)) seen.add(m);
+      if (!hiddenSet.has(m)) out.push(m);
+    }
+  }
+  return out;
+}
+
+// All known model IDs for a provider, including hidden ones (for the visibility manager).
+export function getAllKnownModels(provider: Provider, staticModels: string[]): string[] {
   const cached = getCachedModels(provider) || [];
   const seen = new Set<string>();
   const out: string[] = [];
