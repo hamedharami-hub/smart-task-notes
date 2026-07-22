@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { useParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { startOfDay, endOfDay, addDays, format } from "date-fns";
 import { Plus, Calendar, Trash2, ChevronRight, ChevronDown, Flag, GripVertical, CornerDownRight, Ban, Pin, Clock, FolderInput, Check } from "lucide-react";
 import { MoveToDialog } from "@/components/MoveToDialog";
@@ -50,6 +51,9 @@ const tasksCache = new Map<string, Task[]>();
 
 export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomorrow" | "next7" | "smart" | "folder" | "tag" }) {
   const { user } = useAuth();
+  const { i18n } = useTranslation();
+  const isEn = (i18n.language || "fa").startsWith("en");
+  const T = (fa: string, en: string) => (isEn ? en : fa);
   const params = useParams();
   const [layout, setLayout] = useState<"compact" | "comfortable">("compact");
   useEffect(() => {
@@ -80,7 +84,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
 
     if (typeof navigator !== "undefined" && !navigator.onLine) {
       await enqueueOp({ table: "tasks", op: "update", payload: patch, match: { id } });
-      toast.info("تغییر ذخیره شد؛ با اتصال اینترنت همگام می‌شود");
+      toast.info(T("تغییر ذخیره شد؛ با اتصال اینترنت همگام می‌شود", "Saved locally — will sync when online"));
       return;
     }
 
@@ -143,8 +147,8 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
   }, [user, allTasks.length]);
 
   const title = {
-    inbox: "Inbox", today: "امروز", tomorrow: "فردا", next7: "۷ روز آینده",
-    smart: "Smart Lists", folder: folderName || "فولدر", tag: `#${tagName || "تگ"}`,
+    inbox: T("صندوق ورودی", "Inbox"), today: T("امروز", "Today"), tomorrow: T("فردا", "Tomorrow"), next7: T("۷ روز آینده", "Next 7 Days"),
+    smart: T("لیست‌های هوشمند", "Smart Lists"), folder: folderName || T("فولدر", "Folder"), tag: `#${tagName || T("تگ", "Tag")}`,
   }[scope];
 
   // Build children map
@@ -329,17 +333,17 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       let label: string;
       if (due < todayStart) {
         key = "overdue";
-        label = "تاخیر";
+        label = T("تاخیر", "Overdue");
       } else if (due <= todayEnd) {
         key = "today";
-        label = "امروز";
+        label = T("امروز", "Today");
       } else if (due <= tomorrowEnd) {
         key = "tomorrow";
-        label = "فردا";
+        label = T("فردا", "Tomorrow");
       } else {
         const d = new Date(task.due_date);
         key = format(d, "yyyy-MM-dd");
-        label = d.toLocaleDateString("fa-IR", { weekday: "long", month: "short", day: "numeric" });
+        label = d.toLocaleDateString(isEn ? "en-US" : "fa-IR", { weekday: "long", month: "short", day: "numeric" });
       }
       if (!groups.has(key)) groups.set(key, { key, label, tasks: [] });
       groups.get(key)!.tasks.push(task);
@@ -390,14 +394,14 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
 
         if (typeof navigator !== "undefined" && !navigator.onLine) {
           await enqueueOp({ table: "tasks", op: "update", payload: patch, match: { id: t.id } });
-          toast.info("تغییر ذخیره شد؛ با اتصال اینترنت همگام می‌شود");
+          toast.info(T("تغییر ذخیره شد؛ با اتصال اینترنت همگام می‌شود", "Saved locally — will sync when online"));
           return;
         }
 
         const { error } = await supabase.from("tasks").update(patch).eq("id", t.id);
         if (error) { toast.error(error.message); return; }
         if (!isOwner) setAllTasks(prev => prev.map(x => x.id === t.id ? { ...x, ...patch } : x));
-        toast.success(`نمونه بعدی به ${format(next, "yyyy-MM-dd HH:mm")} منتقل شد 🔁`);
+        toast.success(T(`نمونه بعدی به ${format(next, "yyyy-MM-dd HH:mm")} منتقل شد 🔁`, `Next instance moved to ${format(next, "yyyy-MM-dd HH:mm")} 🔁`));
         return;
       }
     }
@@ -409,7 +413,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
 
     if (typeof navigator !== "undefined" && !navigator.onLine) {
       await enqueueOp({ table: "tasks", op: "update", payload: patch, match: { id: t.id } });
-      toast.info("تغییر ذخیره شد؛ با اتصال اینترنت همگام می‌شود");
+      toast.info(T("تغییر ذخیره شد؛ با اتصال اینترنت همگام می‌شود", "Saved locally — will sync when online"));
       return;
     }
 
@@ -420,7 +424,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
 
   const delTask = async (id: string) => {
     const target = allTasks.find(t => t.id === id);
-    if (target && target.user_id !== user?.id) { toast("فقط صاحب تسک می‌تواند حذف کند"); return; }
+    if (target && target.user_id !== user?.id) { toast(T("فقط صاحب تسک می‌تواند حذف کند", "Only the task owner can delete")); return; }
     // snapshot task + descendants + tag links for undo
     const collectIds = (rid: string): string[] => {
       const out = [rid];
@@ -439,7 +443,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
 
     if (typeof navigator !== "undefined" && !navigator.onLine) {
       await enqueueOp({ table: "tasks", op: "delete", match: { id } });
-      toast.info("حذف ذخیره شد؛ با اتصال اینترنت همگام می‌شود");
+      toast.info(T("حذف ذخیره شد؛ با اتصال اینترنت همگام می‌شود", "Delete saved locally — will sync when online"));
       return;
     }
 
@@ -450,12 +454,12 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       if (tagLinks?.length) await supabase.from("task_tags").insert(tagLinks);
       load();
     };
-    pushUndo({ label: `تسک «${title}» حذف شد`, undo: restore });
+    pushUndo({ label: T(`تسک «${title}» حذف شد`, `Task "${title}" deleted`), undo: restore });
     pushDeleted({ kind: "task", label: title, restore });
   };
 
   const askDeleteTask = (t: Task) => {
-    if (t.user_id !== user?.id) { toast("فقط صاحب تسک می‌تواند حذف کند"); return; }
+    if (t.user_id !== user?.id) { toast(T("فقط صاحب تسک می‌تواند حذف کند", "Only the task owner can delete")); return; }
     const childCount = (childrenMap[t.id] || []).length;
     setConfirm({
       kind: "task",
@@ -513,7 +517,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       // prevent cycles
       let p: string | null = newParent;
       while (p) {
-        if (p === activeId) { toast.error("نمی‌توان داخل خودش انداخت"); return; }
+        if (p === activeId) { toast.error(T("نمی‌توان داخل خودش انداخت", "Cannot move a task into itself")); return; }
         const pt = allTasks.find(x => x.id === p);
         p = pt?.parent_id || null;
       }
@@ -541,7 +545,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       // prevent cycles
       let p: string | null = overId;
       while (p) {
-        if (p === activeId) { toast.error("نمی‌توان داخل خودش انداخت"); return; }
+        if (p === activeId) { toast.error(T("نمی‌توان داخل خودش انداخت", "Cannot move a task into itself")); return; }
         const pt = allTasks.find(x => x.id === p);
         p = pt?.parent_id || null;
       }
@@ -631,7 +635,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
               rightActions={[
                 {
                   id: "complete",
-                  label: t.completed ? "بازگشایی" : "تکمیل",
+                  label: t.completed ? T("بازگشایی", "Reopen") : T("تکمیل", "Complete"),
                   icon: Check,
                   baseClass: "bg-emerald-500/80",
                   activeClass: "bg-emerald-700",
@@ -641,7 +645,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
                 },
                 {
                   id: "pin",
-                  label: t.pinned ? "حذف پین" : "پین",
+                  label: t.pinned ? T("حذف پین", "Unpin") : T("پین", "Pin"),
                   icon: Pin,
                   baseClass: "bg-primary/70",
                   activeClass: "bg-primary",
@@ -650,7 +654,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
                 },
                 {
                   id: "today",
-                  label: "امروز",
+                  label: T("امروز", "Today"),
                   icon: Calendar,
                   baseClass: "bg-blue-500/80",
                   activeClass: "bg-blue-700",
@@ -661,7 +665,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
               leftActions={[
                 {
                   id: "delete",
-                  label: "حذف",
+                  label: T("حذف", "Delete"),
                   icon: Trash2,
                   baseClass: "bg-destructive/80",
                   activeClass: "bg-red-700",
@@ -671,7 +675,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
                 },
                 {
                   id: "tomorrow",
-                  label: "فردا",
+                  label: T("فردا", "Tomorrow"),
                   icon: Clock,
                   baseClass: "bg-amber-500/80",
                   activeClass: "bg-amber-700",
@@ -680,7 +684,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
                 },
                 {
                   id: "move",
-                  label: "انتقال",
+                  label: T("انتقال", "Move"),
                   icon: FolderInput,
                   baseClass: "bg-slate-500/80",
                   activeClass: "bg-slate-700",
@@ -693,7 +697,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
               {depth > 0 && parent && (
                 <div className="flex items-center gap-1 mb-1 text-[10px] text-muted-foreground/80">
                   <CornerDownRight className="w-2.5 h-2.5 shrink-0" />
-                  <span className="truncate">سطح {depth} · زیرِ «{parent.title}»</span>
+                  <span className="truncate">{T(`سطح ${depth} · زیرِ «${parent.title}»`, `Level ${depth} · under "${parent.title}"`)}</span>
                 </div>
               )}
               {/* Row 1: chevron + pin + TITLE (wide) + checkbox (right) */}
@@ -707,7 +711,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
                   onClick={(e) => { e.stopPropagation(); patchTask(t.id, { pinned: !t.pinned }); }}
                   disabled={t.user_id !== user?.id}
                   className={`shrink-0 inline-flex items-center justify-center w-5 h-5 rounded transition mt-0.5 ${t.pinned ? "text-primary" : "text-muted-foreground/40 hover:text-foreground"} ${t.user_id !== user?.id ? "opacity-40 cursor-not-allowed" : ""}`}
-                  title={t.pinned ? "حذف پین" : "پین کردن"}
+                  title={t.pinned ? T("حذف پین", "Unpin") : T("پین کردن", "Pin")}
                   data-no-longpress
                 >
                   <Pin className={`w-3 h-3 ${t.pinned ? "fill-primary" : ""}`} />
@@ -715,7 +719,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
                 <div
                   className="flex-1 min-w-0 cursor-pointer select-none"
                   onClick={() => {
-                    if (t.title.startsWith("چک‌این روزانه")) { navigate("/app/checkin"); return; }
+                    if (t.title.startsWith("چک‌این روزانه") || t.title.startsWith("Daily Check-in")) { navigate("/app/checkin"); return; }
                     setSelectedTask(t);
                   }}
                   onDoubleClick={(e) => {
@@ -732,7 +736,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
                 {t.is_avoidance ? (
                   <button
                     onClick={() => toggleTask(t)}
-                    title={t.completed ? "موفق به اجتناب — لغو" : "علامت بزن: موفق به اجتناب شدم"}
+                    title={t.completed ? T("موفق به اجتناب — لغو", "Avoidance succeeded — undo") : T("علامت بزن: موفق به اجتناب شدم", "Mark: I successfully avoided")}
                     className={`mt-0.5 shrink-0 h-5 w-5 rounded-md border-2 flex items-center justify-center transition ${
                       t.completed
                         ? "bg-amber-500 border-amber-500 text-white"
@@ -748,12 +752,12 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
 
               {/* Row 2: metadata */}
               <div className="flex items-center gap-1.5 mt-1 ms-5 flex-wrap min-h-[20px]" dir="rtl">
-                <button {...dragHandle} data-drag-handle data-no-swipe-nav className="text-muted-foreground/60 hover:text-foreground cursor-grab active:cursor-grabbing touch-none shrink-0 h-5 w-5 rounded flex items-center justify-center" aria-label="drag" title="جابجایی">
+                <button {...dragHandle} data-drag-handle data-no-swipe-nav className="text-muted-foreground/60 hover:text-foreground cursor-grab active:cursor-grabbing touch-none shrink-0 h-5 w-5 rounded flex items-center justify-center" aria-label={T("جابجایی", "Drag")} title={T("جابجایی", "Drag")}>
                   <GripVertical className="w-3 h-3" />
                 </button>
                 {t.is_avoidance && (
                   <span className="inline-flex items-center gap-0.5 text-[9px] px-1.5 h-4 rounded bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30">
-                    <Ban className="w-2.5 h-2.5" /> اجتنابی
+                    <Ban className="w-2.5 h-2.5" /> {T("اجتنابی", "Avoidance")}
                   </span>
                 )}
                 {t.priority !== "none" && (
@@ -762,9 +766,9 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
                       <button
                         onClick={(e) => e.stopPropagation()}
                         className={`text-[10px] gap-0.5 px-1.5 py-0 h-[18px] inline-flex items-center rounded border ${pm.bgClass} ${pm.textClass}`}
-                        title="تغییر اولویت"
+                        title={T("تغییر اولویت", "Change priority")}
                       >
-                        <Flag className="w-2.5 h-2.5" /> {pm.label}
+                        <Flag className="w-2.5 h-2.5" /> {T(pm.label, pm.labelEn)}
                       </button>
                     </PopoverTrigger>
                     <PopoverContent className="w-44 p-1" align="start" onClick={(e) => e.stopPropagation()}>
@@ -774,14 +778,14 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
                           <button key={p}
                             onClick={() => patchTask(t.id, { priority: p as Priority })}
                             className={`w-full text-start px-2 py-1.5 text-xs rounded hover:bg-accent flex items-center gap-2 ${t.priority === p ? "bg-accent" : ""}`}>
-                            <Flag className={`w-3 h-3 ${m.textClass}`} /> {m.label}
+                            <Flag className={`w-3 h-3 ${m.textClass}`} /> {T(m.label, m.labelEn)}
                           </button>
                         );
                       })}
                       {t.priority !== "none" && (
                         <button onClick={() => patchTask(t.id, { priority: "none" as Priority })}
                           className="w-full text-start px-2 py-1.5 text-xs rounded hover:bg-accent text-muted-foreground border-t mt-1">
-                          حذف اولویت
+                          {T("حذف اولویت", "Remove priority")}
                         </button>
                       )}
                     </PopoverContent>
@@ -793,7 +797,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
                       <button
                         onClick={(e) => e.stopPropagation()}
                         className="text-[10px] gap-0.5 px-1.5 py-0 h-[18px] inline-flex items-center rounded border bg-secondary text-secondary-foreground"
-                        title="تغییر تاریخ"
+                        title={T("تغییر تاریخ", "Change date")}
                       >
                         <Calendar className="w-2.5 h-2.5" />
                         {format(new Date(t.due_date), "MMM d, HH:mm")}
@@ -816,9 +820,9 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
                       <button
                         onClick={(e) => e.stopPropagation()}
                         className="text-[10px] gap-0.5 px-1.5 py-0 h-[18px] inline-flex items-center rounded border bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/25"
-                        title="تغییر تکرار"
+                        title={T("تغییر تکرار", "Change repeat")}
                       >
-                        <Repeat className="w-2.5 h-2.5" /> {describeRule(t.recurrence_rule)}
+                        <Repeat className="w-2.5 h-2.5" /> {describeRule(t.recurrence_rule, isEn)}
                       </button>
                     </PopoverTrigger>
                     <PopoverContent className="w-80 p-2" align="start" onClick={(e) => e.stopPropagation()}>
@@ -888,7 +892,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
             <RootDropZone />
             <div className="space-y-1 mt-1">
               {isEmpty && (
-                <Card className="p-5 text-center text-muted-foreground text-sm border-dashed">هیچ تسکی نیست</Card>
+                <Card className="p-5 text-center text-muted-foreground text-sm border-dashed">{T("هیچ تسکی نیست", "No tasks")}</Card>
               )}
               <SortableContext items={sortableItems} strategy={verticalListSortingStrategy}>
                 {groupedTasks ? (
@@ -933,7 +937,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
         <BidiText as="h1" text={title} className="text-xl md:text-2xl font-bold" />
         {isFolder && (
           <Button size="sm" variant="outline" onClick={() => setDelFolderOpen(true)} className="text-destructive">
-            <Trash2 className="w-3.5 h-3.5 ms-1" /> حذف فولدر
+            <Trash2 className="w-3.5 h-3.5 ms-1" /> {T("حذف فولدر", "Delete folder")}
           </Button>
         )}
       </div>
@@ -943,7 +947,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       {isFolder ? (
         <Tabs defaultValue="list">
           <TabsList>
-            <TabsTrigger value="list">📋 لیست</TabsTrigger>
+            <TabsTrigger value="list">📋 {T("لیست", "List")}</TabsTrigger>
             <TabsTrigger value="kanban">🗂 Kanban</TabsTrigger>
           </TabsList>
           <TabsContent value="list" className="mt-4">{listView}</TabsContent>
@@ -959,18 +963,18 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {confirm?.kind === "task" ? "حذف تسک؟" : confirm?.kind === "note" ? "حذف نوت؟" : "حذف زیرتسک؟"}
+              {confirm?.kind === "task" ? T("حذف تسک؟", "Delete task?") : confirm?.kind === "note" ? T("حذف نوت؟", "Delete note?") : T("حذف زیرتسک؟", "Delete subtask?")}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              آیا مطمئنی می‌خوای «{confirm?.title}» را حذف کنی؟
+              {T(`آیا مطمئنی می‌خوای «${confirm?.title || T("این مورد", "this item")}» را حذف کنی؟`, `Are you sure you want to delete "${confirm?.title || T("این مورد", "this item")}"?`)}
               {confirm?.kind === "task" && (window as any).__lastChildCount > 0 && (
-                <span className="block mt-2 text-destructive">⚠️ {(window as any).__lastChildCount} زیرتسک هم با این تسک حذف می‌شود.</span>
+                <span className="block mt-2 text-destructive">⚠️ {T(`${(window as any).__lastChildCount} زیرتسک هم با این تسک حذف می‌شود.`, `${(window as any).__lastChildCount} subtask(s) will also be deleted.`)}</span>
               )}
-              <span className="block mt-2 text-xs">این عمل قابل بازگشت نیست.</span>
+              <span className="block mt-2 text-xs">{T("این عمل قابل بازگشت نیست.", "This action cannot be undone.")}</span>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>انصراف</AlertDialogCancel>
+            <AlertDialogCancel>{T("انصراف", "Cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={async () => {
                 if (confirm) await confirm.onConfirm();
@@ -978,7 +982,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
               }}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              حذف
+              {T("حذف", "Delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, Loader2, Calendar as CalendarIcon, CalendarClock, Tag, Folder, Flag, type LucideIcon } from "lucide-react";
@@ -10,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { PRIORITY_META, type Priority } from "@/lib/priority";
+
 
 type Defaults = {
   folder_id?: string | null;
@@ -28,7 +30,7 @@ const priorityKeywords: Record<string, Priority> = {
 
 export function QuickAddTask({
   defaults = {},
-  placeholder = "+ تسک جدید...",
+  placeholder,
   onCreated,
   className = "",
 }: {
@@ -38,6 +40,10 @@ export function QuickAddTask({
   className?: string;
 }) {
   const { user } = useAuth();
+  const { i18n } = useTranslation();
+  const isEn = (i18n.language || "fa").startsWith("en");
+  const T = (fa: string, en: string) => (isEn ? en : fa);
+  const placeholderText = placeholder || T("+ تسک جدید...", "+ New task...");
   const [title, setTitle] = useState("");
   const [busy, setBusy] = useState(false);
   const [due, setDue] = useState<string | null>(defaults.due_date ?? null);
@@ -124,7 +130,7 @@ export function QuickAddTask({
       window.dispatchEvent(new Event("tasks-changed"));
       if (data) onCreated?.(data.id);
     } catch (e: any) {
-      toast.error(e.message || "خطا");
+      toast.error(e.message || T("خطا", "Error"));
     } finally {
       setBusy(false);
     }
@@ -135,7 +141,7 @@ export function QuickAddTask({
   if (detectedDue) {
     hintItems.push({
       icon: CalendarClock,
-      label: new Date(parsed.dueDate).toLocaleDateString("fa-IR", { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }),
+      label: new Date(parsed.dueDate).toLocaleDateString(isEn ? "en-US" : "fa-IR", { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }),
     });
   }
   if (parsed.folderId) {
@@ -148,17 +154,18 @@ export function QuickAddTask({
     });
   }
   if (parsed.priority && parsed.priority !== "none") {
-    hintItems.push({ icon: Flag, label: `!${PRIORITY_META[parsed.priority].label}` });
+    const pMeta = PRIORITY_META[parsed.priority];
+    hintItems.push({ icon: Flag, label: `!${T(pMeta.label, pMeta.labelEn)}` });
   }
 
   return (
-    <div className={`${className}`} dir="rtl">
+    <div className={`${className}`} dir={isEn ? "ltr" : "rtl"}>
       <div className="flex gap-1.5">
         <Input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && submit()}
-          placeholder={placeholder}
+          placeholder={placeholderText}
           className="flex-1 h-10 text-sm bg-background"
           dir="auto"
           disabled={busy}
@@ -168,7 +175,7 @@ export function QuickAddTask({
             <Button
               variant="outline"
               size="icon"
-              title="تاریخ"
+              title={T("تاریخ", "Date")}
               className={`h-10 w-10 shrink-0 ${due ? "border-primary text-primary" : ""}`}
             >
               <CalendarIcon className="w-4 h-4" />
@@ -178,7 +185,7 @@ export function QuickAddTask({
             <DueDatePicker value={due} onChange={setDue} compact />
           </PopoverContent>
         </Popover>
-        <Button onClick={submit} disabled={busy || !title.trim()} size="icon" title="افزودن" className="h-10 w-10 shrink-0">
+        <Button onClick={submit} disabled={busy || !title.trim()} size="icon" title={T("افزودن", "Add")} className="h-10 w-10 shrink-0">
           {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
         </Button>
       </div>
@@ -190,7 +197,7 @@ export function QuickAddTask({
               <span>{toPersianDigits(item.label)}</span>
             </span>
           ))}
-          <span className="text-muted-foreground">— Enter = ثبت</span>
+          <span className="text-muted-foreground">— Enter = {T("ثبت", "save")}</span>
         </div>
       )}
     </div>

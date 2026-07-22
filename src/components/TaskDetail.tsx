@@ -264,7 +264,7 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
 
   const priorityMeta = PRIORITY_META[t.priority];
   const dueLabel = formatDue(t.due_date);
-  const recLabel = t.recurrence_rule ? describeRule(t.recurrence_rule) : null;
+  const recLabel = t.recurrence_rule ? describeRule(t.recurrence_rule, isEn) : null;
 
   // ── Rail icon button (MD3 tonal) ────────────────────────────────────
   const RailButton = ({
@@ -429,7 +429,7 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
           color={`${priorityMeta.bgClass} ${priorityMeta.textClass}`}
           disabled={!canEdit}
         >
-          {priorityMeta.label}
+          {T(priorityMeta.label, priorityMeta.labelEn)}
         </Chip>
       )}
       {recLabel && (
@@ -691,7 +691,7 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
                 return (
                   <button key={p} onClick={() => save({ priority: p })}
                     className={`px-2 h-9 rounded-xl text-[12px] font-medium transition ${active ? `${m.bgClass} ${m.textClass}` : "bg-muted/40 text-muted-foreground hover:bg-muted"}`}>
-                    {m.emoji} {m.label}
+                    {m.emoji} {T(m.label, m.labelEn)}
                   </button>
                 );
               })}

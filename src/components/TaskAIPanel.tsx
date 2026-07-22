@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -35,6 +36,9 @@ export function TaskAIPanel({
   onMetaApplied?: () => void;
 }) {
   const { user } = useAuth();
+  const { i18n } = useTranslation();
+  const isEn = (i18n.language || "fa").startsWith("en");
+  const T = (fa: string, en: string) => (isEn ? en : fa);
   const [tab, setTab] = useState("subtasks");
   const [globalCtx, setGlobalCtx] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -61,7 +65,7 @@ export function TaskAIPanel({
   }, [open]);
 
   const buildContext = async (): Promise<string> => {
-    let ctx = `Current task:\nTitle: ${task.title}\nDescription: ${task.description || "(none)"}\nPriority: ${task.priority}\nDue: ${task.due_date || "(none)"}\nRecurrence: ${describeRule(task.recurrence_rule || null)}`;
+    let ctx = `Current task:\nTitle: ${task.title}\nDescription: ${task.description || "(none)"}\nPriority: ${task.priority}\nDue: ${task.due_date || "(none)"}\nRecurrence: ${describeRule(task.recurrence_rule || null, true)}`;
     if (globalCtx && user) {
       const [{ data: tasks }, { data: notes }] = await Promise.all([
         supabase.from("tasks").select("title,priority,due_date,completed").limit(40),
@@ -103,7 +107,7 @@ export function TaskAIPanel({
   const addPickedSubtasks = async () => {
     if (!user) return;
     const picked = subSugs.filter((_, i) => subPicked[i]);
-    if (!picked.length) return toast.error("چیزی انتخاب نشده");
+    if (!picked.length) return toast.error(T("چیزی انتخاب نشده", "Nothing selected"));
     // Create child tasks (each subtask is a real task with parent_id)
     const rows = picked.map((title) => ({
       user_id: user.id, title, parent_id: task.id, priority: "none" as Priority,
@@ -111,7 +115,7 @@ export function TaskAIPanel({
     const { error } = await supabase.from("tasks").insert(rows);
     if (error) toast.error(error.message);
     else {
-      toast.success(`${picked.length} زیرتسک اضافه شد ✨`);
+      toast.success(T(`${picked.length} زیرتسک اضافه شد ✨`, `${picked.length} subtasks added ✨`));
       setSubSugs([]); setSubPicked({});
       onMetaApplied?.();
     }
@@ -137,7 +141,7 @@ export function TaskAIPanel({
     if (meta.recurrence_rule) patch.recurrence_rule = meta.recurrence_rule;
     const { error } = await supabase.from("tasks").update(patch).eq("id", task.id);
     if (error) toast.error(error.message);
-    else { toast.success("اعمال شد ✨"); onMetaApplied?.(); setMeta(null); }
+    else { toast.success(T("اعمال شد ✨", "Applied ✨")); onMetaApplied?.(); setMeta(null); }
   };
 
   // ====== Note generation ======
@@ -151,7 +155,7 @@ export function TaskAIPanel({
         user_id: user.id, task_id: task.id, title: task.title, content: r.text,
       });
       if (error) throw error;
-      toast.success("نوت برای این تسک ساخته شد ✨");
+      toast.success(T("نوت برای این تسک ساخته شد ✨", "Note created for this task ✨"));
     } catch (e: any) { toast.error(e.message); }
     finally { setLoading(false); }
   };
@@ -176,36 +180,36 @@ export function TaskAIPanel({
       <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-primary" /> AI برای این تسک
+            <Sparkles className="w-5 h-5 text-primary" /> {T("AI برای این تسک", "AI for this task")}
           </SheetTitle>
         </SheetHeader>
 
         <div className="mt-3 space-y-2">
           <div className="flex items-center justify-between p-2 rounded-lg border bg-accent/20">
             <Label htmlFor="global-ctx" className="text-sm cursor-pointer flex-1">
-              🌐 دسترسی به همه تسک‌ها و نوت‌های من
+              🌐 {T("دسترسی به همه تسک‌ها و نوت‌های من", "Access all my tasks & notes")}
             </Label>
             <Switch id="global-ctx" checked={globalCtx} onCheckedChange={setGlobalCtx} />
           </div>
           <div className="flex items-center justify-between p-2 rounded-lg border bg-accent/20">
-            <span className="text-sm">زبان پاسخ AI</span>
+            <span className="text-sm">{T("زبان پاسخ AI", "AI response language")}</span>
             <AILangToggle value={aiLang} onChange={setAiLang} />
           </div>
         </div>
 
         <Tabs value={tab} onValueChange={setTab} className="mt-3">
           <TabsList className="grid grid-cols-5 w-full">
-            <TabsTrigger value="subtasks">مراحل</TabsTrigger>
-            <TabsTrigger value="meta">پیشنهاد</TabsTrigger>
-            <TabsTrigger value="note">نوت</TabsTrigger>
+            <TabsTrigger value="subtasks">{T("مراحل", "Steps")}</TabsTrigger>
+            <TabsTrigger value="meta">{T("پیشنهاد", "Suggest")}</TabsTrigger>
+            <TabsTrigger value="note">{T("نوت", "Note")}</TabsTrigger>
             <TabsTrigger value="pomodoro"><Timer className="w-3.5 h-3.5" /></TabsTrigger>
-            <TabsTrigger value="chat">چت</TabsTrigger>
+            <TabsTrigger value="chat">{T("چت", "Chat")}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="pomodoro" className="mt-4">
             <PomodoroTimer taskId={task.id} compact />
             <p className="text-[11px] text-muted-foreground text-center mt-3">
-              زمان ثبت‌شده زیر این تسک حساب می‌شود.
+              {T("زمان ثبت‌شده زیر این تسک حساب می‌شود.", "Logged time is counted under this task.")}
             </p>
           </TabsContent>
 
@@ -213,12 +217,12 @@ export function TaskAIPanel({
           <TabsContent value="subtasks" className="space-y-3 mt-4">
             <Button onClick={() => genSubtasks()} disabled={loading} className="w-full gap-2">
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-              تولید مراحل (Subtasks)
+              {T("تولید مراحل (Subtasks)", "Generate steps (Subtasks)")}
             </Button>
 
             {questions.length > 0 && (
               <div className="space-y-3">
-                <p className="text-sm text-muted-foreground">برای پیشنهاد بهتر، لطفاً پاسخ بدید:</p>
+                <p className="text-sm text-muted-foreground">{T("برای پیشنهاد بهتر، لطفاً پاسخ بدید:", "For a better suggestion, please answer:")}</p>
                 {questions.map((q, i) => (
                   <Card key={i} className="p-3 space-y-2">
                     <p className="text-sm font-medium">{q.question}</p>
@@ -234,7 +238,7 @@ export function TaskAIPanel({
                   </Card>
                 ))}
                 <Button onClick={submitAnswers} disabled={loading} className="w-full" variant="secondary">
-                  ارسال پاسخ‌ها
+                  {T("ارسال پاسخ‌ها", "Send answers")}
                 </Button>
               </div>
             )}
@@ -249,7 +253,7 @@ export function TaskAIPanel({
                   </Card>
                 ))}
                 <Button onClick={addPickedSubtasks} className="w-full">
-                  افزودن انتخاب‌شده‌ها
+                  {T("افزودن انتخاب‌شده‌ها", "Add selected")}
                 </Button>
               </div>
             )}
@@ -257,30 +261,30 @@ export function TaskAIPanel({
 
           {/* Meta */}
           <TabsContent value="meta" className="space-y-3 mt-4">
-            <p className="text-sm text-muted-foreground">AI بر اساس تسک، اولویت/ددلاین/تکرار پیشنهاد می‌ده.</p>
+            <p className="text-sm text-muted-foreground">{T("AI بر اساس تسک، اولویت/ددلاین/تکرار پیشنهاد می‌ده.", "AI suggests priority, due date, and recurrence based on the task.")}</p>
             <Button onClick={suggestMeta} disabled={loading} className="w-full gap-2">
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-              پیشنهاد بگیر
+              {T("پیشنهاد بگیر", "Suggest")}
             </Button>
             {meta && (
               <Card className="p-3 space-y-2">
                 {meta.priority && (
                   <div className="flex items-center gap-2 text-sm">
-                    <span className="text-muted-foreground">اولویت:</span>
+                    <span className="text-muted-foreground">{T("اولویت:", "Priority:")}</span>
                     <span className={PRIORITY_META[meta.priority].textClass}>
-                      {PRIORITY_META[meta.priority].emoji} {PRIORITY_META[meta.priority].label}
+                      {PRIORITY_META[meta.priority].emoji} {T(PRIORITY_META[meta.priority].label, PRIORITY_META[meta.priority].labelEn)}
                     </span>
                   </div>
                 )}
                 {meta.due_date && (
-                  <div className="text-sm"><span className="text-muted-foreground">سررسید:</span> {new Date(meta.due_date).toLocaleString("fa-IR")}</div>
+                  <div className="text-sm"><span className="text-muted-foreground">{T("سررسید:", "Due:")}</span> {new Date(meta.due_date).toLocaleString(isEn ? "en-US" : "fa-IR")}</div>
                 )}
                 {meta.recurrence_rule && (
-                  <div className="text-sm"><span className="text-muted-foreground">تکرار:</span> {describeRule(meta.recurrence_rule)}</div>
+                  <div className="text-sm"><span className="text-muted-foreground">{T("تکرار:", "Repeat:")}</span> {describeRule(meta.recurrence_rule, isEn)}</div>
                 )}
                 {meta.reason && <p className="text-xs text-muted-foreground italic">💡 {meta.reason}</p>}
                 <Button onClick={applyMeta} className="w-full gap-2" size="sm">
-                  <Check className="w-4 h-4" /> اعمال کن
+                  <Check className="w-4 h-4" /> {T("اعمال کن", "Apply")}
                 </Button>
               </Card>
             )}
@@ -288,17 +292,17 @@ export function TaskAIPanel({
 
           {/* Note */}
           <TabsContent value="note" className="space-y-3 mt-4">
-            <p className="text-sm text-muted-foreground">یک نوت کامل برای این تسک تولید می‌کند.</p>
+            <p className="text-sm text-muted-foreground">{T("یک نوت کامل برای این تسک تولید می‌کند.", "Generates a full note for this task.")}</p>
             <Button onClick={genNote} disabled={loading} className="w-full gap-2">
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-              تولید نوت
+              {T("تولید نوت", "Generate note")}
             </Button>
           </TabsContent>
 
           {/* Chat */}
           <TabsContent value="chat" className="mt-4 flex flex-col h-[55vh]">
             <div className="flex-1 overflow-y-auto space-y-2 mb-2 pe-1">
-              {chat.length === 0 && <p className="text-sm text-muted-foreground text-center mt-8">درباره این تسک سوال بپرس</p>}
+              {chat.length === 0 && <p className="text-sm text-muted-foreground text-center mt-8">{T("درباره این تسک سوال بپرس", "Ask about this task")}</p>}
               {chat.map((m, i) => (
                 <div key={i} className={`p-2 rounded-lg text-sm ${m.role === "user" ? "bg-primary/10 ms-6" : "bg-muted me-6"}`}>
                   <div className="prose-note text-xs">
@@ -310,7 +314,7 @@ export function TaskAIPanel({
             </div>
             <div className="flex gap-2">
               <Input value={chatInput} onChange={(e) => setChatInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && sendChat()} placeholder="بپرس..." />
+                onKeyDown={(e) => e.key === "Enter" && sendChat()} placeholder={T("بپرس...", "Ask...")} />
               <Button size="icon" onClick={sendChat} disabled={loading}><Send className="w-4 h-4" /></Button>
             </div>
           </TabsContent>

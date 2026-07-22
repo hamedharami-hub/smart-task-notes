@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
@@ -28,6 +29,9 @@ const UNASSIGNED = "__unassigned__";
 
 export function FolderKanban({ folderId, onOpenTask }: { folderId: string; onOpenTask?: (taskId: string) => void }) {
   const { user } = useAuth();
+  const { i18n } = useTranslation();
+  const isEn = (i18n.language || "fa").startsWith("en");
+  const T = (fa: string, en: string) => (isEn ? en : fa);
   const [cols, setCols] = useState<Col[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -74,7 +78,7 @@ export function FolderKanban({ folderId, onOpenTask }: { folderId: string; onOpe
       user_id: user.id, folder_id: folderId, name, position: cols.length,
     });
     if (error) toast.error(error.message);
-    else { setNewColName(""); toast.success("ستون اضافه شد"); }
+    else { setNewColName(""); toast.success(T("ستون اضافه شد", "Column added")); }
   };
 
   const renameColumn = async () => {
@@ -91,7 +95,7 @@ export function FolderKanban({ folderId, onOpenTask }: { folderId: string; onOpe
     await supabase.from("tasks").update({ kanban_column_id: null } as any).eq("kanban_column_id", col.id);
     const { error } = await supabase.from("folder_columns").delete().eq("id", col.id);
     if (error) toast.error(error.message);
-    else toast.success("ستون حذف شد");
+    else toast.success(T("ستون حذف شد", "Column deleted"));
   };
 
   const addCard = async (colId: string) => {
@@ -135,7 +139,7 @@ export function FolderKanban({ folderId, onOpenTask }: { folderId: string; onOpe
 
   const activeTask = activeId ? tasks.find(t => t.id === activeId) : null;
   const allColumns: Col[] = [
-    { id: UNASSIGNED, name: "بدون ستون", color: "#94a3b8", position: -1 },
+    { id: UNASSIGNED, name: T("بدون ستون", "No column"), color: "#94a3b8", position: -1 },
     ...cols,
   ];
 
@@ -143,20 +147,20 @@ export function FolderKanban({ folderId, onOpenTask }: { folderId: string; onOpe
     <div className="space-y-3">
       <div className="flex gap-2 items-center bg-card/40 border rounded-lg p-2">
         <Input
-          placeholder="+ نام ستون جدید (مثلاً «در حال طراحی»)"
+          placeholder={T("+ نام ستون جدید (مثلاً «در حال طراحی»)", "+ New column name (e.g. In Progress)")}
           value={newColName}
           onChange={(e) => setNewColName(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && addColumn()}
           className="h-9"
         />
         <Button onClick={addColumn} size="sm" className="gap-1">
-          <Plus className="w-4 h-4" /> ستون
+          <Plus className="w-4 h-4" /> {T("ستون", "Column")}
         </Button>
       </div>
 
       {cols.length === 0 && (
         <Card className="p-4 text-sm text-muted-foreground text-center">
-          هنوز ستون Kanban برای این فولدر تعریف نکردی. اول یک ستون اضافه کن.
+          {T("هنوز ستون Kanban برای این فولدر تعریف نکردی. اول یک ستون اضافه کن.", "No Kanban columns for this folder yet. Add one first.")}
         </Card>
       )}
 
@@ -191,7 +195,7 @@ export function FolderKanban({ folderId, onOpenTask }: { folderId: string; onOpe
       <AlertDialog open={!!renaming} onOpenChange={(v) => !v && setRenaming(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>تغییر نام ستون</AlertDialogTitle>
+            <AlertDialogTitle>{T("تغییر نام ستون", "Rename column")}</AlertDialogTitle>
           </AlertDialogHeader>
           <Input
             value={renaming?.name || ""}
@@ -199,8 +203,8 @@ export function FolderKanban({ folderId, onOpenTask }: { folderId: string; onOpe
             onKeyDown={(e) => e.key === "Enter" && renameColumn()}
           />
           <AlertDialogFooter>
-            <AlertDialogCancel>انصراف</AlertDialogCancel>
-            <AlertDialogAction onClick={renameColumn}>ذخیره</AlertDialogAction>
+            <AlertDialogCancel>{T("انصراف", "Cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={renameColumn}>{T("ذخیره", "Save")}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -209,18 +213,18 @@ export function FolderKanban({ folderId, onOpenTask }: { folderId: string; onOpe
       <AlertDialog open={!!delCol} onOpenChange={(v) => !v && setDelCol(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>حذف ستون «{delCol?.name}»؟</AlertDialogTitle>
+            <AlertDialogTitle>{T(`حذف ستون «${delCol?.name || T("این ستون", "this column")}»؟`, `Delete column "${delCol?.name || T("این ستون", "this column")}"?`)}</AlertDialogTitle>
             <AlertDialogDescription>
-              تسک‌های داخل این ستون به «بدون ستون» منتقل می‌شوند (حذف نمی‌شوند).
+              {T("تسک‌های داخل این ستون به «بدون ستون» منتقل می‌شوند (حذف نمی‌شوند).", "Tasks in this column will be moved to No column (not deleted).")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>انصراف</AlertDialogCancel>
+            <AlertDialogCancel>{T("انصراف", "Cancel")}</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={async () => { if (delCol) await deleteColumn(delCol); setDelCol(null); }}
             >
-              حذف
+              {T("حذف", "Delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -237,6 +241,9 @@ function Column({
   onRename?: () => void; onDelete?: () => void;
   onOpenTask?: (id: string) => void;
 }) {
+  const { i18n } = useTranslation();
+  const isEn = (i18n.language || "fa").startsWith("en");
+  const T = (fa: string, en: string) => (isEn ? en : fa);
   const { setNodeRef, isOver } = useDroppable({ id: col.id });
   const accent = col.color || "#3B82F6";
   return (
@@ -268,7 +275,7 @@ function Column({
           value={newValue}
           onChange={(e) => setNewValue(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && onAdd()}
-          placeholder="+ کارت جدید"
+          placeholder={T("+ کارت جدید", "+ New card")}
           className="h-8 text-xs bg-background"
         />
         <Button size="icon" variant="ghost" onClick={onAdd} className="h-8 w-8">
@@ -281,7 +288,7 @@ function Column({
           {tasks.map(t => <SortableTaskCard key={t.id} task={t} onOpen={onOpenTask} />)}
           {tasks.length === 0 && (
             <div className="text-[11px] text-muted-foreground text-center py-4 border border-dashed rounded-lg">
-              اینجا رها کن
+              {T("اینجا رها کن", "Drop here")}
             </div>
           )}
         </div>
@@ -308,6 +315,9 @@ function TaskCard({ task, dragging, dragHandleProps, onOpen }: {
   task: Task; dragging?: boolean;
   dragHandleProps?: any; onOpen?: (id: string) => void;
 }) {
+  const { i18n } = useTranslation();
+  const isEn = (i18n.language || "fa").startsWith("en");
+  const T = (fa: string, en: string) => (isEn ? en : fa);
   const pm = PRIORITY_META[task.priority] || PRIORITY_META.none;
   return (
     <Card className={`p-2.5 border-s-4 ${pm.borderClass} ${dragging ? "shadow-lg" : "hover:shadow-soft"}`}>
@@ -315,8 +325,8 @@ function TaskCard({ task, dragging, dragHandleProps, onOpen }: {
         <button
           {...(dragHandleProps || {})}
           className="cursor-grab active:cursor-grabbing px-0.5 text-muted-foreground/60 hover:text-foreground touch-none shrink-0"
-          aria-label="drag"
-          title="بکش برای جابجایی"
+          aria-label={T("بکش برای جابجایی", "Drag to move")}
+          title={T("بکش برای جابجایی", "Drag to move")}
           onClick={(e) => e.stopPropagation()}
         >
           ⋮⋮
@@ -330,7 +340,7 @@ function TaskCard({ task, dragging, dragHandleProps, onOpen }: {
           <div className="flex flex-wrap items-center gap-1 mt-1.5">
             {task.priority !== "none" && (
               <Badge variant="outline" className={`text-[9px] gap-0.5 px-1.5 ${pm.bgClass} ${pm.textClass}`}>
-                <Flag className="w-2 h-2" /> {pm.label}
+                <Flag className="w-2 h-2" /> {T(pm.label, pm.labelEn)}
               </Badge>
             )}
             {task.due_date && (

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -19,7 +20,7 @@ export function DueDatePicker({
   onChange,
   reminderValue = null,
   onReminderChange,
-  label = "سررسید",
+  label,
   compact = false,
 }: {
   value: string | null;
@@ -29,6 +30,10 @@ export function DueDatePicker({
   label?: string;
   compact?: boolean;
 }) {
+  const { i18n } = useTranslation();
+  const isEn = (i18n.language || "fa").startsWith("en");
+  const T = (fa: string, en: string) => (isEn ? en : fa);
+  const labelText = label || T("سررسید", "Due date");
   const [datePart, setDatePart] = useState<string>("");
   const [timePart, setTimePart] = useState<string>("");
   const [includeTime, setIncludeTime] = useState<boolean>(false);
@@ -77,7 +82,7 @@ export function DueDatePicker({
     <div className="space-y-2">
       {label && (
         <label className="text-xs text-muted-foreground flex items-center gap-1">
-          <Calendar className="w-3 h-3" /> {label}
+          <Calendar className="w-3 h-3" /> {labelText}
         </label>
       )}
 
@@ -87,19 +92,19 @@ export function DueDatePicker({
           type="button" size="sm"
           variant={isToday(datePart) ? "default" : "outline"}
           onClick={() => setQuick(0)} className="h-8 text-xs px-2"
-        >امروز</Button>
+        >{T("امروز", "Today")}</Button>
         <Button
           type="button" size="sm"
           variant={isTomorrow(datePart) ? "default" : "outline"}
           onClick={() => setQuick(1)} className="h-8 text-xs px-2"
-        >فردا</Button>
+        >{T("فردا", "Tomorrow")}</Button>
         <Input
           type="date" value={datePart}
           onChange={(e) => { setDatePart(e.target.value); emit(e.target.value, timePart, includeTime); }}
           className="h-8 flex-1 min-w-[130px] text-xs"
         />
         {value && (
-          <Button type="button" size="icon" variant="ghost" onClick={clear} className="h-8 w-8" title="حذف">
+          <Button type="button" size="icon" variant="ghost" onClick={clear} className="h-8 w-8" title={T("حذف", "Delete")}>
             <X className="w-3.5 h-3.5" />
           </Button>
         )}
@@ -112,7 +117,7 @@ export function DueDatePicker({
           if (datePart) emit(datePart, timePart || "09:00", v);
         }} id="due-time-toggle" />
         <label htmlFor="due-time-toggle" className="text-[11px] text-muted-foreground flex items-center gap-1 cursor-pointer flex-shrink-0">
-          <Clock className="w-3 h-3" /> ساعت
+          <Clock className="w-3 h-3" /> {T("ساعت", "Time")}
         </label>
         {includeTime && (
           <Input
@@ -132,7 +137,7 @@ export function DueDatePicker({
               setReminderOn(v);
               if (!v) { onReminderChange(null); return; }
               const ok = await ensureNotificationPermission();
-              if (!ok) toast.warning("اجازه‌ی نوتیفیکیشن داده نشده — یادآور صدا نمی‌زند");
+              if (!ok) toast.warning(T("اجازه‌ی نوتیفیکیشن داده نشده — یادآور صدا نمی‌زند", "Notification permission not granted — reminder won't sound"));
               if (datePart) {
                 const t = includeTime && timePart ? timePart : "09:00";
                 onReminderChange(new Date(`${datePart}T${t}`).toISOString());
@@ -142,7 +147,7 @@ export function DueDatePicker({
           />
 
           <label htmlFor="reminder-toggle" className="text-[11px] text-muted-foreground flex items-center gap-1 cursor-pointer flex-shrink-0">
-            <Bell className="w-3 h-3" /> یادآور
+            <Bell className="w-3 h-3" /> {T("یادآور", "Reminder")}
           </label>
           {reminderOn && (
             <Input

@@ -136,7 +136,7 @@ export function TaskDefaultSettings({ value, onChange }: Props) {
               const m = PRIORITY_META[p];
               return (
                 <SelectItem key={p} value={p} className="text-xs">
-                  <span className="flex items-center gap-1"><span>{m.emoji}</span> {m.label}</span>
+                  <span className="flex items-center gap-1"><span>{m.emoji}</span> {T(m.label, m.labelEn)}</span>
                 </SelectItem>
               );
             })}

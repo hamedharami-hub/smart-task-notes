@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Plus, Pin, Trash2, Search, Sparkles, Loader2, FolderInput, PinOff, Share2, X, Maximize2 } from "lucide-react";
 import ShareDialog from "@/components/ShareDialog";
 import SwipeableRow from "@/components/gestures/SwipeableRow";
@@ -26,55 +27,59 @@ import { useShareAccess } from "@/hooks/useShareAccess";
 
 type Note = { id: string; user_id?: string; title: string; content: string; pinned: boolean; updated_at: string; task_id?: string | null; folder_id?: string | null };
 
-const AI_GROUPS: { label: string; items: { key: string; label: string }[] }[] = [
-  {
-    label: "بهبود نگارش",
-    items: [
-      { key: "improve", label: "✨ بهبود کلی نگارش" },
-      { key: "fix_grammar", label: "✏️ اصلاح املا و گرامر" },
-      { key: "make_concise", label: "🎯 موجز و فشرده‌تر" },
-    ],
-  },
-  {
-    label: "ساختار و فرمت",
-    items: [
-      { key: "auto_format", label: "🪄 فرمت‌بندی هوشمند (سرتیتر، Bold، لیست)" },
-      { key: "add_headings", label: "📑 اضافه کردن سرتیتر مناسب" },
-      { key: "bold_keywords", label: "🅱️ Bold کردن نکات کلیدی" },
-      { key: "to_list", label: "• تبدیل به لیست" },
-      { key: "to_outline", label: "🗂 ساختار Outline" },
-    ],
-  },
-  {
-    label: "خلاصه و گسترش",
-    items: [
-      { key: "summarize", label: "📝 خلاصه کن" },
-      { key: "expand", label: "📖 گسترش بده" },
-      { key: "continue_writing", label: "✍️ ادامه‌ی متن را بنویس" },
-      { key: "tldr", label: "⚡ TL;DR در ۳ خط" },
-    ],
-  },
-  {
-    label: "سبک و لحن",
-    items: [
-      { key: "tone_formal", label: "👔 رسمی و حرفه‌ای" },
-      { key: "tone_casual", label: "😊 صمیمی و دوستانه" },
-      { key: "tone_academic", label: "🎓 آکادمیک" },
-      { key: "tone_motivational", label: "🔥 انگیزشی" },
-      { key: "simplify", label: "🧒 ساده برای همه‌فهم" },
-    ],
-  },
-  {
-    label: "ترجمه",
-    items: [
-      { key: "translate_fa", label: "🇮🇷 ترجمه به فارسی" },
-      { key: "translate_en", label: "🇬🇧 ترجمه به انگلیسی" },
-    ],
-  },
-];
-
 export default function NotesView() {
   const { user } = useAuth();
+  const { i18n } = useTranslation();
+  const isEn = (i18n.language || "fa").startsWith("en");
+  const T = (fa: string, en: string) => (isEn ? en : fa);
+
+  const aiGroups = useMemo(() => [
+    {
+      label: T("بهبود نگارش", "Improve writing"),
+      items: [
+        { key: "improve", label: T("✨ بهبود کلی نگارش", "✨ General improvement") },
+        { key: "fix_grammar", label: T("✏️ اصلاح املا و گرامر", "✏️ Fix spelling & grammar") },
+        { key: "make_concise", label: T("🎯 موجز و فشرده‌تر", "🎯 Make concise") },
+      ],
+    },
+    {
+      label: T("ساختار و فرمت", "Structure & format"),
+      items: [
+        { key: "auto_format", label: T("🪄 فرمت‌بندی هوشمند (سرتیتر، Bold، لیست)", "🪄 Auto format (headings, bold, lists)") },
+        { key: "add_headings", label: T("📑 اضافه کردن سرتیتر مناسب", "📑 Add proper headings") },
+        { key: "bold_keywords", label: T("🅱️ Bold کردن نکات کلیدی", "🅱️ Bold key points") },
+        { key: "to_list", label: T("• تبدیل به لیست", "• Convert to list") },
+        { key: "to_outline", label: T("🗂 ساختار Outline", "🗂 Outline structure") },
+      ],
+    },
+    {
+      label: T("خلاصه و گسترش", "Summarize & expand"),
+      items: [
+        { key: "summarize", label: T("📝 خلاصه کن", "📝 Summarize") },
+        { key: "expand", label: T("📖 گسترش بده", "📖 Expand") },
+        { key: "continue_writing", label: T("✍️ ادامه‌ی متن را بنویس", "✍️ Continue writing") },
+        { key: "tldr", label: T("⚡ TL;DR در ۳ خط", "⚡ TL;DR in 3 lines") },
+      ],
+    },
+    {
+      label: T("سبک و لحن", "Tone & style"),
+      items: [
+        { key: "tone_formal", label: T("👔 رسمی و حرفه‌ای", "👔 Formal & professional") },
+        { key: "tone_casual", label: T("😊 صمیمی و دوستانه", "😊 Casual & friendly") },
+        { key: "tone_academic", label: T("🎓 آکادمیک", "🎓 Academic") },
+        { key: "tone_motivational", label: T("🔥 انگیزشی", "🔥 Motivational") },
+        { key: "simplify", label: T("🧒 ساده برای همه‌فهم", "🧒 Simplify") },
+      ],
+    },
+    {
+      label: T("ترجمه", "Translate"),
+      items: [
+        { key: "translate_fa", label: T("🇮🇷 ترجمه به فارسی", "🇮🇷 Translate to Persian") },
+        { key: "translate_en", label: T("🇬🇧 ترجمه به انگلیسی", "🇬🇧 Translate to English") },
+      ],
+    },
+  ], [isEn, T]);
+
   const [searchParams, setSearchParams] = useSearchParams();
   const [notes, setNotes] = useState<Note[]>([]);
   const [selected, setSelected] = useState<Note | null>(null);
@@ -119,7 +124,7 @@ export default function NotesView() {
   const create = async () => {
     if (!user) return;
     const { data, error } = await supabase.from("notes").insert({
-      user_id: user.id, title: "نوت جدید", content: "",
+      user_id: user.id, title: T("نوت جدید", "New note"), content: "",
     }).select().single();
     if (error) toast.error(error.message);
     else if (data) {
@@ -132,7 +137,7 @@ export default function NotesView() {
 
   const save = async (patch: Partial<Note>) => {
     if (!selected) return;
-    if (!canEdit) { toast("دسترسی ویرایش ندارید"); return; }
+    if (!canEdit) { toast(T("دسترسی ویرایش ندارید", "You don't have edit permission")); return; }
     const updated = { ...selected, ...patch };
     setSelected(updated);
     await supabase.from("notes").update(patch).eq("id", selected.id);
@@ -147,7 +152,7 @@ export default function NotesView() {
 
   const del = async (id: string) => {
     const note = notes.find(n => n.id === id);
-    if (note && note.user_id !== user?.id) { toast("فقط صاحب نوت می‌تواند حذف کند"); return; }
+    if (note && note.user_id !== user?.id) { toast(T("فقط صاحب نوت می‌تواند حذف کند", "Only the note owner can delete")); return; }
     setNotes(prev => prev.filter(n => n.id !== id));
     await supabase.from("notes").delete().eq("id", id);
     if (selected?.id === id) { setSelected(null); setDraft(null); }
@@ -156,26 +161,26 @@ export default function NotesView() {
         await supabase.from("notes").insert(note as any);
         load();
       };
-      pushUndo({ label: `نوت «${note.title || "بدون عنوان"}» حذف شد`, undo: restore });
-      pushDeleted({ kind: "note", label: note.title || "بدون عنوان", restore });
+      pushUndo({ label: T(`نوت «${note.title || T("بدون عنوان", "Untitled")}» حذف شد`, `Note "${note.title || T("بدون عنوان", "Untitled")}" deleted`), undo: restore });
+      pushDeleted({ kind: "note", label: note.title || T("بدون عنوان", "Untitled"), restore });
     }
   };
 
   const runNoteAI = async (action: string) => {
     if (!selected) return;
-    if (!canEdit) { toast("دسترسی ویرایش ندارید"); return; }
+    if (!canEdit) { toast(T("دسترسی ویرایش ندارید", "You don't have edit permission")); return; }
     const md = (draft?.md ?? selected.content ?? "").trim();
-    if (!md) return toast.error("نوت خالی است");
+    if (!md) return toast.error(T("نوت خالی است", "Note is empty"));
     setAiBusy(true);
     try {
       const r = await callAI("inline_edit", md, undefined, action, aiLang);
       const newMd = (r.text || "").trim();
-      if (!newMd) throw new Error("نتیجه خالی");
+      if (!newMd) throw new Error(T("نتیجه خالی", "Empty result"));
       setDraft({ md: newMd, html: markdownToHtml(newMd) });
       await save({ content: newMd });
-      toast.success("اعمال شد ✨");
+      toast.success(T("اعمال شد ✨", "Applied ✨"));
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "خطا");
+      toast.error(e instanceof Error ? e.message : T("خطا", "Error"));
     } finally {
       setAiBusy(false);
     }
@@ -191,7 +196,7 @@ export default function NotesView() {
 
   const emptyState = (
     <div className="flex items-center justify-center h-full text-muted-foreground">
-      یک نوت انتخاب کن یا جدید بساز
+      {T("یک نوت انتخاب کن یا جدید بساز", "Select a note or create a new one")}
     </div>
   );
 
@@ -210,7 +215,7 @@ export default function NotesView() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="max-h-[70vh] overflow-y-auto w-64">
-            {AI_GROUPS.map((g, gi) => (
+            {aiGroups.map((g, gi) => (
               <div key={g.label}>
                 {gi > 0 && <DropdownMenuSeparator />}
                 <DropdownMenuLabel className="text-xs text-muted-foreground">{g.label}</DropdownMenuLabel>
@@ -226,10 +231,10 @@ export default function NotesView() {
         <Button size="icon" variant="ghost" onClick={() => save({ pinned: !selected.pinned })} disabled={!canEdit}>
           <Pin className={`w-4 h-4 ${selected.pinned ? "text-primary fill-primary" : ""}`} />
         </Button>
-        <Button size="icon" variant="ghost" onClick={() => setMoveOpen(true)} title="انتقال به فولدر" disabled={!canEdit}>
+        <Button size="icon" variant="ghost" onClick={() => setMoveOpen(true)} title={T("انتقال به فولدر", "Move to folder")} disabled={!canEdit}>
           <FolderInput className="w-4 h-4" />
         </Button>
-        <Button size="icon" variant="ghost" onClick={() => setShareOpen(true)} title="اشتراک‌گذاری" disabled={!isOwner}>
+        <Button size="icon" variant="ghost" onClick={() => setShareOpen(true)} title={T("اشتراک‌گذاری", "Share")} disabled={!isOwner}>
           <Share2 className="w-4 h-4" />
         </Button>
         <Button size="icon" variant="ghost" onClick={() => setConfirmDel(selected)} disabled={!isOwner}>
@@ -251,12 +256,12 @@ export default function NotesView() {
       <div className="md:w-80 border-s md:border-s border-e-0 md:border-e flex flex-col bg-card/30">
         <div dir="rtl" className="p-3 border-b space-y-2">
           <div className="flex justify-between items-center">
-            <h2 className="font-semibold">نوت‌ها</h2>
+            <h2 className="font-semibold">{T("نوت‌ها", "Notes")}</h2>
             <Button size="sm" onClick={create}><Plus className="w-4 h-4" /></Button>
           </div>
           <div className="relative">
             <Search className="w-4 h-4 absolute left-2 top-2.5 text-muted-foreground" />
-            <Input placeholder="جستجو..." value={search} onChange={(e) => setSearch(e.target.value)} className="ps-8" dir="auto" />
+            <Input placeholder={T("جستجو...", "Search...")} value={search} onChange={(e) => setSearch(e.target.value)} className="ps-8" dir="auto" />
           </div>
         </div>
         <div className="flex-1 overflow-y-auto">
@@ -269,8 +274,8 @@ export default function NotesView() {
               }}
               onDelete={() => del(n.id)}
               isCompleted={n.pinned}
-              rightLabel="Pin"
-              rightLabelAlt="Unpin"
+              rightLabel={T("پین", "Pin")}
+              rightLabelAlt={T("حذف پین", "Unpin")}
               RightIcon={n.pinned ? PinOff : Pin}
               rightColor="amber"
             >
@@ -278,7 +283,7 @@ export default function NotesView() {
                 draggable
                 onDragStart={(e) => startItemDrag(e, { kind: "note", id: n.id, title: n.title })}
                 className="border-b bg-card"
-                title="Drag روی فولدر سایدبار برای انتقال"
+                title={T("Drag روی فولدر سایدبار برای انتقال", "Drag onto a folder in the sidebar to move")}
               >
                 <button onClick={() => { setSelected(n); setDraft({ html: markdownToHtml(n.content || ""), md: n.content || "" }); }}
                   className={`w-full text-end p-3 hover:bg-accent/40 transition cursor-grab active:cursor-grabbing ${selected?.id === n.id ? "bg-accent/60" : ""}`}>
@@ -306,17 +311,17 @@ export default function NotesView() {
               <DrawerTitle>{selected.title}</DrawerTitle>
             </DrawerHeader>
             <div className="flex items-center justify-end px-3 pt-3 pb-1">
-              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setSnap(1)} title="فول اسکرین">
+              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setSnap(1)} title={T("فول اسکرین", "Full screen")}>
                 <Maximize2 className="w-4 h-4" />
               </Button>
-              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setSelected(null)} title="بستن">
+              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setSelected(null)} title={T("بستن", "Close")}>
                 <X className="w-4 h-4" />
               </Button>
             </div>
             <div className="flex-1 overflow-y-auto min-h-0 px-3 pb-4">
               {editor}
             </div>
-            <p id="note-drawer-desc" className="sr-only">جزئیات و ویرایش نوت</p>
+            <p id="note-drawer-desc" className="sr-only">{T("جزئیات و ویرایش نوت", "Note details and editor")}</p>
           </DrawerContent>
         </Drawer>
       )}
@@ -324,18 +329,18 @@ export default function NotesView() {
       <AlertDialog open={!!confirmDel} onOpenChange={(v) => !v && setConfirmDel(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>حذف نوت؟</AlertDialogTitle>
+            <AlertDialogTitle>{T("حذف نوت؟", "Delete note?")}</AlertDialogTitle>
             <AlertDialogDescription>
-              آیا مطمئنی می‌خوای «{confirmDel?.title}» را حذف کنی؟ این عمل قابل بازگشت نیست.
+              {T(`آیا مطمئنی می‌خوای «${confirmDel?.title || T("این مورد", "this item")}» را حذف کنی؟ این عمل قابل بازگشت نیست.`, `Are you sure you want to delete "${confirmDel?.title || T("این مورد", "this item")}"? This action cannot be undone.`)}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>انصراف</AlertDialogCancel>
+            <AlertDialogCancel>{T("انصراف", "Cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={async () => { if (confirmDel) await del(confirmDel.id); setConfirmDel(null); }}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              حذف
+              {T("حذف", "Delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

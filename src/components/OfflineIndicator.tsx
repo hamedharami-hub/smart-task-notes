@@ -1,17 +1,21 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { WifiOff, RefreshCw, CloudOff, CheckCircle2 } from "lucide-react";
 import { getQueue, onQueueChange, flushQueue } from "@/lib/offlineQueue";
 import { Button } from "@/components/ui/button";
 
-const formatTime = (ts: number) => {
+const formatTime = (ts: number, isEn: boolean) => {
   try {
-    return new Intl.DateTimeFormat("fa-IR", { hour: "2-digit", minute: "2-digit" }).format(new Date(ts));
+    return new Intl.DateTimeFormat(isEn ? "en-US" : "fa-IR", { hour: "2-digit", minute: "2-digit" }).format(new Date(ts));
   } catch {
     return "";
   }
 };
 
 export default function OfflineIndicator() {
+  const { i18n } = useTranslation();
+  const isEn = (i18n.language || "fa").startsWith("en");
+  const T = (fa: string, en: string) => (isEn ? en : fa);
   const [online, setOnline] = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
   const [pending, setPending] = useState(0);
   const [syncing, setSyncing] = useState(false);
@@ -61,12 +65,12 @@ export default function OfflineIndicator() {
       {!online ? (
         <>
           <WifiOff className="h-3.5 w-3.5 text-destructive" />
-          <span>آفلاین — تغییرات ذخیره می‌شود</span>
+          <span>{T("آفلاین — تغییرات ذخیره می‌شود", "Offline — changes saved")}</span>
         </>
       ) : pending > 0 ? (
         <>
           <CloudOff className="h-3.5 w-3.5 text-primary" />
-          <span>{pending} تغییر در صف</span>
+          <span>{`${pending} ${T("تغییر در صف", "pending changes")}`}</span>
           <Button
             size="sm"
             variant="ghost"
@@ -80,7 +84,7 @@ export default function OfflineIndicator() {
       ) : (
         <>
           <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-          <span>آنلاین{lastSync ? ` · آخرین همگام‌سازی ${formatTime(lastSync)}` : ""}</span>
+          <span>{T("آنلاین", "Online")}{lastSync ? ` · ${T(`آخرین همگام‌سازی ${formatTime(lastSync, isEn)}`, `Last sync ${formatTime(lastSync, isEn)}`)}` : ""}</span>
           <Button
             size="sm"
             variant="ghost"
