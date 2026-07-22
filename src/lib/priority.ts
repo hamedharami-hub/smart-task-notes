@@ -2,6 +2,7 @@ export type Priority = "none" | "low" | "medium" | "high" | "urgent";
 
 export const PRIORITY_META: Record<Priority, {
   label: string;
+  labelEn: string;
   emoji: string;
   textClass: string;
   bgClass: string;
@@ -10,6 +11,7 @@ export const PRIORITY_META: Record<Priority, {
 }> = {
   urgent: {
     label: "فوق فوری",
+    labelEn: "Urgent",
     emoji: "🔥",
     textClass: "text-red-700 dark:text-red-300",
     bgClass: "bg-red-600/15 border-red-600/40",
@@ -18,6 +20,7 @@ export const PRIORITY_META: Record<Priority, {
   },
   high: {
     label: "فوری",
+    labelEn: "High",
     emoji: "🔴",
     textClass: "text-rose-600 dark:text-rose-400",
     bgClass: "bg-rose-500/10 border-rose-500/30",
@@ -26,6 +29,7 @@ export const PRIORITY_META: Record<Priority, {
   },
   medium: {
     label: "متوسط",
+    labelEn: "Medium",
     emoji: "🟠",
     textClass: "text-amber-600 dark:text-amber-400",
     bgClass: "bg-amber-500/10 border-amber-500/30",
@@ -34,6 +38,7 @@ export const PRIORITY_META: Record<Priority, {
   },
   low: {
     label: "پایین",
+    labelEn: "Low",
     emoji: "🟢",
     textClass: "text-emerald-600 dark:text-emerald-400",
     bgClass: "bg-emerald-500/10 border-emerald-500/30",
@@ -42,6 +47,7 @@ export const PRIORITY_META: Record<Priority, {
   },
   none: {
     label: "بدون",
+    labelEn: "None",
     emoji: "⚪",
     textClass: "text-muted-foreground",
     bgClass: "bg-muted/30 border-border",

@@ -3,12 +3,12 @@
 
 export type EndBellId = "bell" | "chime" | "digital" | "gong" | "none";
 
-export const END_BELLS: { id: EndBellId; name: string; emoji: string }[] = [
-  { id: "bell",    name: "زنگ کلاسیک", emoji: "🔔" },
-  { id: "chime",   name: "زنگوله ملایم", emoji: "🎐" },
-  { id: "digital", name: "بیپ دیجیتال", emoji: "📟" },
-  { id: "gong",    name: "گُنگ مدیتیشن", emoji: "🪘" },
-  { id: "none",    name: "بی‌صدا",       emoji: "🔇" },
+export const END_BELLS: { id: EndBellId; name: string; nameEn: string; emoji: string }[] = [
+  { id: "bell",    name: "زنگ کلاسیک",    nameEn: "Classic bell", emoji: "🔔" },
+  { id: "chime",   name: "زنگوله ملایم",  nameEn: "Soft chime",   emoji: "🎐" },
+  { id: "digital", name: "بیپ دیجیتال",  nameEn: "Digital beep", emoji: "📟" },
+  { id: "gong",    name: "گُنگ مدیتیشن", nameEn: "Meditation gong", emoji: "🪘" },
+  { id: "none",    name: "بی‌صدا",        nameEn: "Silent",       emoji: "🔇" },
 ];
 
 let _ctx: AudioContext | null = null;

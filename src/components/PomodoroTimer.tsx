@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type TouchEvent as RTouchEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { Play, Pause, RotateCcw, Volume2, VolumeX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -12,6 +13,7 @@ import { startSynth, stopSynth, setSynthVolume } from "@/lib/pomodoroSynth";
 import { END_BELLS, playEndBell, type EndBellId } from "@/lib/pomodoroSounds";
 import { useTapGestures } from "@/lib/useTapGestures";
 import { haptic } from "@/lib/haptics";
+import { toPersianDigits } from "@/lib/persianDigits";
 
 type Props = {
   taskId?: string | null;
@@ -31,6 +33,9 @@ function savePrefs(p: Prefs) { localStorage.setItem(PREF_KEY, JSON.stringify(p))
 
 export default function PomodoroTimer({ taskId = null, defaultMinutes, compact = false, onSessionComplete }: Props) {
   const { user } = useAuth();
+  const { i18n } = useTranslation();
+  const isEn = (i18n.language || "fa").startsWith("en");
+  const T = (fa: string, en: string) => (isEn ? en : fa);
   const [prefs, setPrefs] = useState<Prefs>(loadPrefs());
   const [minutes, setMinutes] = useState(defaultMinutes ?? prefs.minutes);
   const [seconds, setSeconds] = useState(0);
@@ -93,13 +98,13 @@ export default function PomodoroTimer({ taskId = null, defaultMinutes, compact =
           ended_at: new Date().toISOString(),
         });
       }
-      toast.success(`${dur} دقیقه تمرکز ثبت شد ✅ — ۵ دقیقه استراحت`);
+      toast.success(T(`${dur} دقیقه تمرکز ثبت شد ✅ — ۵ دقیقه استراحت`, `${dur} min focus logged ✅ — 5 min break`));
       onSessionComplete?.();
       setMode("break");
       setMinutes(5); setSeconds(0);
       totalSecRef.current = 5 * 60;
     } else {
-      toast.success("استراحت تمام شد. آماده‌ای؟");
+      toast.success(T("استراحت تمام شد. آماده‌ای؟", "Break finished. Ready?"));
       setMode("work");
       setMinutes(prefs.minutes); setSeconds(0);
       totalSecRef.current = prefs.minutes * 60;
@@ -163,7 +168,7 @@ export default function PomodoroTimer({ taskId = null, defaultMinutes, compact =
       const next = Math.max(5, Math.min(90, prefs.minutes + delta));
       onMinutesChange(next);
       haptic("light");
-      toast.message(`${next} دقیقه`);
+      toast.message(T(`${next} دقیقه`, `${next} min`));
     } else if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy)) {
       if (running) return;
       const newMode = mode === "work" ? "break" : "work";
@@ -171,20 +176,20 @@ export default function PomodoroTimer({ taskId = null, defaultMinutes, compact =
       const m = newMode === "work" ? prefs.minutes : 5;
       setMinutes(m); setSeconds(0); totalSecRef.current = m * 60;
       haptic("medium");
-      toast.message(newMode === "work" ? "حالت تمرکز" : "حالت استراحت");
+      toast.message(newMode === "work" ? T("حالت تمرکز", "Focus mode") : T("حالت استراحت", "Break mode"));
     }
   };
 
   return (
     <div className="space-y-4">
       <div className="text-center">
-        <div className="text-xs text-muted-foreground mb-1">{mode === "work" ? "زمان تمرکز" : "استراحت"}</div>
+        <div className="text-xs text-muted-foreground mb-1">{mode === "work" ? T("زمان تمرکز", "Focus time") : T("استراحت", "Break")}</div>
         <div
           {...timerHandlers}
           onTouchStart={(e) => { timerHandlers.onTouchStart(e); onTimerTouchStart(e); }}
           onTouchEnd={(e) => { timerHandlers.onTouchEnd(); onTimerTouchEnd(e); }}
           className={`tabular-nums font-bold text-primary ${compact ? "text-5xl" : "text-7xl"} my-3 select-none cursor-pointer`}
-          title="دابل‌تاچ: شروع/توقف • نگه‌داشتن: ریست • سوایپ عمودی: ±۵د • سوایپ افقی: تمرکز/استراحت"
+          title={T("دابل‌تاچ: شروع/توقف • نگه‌داشتن: ریست • سوایپ عمودی: ±۵د • سوایپ افقی: تمرکز/استراحت", "Double-tap: start/stop • Hold: reset • Vertical swipe: ±5m • Horizontal swipe: focus/break")}
         >
           {String(minutes).padStart(2, "0")}:{String(seconds).padStart(2, "0")}
         </div>
@@ -206,13 +211,13 @@ export default function PomodoroTimer({ taskId = null, defaultMinutes, compact =
 
       {!running && mode === "work" && (
         <div className="space-y-2">
-          <Label className="text-xs">مدت زمان: {prefs.minutes} دقیقه</Label>
+          <Label className="text-xs">{T("مدت زمان", "Duration")}: {toPersianDigits(prefs.minutes)} {T("دقیقه", "min")}</Label>
           <Slider value={[prefs.minutes]} min={5} max={90} step={5} onValueChange={([v]) => onMinutesChange(v)} />
           <div className="flex flex-wrap gap-1 justify-center">
             {[15, 25, 45, 60].map(m => (
               <Button key={m} size="sm" variant={prefs.minutes === m ? "default" : "outline"}
                 className="h-7 px-2 text-xs" onClick={() => onMinutesChange(m)}>
-                {m}د
+                {T(`${m}د`, `${m}m`)}
               </Button>
             ))}
           </div>
@@ -221,21 +226,21 @@ export default function PomodoroTimer({ taskId = null, defaultMinutes, compact =
 
       <div className="space-y-2 border-t pt-3">
         <div className="flex items-center gap-2">
-          <Label className="text-xs flex-1">صدای پایان</Label>
+          <Label className="text-xs flex-1">{T("صدای پایان", "End sound")}</Label>
           <Select value={prefs.bell} onValueChange={(v) => { setPrefs(p => ({ ...p, bell: v as EndBellId })); playEndBell(v as EndBellId); }}>
             <SelectTrigger className="h-8 w-40 text-xs"><SelectValue /></SelectTrigger>
             <SelectContent>
-              {END_BELLS.map(b => <SelectItem key={b.id} value={b.id}>{b.emoji} {b.name}</SelectItem>)}
+              {END_BELLS.map(b => <SelectItem key={b.id} value={b.id}>{b.emoji} {T(b.name, b.nameEn)}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
 
         <div className="flex items-center gap-2">
-          <Label className="text-xs flex-1">صدای محیطی / موسیقی</Label>
+          <Label className="text-xs flex-1">{T("صدای محیطی / موسیقی", "Ambient / music")}</Label>
           <Select value={prefs.ambient} onValueChange={(v) => setPrefs(p => ({ ...p, ambient: v }))}>
-            <SelectTrigger className="h-8 w-44 text-xs"><SelectValue placeholder="بدون صدا" /></SelectTrigger>
+            <SelectTrigger className="h-8 w-44 text-xs"><SelectValue placeholder={T("بدون صدا", "No sound")} /></SelectTrigger>
             <SelectContent className="max-h-80">
-              <SelectItem value="none">🔇 بدون صدا</SelectItem>
+              <SelectItem value="none">🔇 {T("بدون صدا", "No sound")}</SelectItem>
               {(Object.keys(SOUND_CATEGORY_META) as SoundCategory[]).map((cat) => {
                 const items = AMBIENT_SOUNDS.filter(s => s.category === cat);
                 if (!items.length) return null;
@@ -243,10 +248,10 @@ export default function PomodoroTimer({ taskId = null, defaultMinutes, compact =
                 return (
                   <div key={cat}>
                     <div className="px-2 py-1 text-[10px] text-muted-foreground border-t mt-1">
-                      {meta.emoji} {meta.label}
+                      {meta.emoji} {T(meta.label, meta.labelEn)}
                     </div>
                     {items.map(s => (
-                      <SelectItem key={s.id} value={s.id}>{s.emoji} {s.name}</SelectItem>
+                      <SelectItem key={s.id} value={s.id}>{s.emoji} {T(s.name, s.nameEn)}</SelectItem>
                     ))}
                   </div>
                 );
@@ -257,7 +262,7 @@ export default function PomodoroTimer({ taskId = null, defaultMinutes, compact =
 
         {(() => {
           const cur = AMBIENT_SOUNDS.find(s => s.id === prefs.ambient);
-          if (cur?.hint) return <div className="text-[10px] text-amber-600 dark:text-amber-400 ms-1">⚠️ {cur.hint}</div>;
+          if (cur?.hint) return <div className="text-[10px] text-amber-600 dark:text-amber-400 ms-1">⚠️ {T(cur.hint, cur.hintEn || cur.hint)}</div>;
           return null;
         })()}
 

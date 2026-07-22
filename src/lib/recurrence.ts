@@ -38,15 +38,23 @@ export function nextOccurrence(rule: RecurrenceRule, after: Date = new Date()): 
   }
 }
 
-export function describeRule(rule: RecurrenceRule | null): string {
-  if (!rule) return "بدون تکرار";
-  const freqMap = { daily: "روز", weekly: "هفته", monthly: "ماه", yearly: "سال" };
-  const intervalText = rule.interval > 1 ? `هر ${rule.interval} ${freqMap[rule.freq]}` : `هر ${freqMap[rule.freq]}`;
-  const wdNames: Record<string, string> = {
-    MO: "دوشنبه", TU: "سه‌شنبه", WE: "چهارشنبه", TH: "پنج‌شنبه",
-    FR: "جمعه", SA: "شنبه", SU: "یکشنبه",
-  };
-  const days = rule.byweekday?.length ? ` در ${rule.byweekday.map((d) => wdNames[d]).join("، ")}` : "";
-  const time = typeof rule.byhour === "number" ? ` ساعت ${String(rule.byhour).padStart(2, "0")}:${String(rule.byminute || 0).padStart(2, "0")}` : "";
+export function describeRule(rule: RecurrenceRule | null, isEn = false): string {
+  const freqMap = isEn
+    ? { daily: "day", weekly: "week", monthly: "month", yearly: "year" }
+    : { daily: "روز", weekly: "هفته", monthly: "ماه", yearly: "سال" };
+  const every = isEn ? "Every" : "هر";
+  const on = isEn ? " on " : " در ";
+  const at = isEn ? " at " : " ساعت ";
+  const none = isEn ? "No repeat" : "بدون تکرار";
+  if (!rule) return none;
+  const unit = `${freqMap[rule.freq]}${rule.interval > 1 && isEn ? "s" : ""}`;
+  const intervalText = rule.interval > 1
+    ? isEn ? `${every} ${rule.interval} ${unit}` : `${every} ${rule.interval} ${unit}`
+    : `${every} ${unit}`;
+  const wdNames: Record<string, string> = isEn
+    ? { MO: "Mon", TU: "Tue", WE: "Wed", TH: "Thu", FR: "Fri", SA: "Sat", SU: "Sun" }
+    : { MO: "دوشنبه", TU: "سه‌شنبه", WE: "چهارشنبه", TH: "پنج‌شنبه", FR: "جمعه", SA: "شنبه", SU: "یکشنبه" };
+  const days = rule.byweekday?.length ? `${on}${rule.byweekday.map((d) => wdNames[d]).join(isEn ? ", " : "، ")}` : "";
+  const time = typeof rule.byhour === "number" ? `${at}${String(rule.byhour).padStart(2, "0")}:${String(rule.byminute || 0).padStart(2, "0")}` : "";
   return `${intervalText}${days}${time}`;
 }

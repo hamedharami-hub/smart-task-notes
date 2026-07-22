@@ -117,7 +117,7 @@ export default function TaskActionSheet({
                     active ? `${m.bgClass} ${m.textClass} border-current` : "bg-muted/40 text-muted-foreground border-transparent hover:bg-muted"
                   } ${!canEdit ? "opacity-40 cursor-not-allowed" : ""}`}
                 >
-                  {m.label}
+                  {T(m.label, m.labelEn)}
                 </button>
               );
             })}

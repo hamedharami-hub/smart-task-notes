@@ -117,7 +117,7 @@ export default {
     appearance: "Appearance",
     language: "App Language",
     languageDesc: "Change the user-interface language",
-    persian: "فارسی",
+    persian: "Persian",
     english: "English",
     theme: "Theme",
     themeLight: "Light",

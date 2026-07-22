@@ -36,8 +36,7 @@ import { useTranslation } from "react-i18next";
 import SidebarItemSheet from "@/components/SidebarItemSheet";
 import { useLongPress } from "@/lib/useLongPress";
 
-// Map Persian labels (used in SECTIONS) → English equivalents.
-// Used only when the active app language is "en".
+// Bilingual label maps. SECTIONS uses the Persian label as the canonical key.
 const EN_LABELS: Record<string, string> = {
   "انجام دادن": "Do",
   "رشد": "Grow",
@@ -56,6 +55,7 @@ const EN_LABELS: Record<string, string> = {
   "بینش هفتگی": "Weekly Insights",
   "بازنگری هفتگی": "Weekly Review",
   "Check-in روزانه": "Daily Check-in",
+  "چک‌این روزانه": "Daily Check-in",
   "ژورنال تصمیم": "Decision Journal",
   "ثبت افکار (CBT)": "Thought Records (CBT)",
   "مدل ABC": "ABC Model",
@@ -70,12 +70,24 @@ const EN_LABELS: Record<string, string> = {
   "Pomodoro": "Pomodoro",
   "Smart Lists": "Smart Lists",
   "آمار و خلاصه": "Stats & Summary",
+  "بازه‌های کلی": "Time Buckets",
+  "سیکل پریود": "Period Cycle",
+  "تمرین تنفس ۳بعدی": "3D Breathing",
+  "صندوق ورودی": "Inbox",
+};
+const FA_LABELS: Record<string, string> = {
+  "Inbox": "صندوق ورودی",
+  "Pomodoro": "پومودورو",
+  "Smart Lists": "لیست‌های هوشمند",
 };
 
 function useLabel() {
   const { i18n } = useTranslation();
   const lang = (i18n.language || "fa").split("-")[0];
-  return (label: string) => (lang === "en" && EN_LABELS[label]) || label;
+  return (label: string) => {
+    if (lang === "en") return EN_LABELS[label] || label;
+    return FA_LABELS[label] || label;
+  };
 }
 
 type Folder = { id: string; user_id?: string; name: string; parent_id: string | null; color: string };
@@ -89,7 +101,7 @@ const SECTIONS: Section[] = [
     id: "do", title: "انجام دادن", icon: ListTodo, defaultOpen: true,
     items: [
       { url: "/app/today", icon: CalIcon, label: "امروز" },
-      { url: "/app/inbox", icon: Inbox, label: "Inbox" },
+      { url: "/app/inbox", icon: Inbox, label: "صندوق ورودی" },
       { url: "/app/tomorrow", icon: Sun, label: "فردا" },
       { url: "/app/next7", icon: CalendarDays, label: "۷ روز آینده" },
       { url: "/app/calendar", icon: Calendar, label: "تقویم" },
@@ -111,7 +123,7 @@ const SECTIONS: Section[] = [
     id: "mind", title: "ذهن", icon: BrainCircuit, defaultOpen: false,
     items: [
       { url: "/app/mind", icon: BrainCircuit, label: "داشبورد ذهن" },
-      { url: "/app/checkin", icon: Activity, label: "Check-in روزانه" },
+      { url: "/app/checkin", icon: Activity, label: "چک‌این روزانه" },
       { url: "/app/thoughts", icon: BookOpen, label: "ثبت افکار (CBT)" },
       { url: "/app/abc", icon: Zap, label: "مدل ABC" },
       { url: "/app/socratic", icon: MessageCircleQuestion, label: "چت سقراطی" },
@@ -166,6 +178,7 @@ function FolderRow({ folder: f, depth, hasChildren, open, collapsed, onToggle, o
   folder: Folder; depth: number; hasChildren: boolean; open: boolean; collapsed: boolean;
   onToggle: () => void; onAI: () => void; onDelete: () => void; onLongPress: () => void; onNav: () => void;
 }) {
+  const { t } = useTranslation();
   const lp = useLongPress({ onLongPress });
   return (
     <SidebarMenuItem>
@@ -204,11 +217,11 @@ function FolderRow({ folder: f, depth, hasChildren, open, collapsed, onToggle, o
           {!collapsed && (
             <>
               <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); onAI(); }}
-                className="p-1 hover:bg-muted rounded opacity-60 hover:opacity-100 transition" title="چت AI روی این فولدر">
+                className="p-1 hover:bg-muted rounded opacity-60 hover:opacity-100 transition" title={t("folders.aiChat")}>
                 <Sparkles className="w-3 h-3 text-primary" />
               </button>
               <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(); }}
-                className="p-1 hover:bg-destructive/10 rounded opacity-40 hover:opacity-100 transition" title="حذف فولدر">
+                className="p-1 hover:bg-destructive/10 rounded opacity-40 hover:opacity-100 transition" title={t("folders.deleteFolder")}>
                 <Trash2 className="w-3 h-3 text-destructive" />
               </button>
             </>
@@ -219,26 +232,27 @@ function FolderRow({ folder: f, depth, hasChildren, open, collapsed, onToggle, o
   );
 }
 
-function TagRow({ tag: t, collapsed, onDelete, onLongPress, onNav }: {
+function TagRow({ tag: tagItem, collapsed, onDelete, onLongPress, onNav }: {
   tag: TagT; collapsed: boolean; onDelete: () => void; onLongPress: () => void; onNav: () => void;
 }) {
+  const { t } = useTranslation();
   const lp = useLongPress({ onLongPress });
   return (
     <SidebarMenuItem>
       <div className="flex items-center group" {...lp.handlers}>
         <SidebarMenuButton asChild className="flex-1">
-          <NavLink to={`/app/tag/${t.id}`}
+          <NavLink to={`/app/tag/${tagItem.id}`}
             onClick={(e) => { if (lp.didFire()) { e.preventDefault(); return; } onNav(); }}
             className="flex items-center gap-2"
             activeClassName="bg-accent text-accent-foreground font-medium">
-            <Tag className="w-4 h-4" style={{ color: t.color }} />
-            {!collapsed && <span className="truncate">{t.name}</span>}
+            <Tag className="w-4 h-4" style={{ color: tagItem.color }} />
+            {!collapsed && <span className="truncate">{tagItem.name}</span>}
           </NavLink>
         </SidebarMenuButton>
         {!collapsed && (
           <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(); }}
             className="p-1 opacity-0 group-hover:opacity-100 transition text-muted-foreground hover:text-destructive"
-            title="حذف تگ" aria-label="حذف تگ">
+            title={t("tags.deleteTag")} aria-label={t("tags.deleteTag")}>
             <Trash2 className="w-3 h-3" />
           </button>
         )}
@@ -253,8 +267,7 @@ export function AppSidebar() {
   const { signOut, user } = useAuth();
   const { isAdmin } = useUserRole();
   const tr = useLabel();
-  const { i18n: i18nApp } = useTranslation();
-  const isEn = (i18nApp.language || "fa").startsWith("en");
+  const { t } = useTranslation();
   const [folders, setFolders] = useState<Folder[]>([]);
   const [tags, setTags] = useState<TagT[]>([]);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
@@ -306,7 +319,7 @@ export function AppSidebar() {
   const resetOrder = () => {
     setOrder(DEFAULT_ORDER);
     try { localStorage.removeItem(ORDER_KEY); } catch {}
-    toast.success("ترتیب بازنشانی شد");
+    toast.success(t("sidebar.resetDone"));
   };
 
   const load = async () => {
@@ -335,14 +348,14 @@ export function AppSidebar() {
     if (!newFolder.trim() || !user) return;
     const { error } = await supabase.from("folders").insert({ name: newFolder, user_id: user.id });
     if (error) toast.error(error.message);
-    else { toast.success("فولدر ساخته شد"); setNewFolder(""); setOpenFolderDlg(false); }
+    else { toast.success(t("folders.created")); setNewFolder(""); setOpenFolderDlg(false); }
   };
 
   const createTag = async () => {
     if (!newTag.trim() || !user) return;
     const { error } = await supabase.from("tags").insert({ name: newTag, user_id: user.id });
     if (error) toast.error(error.message);
-    else { toast.success("تگ ساخته شد"); setNewTag(""); setOpenTagDlg(false); }
+    else { toast.success(t("tags.created")); setNewTag(""); setOpenTagDlg(false); }
   };
 
   const renderTree = (parentId: string | null, depth = 0) => {
@@ -512,7 +525,7 @@ export function AppSidebar() {
           {!collapsed && (
             <div className="flex flex-col leading-tight">
               <span className="font-bold text-base bg-gradient-to-l from-pink-500 via-purple-500 to-blue-500 bg-clip-text text-transparent">ARSHNAZ</span>
-              <span className="text-[9px] text-muted-foreground">{isEn ? "Dedicated to the love of my life, Arshnaz ❤️" : "تقدیم به عشق زندگی‌ام، آرشناز ❤️"}</span>
+              <span className="text-[9px] text-muted-foreground">{t("app.tagline")}</span>
             </div>
           )}
         </div>

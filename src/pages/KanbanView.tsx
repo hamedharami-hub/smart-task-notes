@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
@@ -24,15 +25,18 @@ type Task = {
   status: Status; completed: boolean; parent_id: string | null;
 };
 
-const COLUMNS: { id: Status; label: string; icon: any; accent: string }[] = [
-  { id: "todo", label: "To Do", icon: Circle, accent: "border-t-muted-foreground/40" },
-  { id: "in_progress", label: "In Progress", icon: Loader2, accent: "border-t-primary" },
-  { id: "done", label: "Done", icon: CheckCircle2, accent: "border-t-emerald-500" },
+const COLUMNS: { id: Status; labelFa: string; labelEn: string; icon: any; accent: string }[] = [
+  { id: "todo", labelFa: "برای انجام", labelEn: "To Do", icon: Circle, accent: "border-t-muted-foreground/40" },
+  { id: "in_progress", labelFa: "در حال انجام", labelEn: "In Progress", icon: Loader2, accent: "border-t-primary" },
+  { id: "done", labelFa: "انجام شده", labelEn: "Done", icon: CheckCircle2, accent: "border-t-emerald-500" },
 ];
 const COL_ORDER: Status[] = ["todo", "in_progress", "done"];
 
 export default function KanbanView() {
   const { user } = useAuth();
+  const { i18n } = useTranslation();
+  const isEn = (i18n.language || "fa").startsWith("en");
+  const T = (fa: string, en: string) => (isEn ? en : fa);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [newTitle, setNewTitle] = useState<Record<Status, string>>({ todo: "", in_progress: "", done: "" });
@@ -141,6 +145,9 @@ function KanbanColumn({
   onAdd: () => void;
   onMove: (taskId: string, newStatus: Status) => void;
 }) {
+  const { i18n } = useTranslation();
+  const isEn = (i18n.language || "fa").startsWith("en");
+  const T = (fa: string, en: string) => (isEn ? en : fa);
   const { setNodeRef, isOver } = useDroppable({ id: column.id });
   const Icon = column.icon;
   const colIdx = COL_ORDER.indexOf(column.id);
@@ -154,7 +161,7 @@ function KanbanColumn({
       <div className="flex items-center justify-between mb-3 px-1">
         <div className="flex items-center gap-2">
           <Icon className={`w-4 h-4 ${column.id === "in_progress" ? "animate-spin" : ""}`} />
-          <h2 className="font-semibold">{column.label}</h2>
+          <h2 className="font-semibold">{T(column.labelFa, column.labelEn)}</h2>
           <Badge variant="secondary" className="text-xs">{tasks.length}</Badge>
         </div>
       </div>
@@ -164,7 +171,7 @@ function KanbanColumn({
           value={newValue}
           onChange={(e) => setNewValue(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && onAdd()}
-          placeholder="+ کارت جدید"
+          placeholder={T("+ کارت جدید", "+ New card")}
           className="h-8 text-sm bg-background"
         />
         <Button size="icon" variant="ghost" onClick={onAdd} className="h-8 w-8">
@@ -185,7 +192,7 @@ function KanbanColumn({
           ))}
           {tasks.length === 0 && (
             <div className="text-xs text-muted-foreground text-center py-6 border border-dashed rounded-lg">
-              اینجا رها کن
+              {T("اینجا رها کن", "Drop here")}
             </div>
           )}
         </div>
@@ -197,6 +204,9 @@ function KanbanColumn({
 function SortableTaskCard({ task, prevCol, nextCol, onMove }: {
   task: Task; prevCol?: Status; nextCol?: Status; onMove: (taskId: string, newStatus: Status) => void;
 }) {
+  const { i18n } = useTranslation();
+  const isEn = (i18n.language || "fa").startsWith("en");
+  const T = (fa: string, en: string) => (isEn ? en : fa);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id });
   const navigate = useNavigate();
   const style: React.CSSProperties = {
@@ -251,8 +261,8 @@ function SortableTaskCard({ task, prevCol, nextCol, onMove }: {
         <div className={`absolute inset-0 rounded-lg flex items-center px-3 text-[11px] font-medium pointer-events-none ${
           reachedThreshold ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"
         } ${showNext ? "justify-start" : "justify-end"}`}>
-          {showNext ? <><ArrowLeft className="w-3.5 h-3.5 me-1" />{COLUMNS.find(c => c.id === nextCol)?.label}</>
-                    : <>{COLUMNS.find(c => c.id === prevCol)?.label}<ArrowRight className="w-3.5 h-3.5 ms-1" /></>}
+          {showNext ? (() => { const c = COLUMNS.find(c => c.id === nextCol); return <><ArrowLeft className="w-3.5 h-3.5 me-1" />{c ? T(c.labelFa, c.labelEn) : ""}</>; })()
+                    : (() => { const c = COLUMNS.find(c => c.id === prevCol); return <>{c ? T(c.labelFa, c.labelEn) : ""}<ArrowRight className="w-3.5 h-3.5 ms-1" /></>; })()}
         </div>
       )}
       <div
@@ -275,6 +285,9 @@ function SortableTaskCard({ task, prevCol, nextCol, onMove }: {
 function TaskCard({ task, dragging, dragHandleProps, onOpen }: {
   task: Task; dragging?: boolean; dragHandleProps?: any; onOpen?: () => void;
 }) {
+  const { i18n } = useTranslation();
+  const isEn = (i18n.language || "fa").startsWith("en");
+  const T = (fa: string, en: string) => (isEn ? en : fa);
   const pm = PRIORITY_META[task.priority] || PRIORITY_META.none;
   return (
     <Card className={`p-3 border-s-4 ${pm.borderClass} ${dragging ? "shadow-lg" : "hover:shadow-soft"}`}>
@@ -292,7 +305,7 @@ function TaskCard({ task, dragging, dragHandleProps, onOpen }: {
           <div className="flex flex-wrap items-center gap-1 mt-2">
             {task.priority !== "none" && (
               <Badge variant="outline" className={`text-[10px] gap-1 ${pm.bgClass} ${pm.textClass}`}>
-                <Flag className="w-2.5 h-2.5" /> {pm.label}
+                <Flag className="w-2.5 h-2.5" /> {T(pm.label, pm.labelEn)}
               </Badge>
             )}
             {task.due_date && (
