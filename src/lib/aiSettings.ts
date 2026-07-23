@@ -33,25 +33,32 @@ export type OperationMeta = {
   labelEn: string;
   descFa: string;
   descEn: string;
+  usedInFa: string;
+  usedInEn: string;
   group: string;       // FA group label (used as fallback)
   groupEn: string;
 };
 
 export const OPERATIONS: OperationMeta[] = [
-  { key: "parse_task",            labelFa: "تجزیه زبان طبیعی به تسک",       labelEn: "Natural-language → Task",      descFa: "تبدیل یک جمله به تسک ساختاریافته (عنوان، اولویت، تاریخ).", descEn: "Turn a sentence into a structured task (title, priority, date).", group: "تسک", groupEn: "Tasks" },
-  { key: "breakdown",             labelFa: "خرد کردن تسک به subtask",        labelEn: "Break task into subtasks",      descFa: "تسک را به مراحل کوچک‌تر اجرایی تقسیم می‌کند.",            descEn: "Splits a task into smaller actionable steps.",                  group: "تسک", groupEn: "Tasks" },
-  { key: "task_subtasks",         labelFa: "Subtaskهای هوشمند تسک",          labelEn: "Smart subtasks",                descFa: "پیشنهاد ۳-۷ زیرتسک با ترتیب منطقی.",                       descEn: "Suggests 3–7 ordered subtasks.",                               group: "تسک", groupEn: "Tasks" },
-  { key: "task_metadata_suggest", labelFa: "پیشنهاد priority/due/recurrence", labelEn: "Suggest priority / due / repeat", descFa: "بر اساس عنوان، اولویت و تاریخ مناسب را پیشنهاد می‌دهد.",   descEn: "Suggests priority and due date from the title.",               group: "تسک", groupEn: "Tasks" },
-  { key: "task_chat",             labelFa: "چت روی یک تسک",                  labelEn: "Chat on a task",                descFa: "گفتگو درباره یک تسک خاص.",                                  descEn: "Conversation focused on one task.",                            group: "تسک", groupEn: "Tasks" },
-  { key: "folder_chat",           labelFa: "چت روی یک فولدر (پروژه)",        labelEn: "Chat on a folder (project)",    descFa: "گفتگو روی همه تسک‌ها/نوت‌های یک فولدر.",                     descEn: "Chat across a whole folder of tasks/notes.",                   group: "فولدر", groupEn: "Folder" },
-  { key: "generate_note",         labelFa: "تولید نوت",                       labelEn: "Generate note",                 descFa: "نوشتن یک نوت کامل از روی موضوع.",                           descEn: "Writes a full note from a topic.",                             group: "نوت", groupEn: "Notes" },
-  { key: "summarize_note",        labelFa: "خلاصه‌سازی نوت",                  labelEn: "Summarize note",                descFa: "خلاصه کوتاه و واضح از یک نوت بلند.",                         descEn: "Short, clear summary of a long note.",                         group: "نوت", groupEn: "Notes" },
-  { key: "improve_note",          labelFa: "بهبود متن نوت",                   labelEn: "Improve writing",               descFa: "بازنویسی روان‌تر و حرفه‌ای‌تر.",                              descEn: "Smoother, more polished rewrite.",                             group: "نوت", groupEn: "Notes" },
-  { key: "inline_edit",           labelFa: "ویرایش inline متن",               labelEn: "Inline edit",                   descFa: "ویرایش بخش انتخاب‌شده با دستور دلخواه.",                     descEn: "Edit a highlighted span with a custom instruction.",           group: "نوت", groupEn: "Notes" },
-  { key: "suggest",               labelFa: "پیشنهادهای موضوعی",               labelEn: "Topic suggestions",             descFa: "پیشنهاد چند تسک یا ایده پیرامون یک موضوع.",                  descEn: "Suggests several tasks/ideas around a topic.",                 group: "عمومی", groupEn: "General" },
-  { key: "chat",                  labelFa: "چت عمومی AI",                     labelEn: "General AI chat",               descFa: "دستیار عمومی برای هر سوالی.",                                descEn: "General-purpose assistant.",                                   group: "عمومی", groupEn: "General" },
-  { key: "socratic",              labelFa: "چت سقراطی (فقط سوال)",            labelEn: "Socratic chat (questions only)", descFa: "فقط سوال می‌پرسد تا خودت به پاسخ برسی.",                    descEn: "Only asks questions, helping you self-discover.",              group: "سلامت ذهن", groupEn: "Mental health" },
-  { key: "distortion_detect",     labelFa: "تشخیص خطای شناختی (CBT)",         labelEn: "Cognitive distortion detection (CBT)", descFa: "خطاهای شناختی را در متن پیدا می‌کند.",                descEn: "Finds cognitive distortions in your text.",                    group: "سلامت ذهن", groupEn: "Mental health" },
+  // General
+  { key: "chat",                  labelFa: "چت عمومی AI",                     labelEn: "General AI chat",               descFa: "دستیار عمومی برای هر سوالی.",                                descEn: "General-purpose assistant.",                                   usedInFa: "دستیار AI (Sidebar)", usedInEn: "AI assistant (Sidebar)", group: "عمومی", groupEn: "General" },
+  { key: "suggest",               labelFa: "پیشنهادهای موضوعی",               labelEn: "Topic suggestions",             descFa: "پیشنهاد چند تسک یا ایده پیرامون یک موضوع.",                  descEn: "Suggests several tasks/ideas around a topic.",                 usedInFa: "دستیار AI → تب پیشنهاد", usedInEn: "AI assistant → Suggest tab", group: "عمومی", groupEn: "General" },
+  // Tasks
+  { key: "parse_task",            labelFa: "تجزیه زبان طبیعی به تسک",       labelEn: "Natural-language → Task",      descFa: "تبدیل یک جمله به تسک ساختاریافته (عنوان، اولویت، تاریخ).", descEn: "Turn a sentence into a structured task (title, priority, date).", usedInFa: "دستیار AI → تب تسک", usedInEn: "AI assistant → Task tab", group: "تسک", groupEn: "Tasks" },
+  { key: "task_metadata_suggest", labelFa: "پیشنهاد priority/due/recurrence", labelEn: "Suggest priority / due / repeat", descFa: "بر اساس عنوان، اولویت و تاریخ مناسب را پیشنهاد می‌دهد.",   descEn: "Suggests priority and due date from the title.",               usedInFa: "جزئیات تسک → AI → پیشنهاد", usedInEn: "Task detail → AI → Suggest", group: "تسک", groupEn: "Tasks" },
+  { key: "task_subtasks",         labelFa: "Subtaskهای هوشمند تسک",          labelEn: "Smart subtasks",                descFa: "پیشنهاد ۳-۷ زیرتسک با ترتیب منطقی.",                       descEn: "Suggests 3–7 ordered subtasks.",                               usedInFa: "جزئیات تسک → AI → مراحل", usedInEn: "Task detail → AI → Steps", group: "تسک", groupEn: "Tasks" },
+  { key: "task_chat",             labelFa: "چت روی یک تسک",                  labelEn: "Chat on a task",                descFa: "گفتگو درباره یک تسک خاص.",                                  descEn: "Conversation focused on one task.",                            usedInFa: "جزئیات تسک → AI → چت", usedInEn: "Task detail → AI → Chat", group: "تسک", groupEn: "Tasks" },
+  { key: "generate_note",         labelFa: "تولید نوت",                       labelEn: "Generate note",                 descFa: "نوشتن یک نوت کامل از روی موضوع.",                           descEn: "Writes a full note from a topic.",                             usedInFa: "دستیار AI / جزئیات تسک → AI → نوت", usedInEn: "AI assistant / Task detail → AI → Note", group: "نوت", groupEn: "Notes" },
+  { key: "breakdown",             labelFa: "خرد کردن تسک به subtask",        labelEn: "Break task into subtasks",      descFa: "تسک را به مراحل کوچک‌تر اجرایی تقسیم می‌کند.",            descEn: "Splits a task into smaller actionable steps.",                  usedInFa: "در حال حاضر استفاده نشده", usedInEn: "Not used in current UI", group: "تسک", groupEn: "Tasks" },
+  // Notes
+  { key: "summarize_note",        labelFa: "خلاصه‌سازی نوت",                  labelEn: "Summarize note",                descFa: "خلاصه کوتاه و واضح از یک نوت بلند.",                         descEn: "Short, clear summary of a long note.",                         usedInFa: "در حال حاضر استفاده نشده", usedInEn: "Not used in current UI", group: "نوت", groupEn: "Notes" },
+  { key: "improve_note",          labelFa: "بهبود متن نوت",                   labelEn: "Improve writing",               descFa: "بازنویسی روان‌تر و حرفه‌ای‌تر.",                              descEn: "Smoother, more polished rewrite.",                             usedInFa: "در حال حاضر استفاده نشده", usedInEn: "Not used in current UI", group: "نوت", groupEn: "Notes" },
+  { key: "inline_edit",           labelFa: "ویرایش inline متن",               labelEn: "Inline edit",                   descFa: "ویرایش بخش انتخاب‌شده با دستور دلخواه.",                     descEn: "Edit a highlighted span with a custom instruction.",           usedInFa: "نوت‌ها / ویرایشگر → متن انتخابی", usedInEn: "Notes / editor → selected text", group: "نوت", groupEn: "Notes" },
+  // Folder
+  { key: "folder_chat",           labelFa: "چت روی یک فولدر (پروژه)",        labelEn: "Chat on a folder (project)",    descFa: "گفتگو روی همه تسک‌ها/نوت‌های یک فولدر.",                     descEn: "Chat across a whole folder of tasks/notes.",                   usedInFa: "فولدر → چت AI", usedInEn: "Folder → AI chat", group: "فولدر", groupEn: "Folder" },
+  // Mental health
+  { key: "socratic",              labelFa: "چت سقراطی (فقط سوال)",            labelEn: "Socratic chat (questions only)", descFa: "فقط سوال می‌پرسد تا خودت به پاسخ برسی.",                    descEn: "Only asks questions, helping you self-discover.",              usedInFa: "ذهن → چت سقراطی (نیاز به اتصال)", usedInEn: "Mind → Socratic (needs wiring)", group: "سلامت ذهن", groupEn: "Mental health" },
+  { key: "distortion_detect",     labelFa: "تشخیص خطای شناختی (CBT)",         labelEn: "Cognitive distortion detection (CBT)", descFa: "خطاهای شناختی را در متن پیدا می‌کند.",                descEn: "Finds cognitive distortions in your text.",                    usedInFa: "ذهن → Thought Records", usedInEn: "Mind → Thought Records", group: "سلامت ذهن", groupEn: "Mental health" },
 ];
 
 // Recommended provider+model for each operation.
@@ -159,12 +166,17 @@ export const PROVIDER_INFO: Record<Provider, { label: string; defaultModel: stri
 const SETTINGS_KEY = "ai_settings_v2";
 const LEGACY_KEY = "ai_settings_v1";
 
+export type OpStrategy = "recommended" | "global" | "custom";
+
 export type AIPerOpSettings = {
   default: ProviderConfig;
   perOp: Partial<Record<AIOperation, ProviderConfig>>;
-  // When true (default), operations without an explicit override use OP_RECOMMENDED
-  // instead of the global default. When false, they fall back to `default`.
+  // Legacy: before opStrategies existed this controlled the fallback.
   useRecommended?: boolean;
+  // Per-operation strategy: recommended (app default), global (user default), or custom (override).
+  opStrategies?: Partial<Record<AIOperation, OpStrategy>>;
+  // Model IDs hidden per provider in the model selection dropdowns.
+  providerHiddenModels?: Partial<Record<Provider, string[]>>;
 };
 
 export function defaultConfig(): ProviderConfig {
@@ -213,8 +225,18 @@ export function loadAISettings(): AIPerOpSettings {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
     if (raw) {
-      const parsed = JSON.parse(raw);
+      const parsed: AIPerOpSettings = JSON.parse(raw);
       if (typeof parsed.useRecommended !== "boolean") parsed.useRecommended = true;
+      if (!parsed.opStrategies) {
+        // Migrate from the old boolean override model to explicit strategies.
+        const strategies: Partial<Record<AIOperation, OpStrategy>> = {};
+        for (const op of OPERATIONS) {
+          if (parsed.perOp?.[op.key]) strategies[op.key] = "custom";
+          else strategies[op.key] = parsed.useRecommended === false ? "global" : "recommended";
+        }
+        parsed.opStrategies = strategies;
+      }
+      if (!parsed.providerHiddenModels) parsed.providerHiddenModels = {};
       return parsed;
     }
     const legacy = localStorage.getItem(LEGACY_KEY);
@@ -226,39 +248,62 @@ export function loadAISettings(): AIPerOpSettings {
         model: old.model || PROVIDER_INFO[old.provider as Provider]?.defaultModel || "google/gemini-2.5-flash",
         baseUrl: old.baseUrl || "",
       };
-      return { default: cfg, perOp: {}, useRecommended: true };
+      const strategies: Partial<Record<AIOperation, OpStrategy>> = {};
+      for (const op of OPERATIONS) strategies[op.key] = "recommended";
+      return { default: cfg, perOp: {}, useRecommended: true, opStrategies: strategies, providerHiddenModels: {} };
     }
   } catch {}
-  return { default: defaultConfig(), perOp: {}, useRecommended: true };
+  const strategies: Partial<Record<AIOperation, OpStrategy>> = {};
+  for (const op of OPERATIONS) strategies[op.key] = "recommended";
+  return { default: defaultConfig(), perOp: {}, useRecommended: true, opStrategies: strategies, providerHiddenModels: {} };
 }
 
 export function saveAISettings(s: AIPerOpSettings) {
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
 }
 
+export function resolveOpStrategy(s: AIPerOpSettings, op: AIOperation): OpStrategy {
+  const explicit = s.opStrategies?.[op];
+  if (explicit) return explicit;
+  if (s.perOp?.[op]) return "custom";
+  return s.useRecommended === false ? "global" : "recommended";
+}
+
+function resolveRecommendedWithKey(s: AIPerOpSettings, op: AIOperation): ProviderConfig {
+  const rec = recommendedConfig(op);
+  if (rec.provider === "lovable") return rec;
+  if (s.default.provider === rec.provider && s.default.apiKey) {
+    return { ...rec, apiKey: s.default.apiKey, baseUrl: s.default.baseUrl };
+  }
+  return s.default;
+}
+
+export function resolveOpConfig(s: AIPerOpSettings, op: AIOperation): ProviderConfig {
+  const strategy = resolveOpStrategy(s, op);
+  if (strategy === "custom") {
+    const override = s.perOp[op];
+    if (override) return override;
+    // Fallback if a custom strategy exists without a saved config.
+    return resolveRecommendedWithKey(s, op);
+  }
+  if (strategy === "recommended") return resolveRecommendedWithKey(s, op);
+  return s.default;
+}
+
 /**
  * Resolve which provider+model is used for a given operation.
  * Priority:
- *   1) explicit per-operation override
- *   2) recommended (if useRecommended=true) — but only if it's a Lovable model
+ *   1) explicit per-operation custom strategy
+ *   2) recommended (if strategy is recommended) — but only if it's a Lovable model
  *      OR the user has a personal key for that provider as the global default
  *   3) global default
  */
 export function getOpConfig(op: AIOperation): ProviderConfig {
-  const s = loadAISettings();
-  const override = s.perOp[op];
-  if (override) return override;
-  if (s.useRecommended !== false) {
-    const rec = recommendedConfig(op);
-    // If recommendation needs a non-Lovable provider key the user doesn't have,
-    // fall back to the global default. For Lovable (or matching provider), use it.
-    if (rec.provider === "lovable") return rec;
-    if (s.default.provider === rec.provider && s.default.apiKey) {
-      return { ...rec, apiKey: s.default.apiKey, baseUrl: s.default.baseUrl };
-    }
-    return s.default;
-  }
-  return s.default;
+  return resolveOpConfig(loadAISettings(), op);
+}
+
+export function getOpStrategy(op: AIOperation): OpStrategy {
+  return resolveOpStrategy(loadAISettings(), op);
 }
 
 export function operationLabel(key: AIOperation, lang: "fa" | "en"): string {
