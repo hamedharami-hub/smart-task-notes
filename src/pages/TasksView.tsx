@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { startOfDay, endOfDay, addDays, format } from "date-fns";
-import { Plus, Calendar, Trash2, ChevronRight, ChevronDown, Flag, GripVertical, CornerDownRight, Ban, Pin, Clock, FolderInput, Check } from "lucide-react";
+import { Plus, Calendar, Trash2, ChevronRight, ChevronDown, Flag, GripVertical, CornerDownRight, Ban, Pin, Clock, FolderInput, Check, X } from "lucide-react";
 import { MoveToDialog } from "@/components/MoveToDialog";
 import { FolderDeleteDialog } from "@/components/FolderDeleteDialog";
 import { useNavigate } from "react-router-dom";
@@ -19,6 +19,7 @@ import { FolderKanban } from "@/components/FolderKanban";
 import { pushUndo } from "@/lib/undoStack";
 import { pushDeleted } from "@/lib/recentlyDeleted";
 import { enqueueOp } from "@/lib/offlineQueue";
+import { logTaskActivity } from "@/lib/taskActivity";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { describeRule, nextOccurrence } from "@/lib/recurrence";
 import {
@@ -406,9 +407,12 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       }
     }
 
-    if (isOwner) setAllTasks(prev => prev.map(x => x.id === t.id ? { ...x, completed: newCompleted } : x));
+    const nextStatus: Task["status"] = newCompleted ? "done" : "todo";
+    if (isOwner) setAllTasks(prev => prev.map(x => x.id === t.id ? { ...x, completed: newCompleted, status: nextStatus } as Task : x));
     const patch = {
-      completed: newCompleted, completed_at: newCompleted ? new Date().toISOString() : null,
+      completed: newCompleted,
+      status: nextStatus,
+      completed_at: newCompleted ? new Date().toISOString() : null,
     };
 
     if (typeof navigator !== "undefined" && !navigator.onLine) {
@@ -419,7 +423,8 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
 
     const { error } = await supabase.from("tasks").update(patch).eq("id", t.id);
     if (error) { toast.error(error.message); return; }
-    if (!isOwner) setAllTasks(prev => prev.map(x => x.id === t.id ? { ...x, completed: newCompleted } : x));
+    if (!isOwner) setAllTasks(prev => prev.map(x => x.id === t.id ? { ...x, completed: newCompleted, status: nextStatus } as Task : x));
+    if (!error && user) await logTaskActivity(t.id, user.id, newCompleted ? "completed" : "reopened", patch as Record<string, unknown>);
   };
 
   const delTask = async (id: string) => {
@@ -727,10 +732,15 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
                     toggleTask(t);
                   }}
                 >
+                  {t.status === "wont_do" && (
+                    <span className="inline-flex items-center justify-center w-4 h-4 rounded bg-sky-500/10 text-sky-600 ms-1 shrink-0">
+                      <X className="w-2.5 h-2.5" />
+                    </span>
+                  )}
                   <BidiText
                     as="p"
                     text={t.title}
-                    className={`${layout === "compact" ? "text-sm" : "text-[15px]"} font-medium leading-tight break-words ${t.completed ? "line-through text-muted-foreground" : "text-foreground/90"}`}
+                    className={`${layout === "compact" ? "text-sm" : "text-[15px]"} font-medium leading-tight break-words ${t.completed ? "line-through text-muted-foreground" : t.status === "wont_do" ? "text-sky-600" : "text-foreground/90"}`}
                   />
                 </div>
                 {t.is_avoidance ? (
@@ -1040,9 +1050,10 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
         onDelete={() => actionTask && askDeleteTask(actionTask)}
         onMove={() => actionTask && setMoveTask(actionTask)}
         onMakeChild={() => actionTask && setMakeChildOf(actionTask)}
-        onPin={() => actionTask && patchTask(actionTask.id, { pinned: !actionTask.pinned })}
+        onPatch={(patch) => actionTask && patchTask(actionTask.id, patch)}
         onPomodoro={() => actionTask && setPomoTask(actionTask)}
         onEdit={() => actionTask && setSelectedTask(actionTask)}
+        onRefresh={load}
       />
 
       <PomodoroSheet
