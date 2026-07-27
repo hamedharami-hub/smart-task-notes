@@ -31,6 +31,7 @@ import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-ki
 
 import { TaskFilterSheet, DEFAULT_FILTERS, type TaskFilters, type SortLevel } from "@/components/TaskFilterSheet";
 import { QuickAddTask } from "@/components/QuickAddTask";
+import { VirtualTaskList } from "@/components/VirtualTaskList";
 import { TaskDetail } from "@/components/TaskDetail";
 import type { Task, ConfirmState } from "@/lib/taskTypes";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -308,6 +309,8 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     });
     return list;
   }, [allTasks, scope, params.id, filters, taskTagsMap]);
+
+  const taskMap = useMemo(() => new Map(allTasks.map(t => [t.id, t])), [allTasks]);
 
   // Date-based grouping for Today/Next7 to mimic TickTick (Overdue, Today, Tomorrow, ...)
   type TaskGroup = { key: string; label: string; tasks: Task[] };
@@ -920,9 +923,14 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
                     ))}
                   </div>
                 ) : (
-                  <div className="space-y-1">
-                    {topLevel.map((t) => <TaskItem key={t.id} t={t} />)}
-                  </div>
+                  <VirtualTaskList
+                    itemIds={topLevel.map(t => t.id)}
+                    renderItem={(id) => {
+                      const t = taskMap.get(id);
+                      if (!t) return null;
+                      return <TaskItem t={t} />;
+                    }}
+                  />
                 )}
               </SortableContext>
             </div>
