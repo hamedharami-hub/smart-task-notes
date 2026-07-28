@@ -86,6 +86,7 @@ export default function AppLayout() {
             </div>
           </header>
           <main
+            id="main-scroll"
             className="flex-1 overflow-auto md:pb-4"
             style={{ paddingBottom: "calc(5rem + env(safe-area-inset-bottom))" }}
           >
