@@ -1,9 +1,9 @@
 import { useEffect, useState, useMemo } from "react";
-import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useShareAccess } from "@/hooks/useShareAccess";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AutoTextarea } from "@/components/ui/auto-textarea";
@@ -16,7 +16,7 @@ import {
   Plus, Sparkles, Trash2, FileText, Clock, ArrowRight, Ban,
   Folder as FolderIcon, Tag as TagIcon, Check, Calendar as CalendarIcon,
   Flag, Repeat, ListTree, Paperclip, X, Image as ImageIcon, Music, Link as LinkIcon,
-  CheckSquare, ListChecks, CalendarDays, Mic, MicOff, Pin, PinOff, Maximize2,
+  CheckSquare, ListChecks, CalendarDays, Mic, MicOff, Pin, PinOff, Maximize2, Minimize2,
 } from "lucide-react";
 import { VoiceInput } from "@/lib/voiceInput";
 import { PRIORITY_META, PRIORITY_ORDER, type Priority } from "@/lib/priority";
@@ -40,7 +40,6 @@ import { Switch } from "@/components/ui/switch";
 import { pushUndo } from "@/lib/undoStack";
 import type { Task, TaskNote, ConfirmState } from "@/lib/taskTypes";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
-import { useShareAccess } from "@/hooks/useShareAccess";
 
 export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet", allowDelete = false }: {
   task: Task;
@@ -55,6 +54,7 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
   const navigate = useNavigate();
   const isEn = (i18n.language || "fa").startsWith("en");
   const T = (fa: string, en: string) => (isEn ? en : fa);
+  const { canEdit, canComment, isOwner } = useShareAccess("task", task.id, task.user_id);
 
   const [t, setT] = useState(task);
   const [taskNotes, setTaskNotes] = useState<TaskNote[]>([]);
@@ -67,6 +67,7 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
 
   // Section reveal flags – open if data exists, otherwise stay hidden until user taps rail icon
   const hasTimeBlock = !!(t.start_at || t.end_at || t.estimated_minutes);
+  const isScheduled = !!t.due_date || !!t.reminder_at || !!t.recurrence_rule || !!t.bucket_kind || hasTimeBlock;
   const [showSubtasks, setShowSubtasks] = useState(false);
   const [showSteps, setShowSteps] = useState(false);
   const [showAttachments, setShowAttachments] = useState(false);
@@ -78,8 +79,6 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
   const [parentOpen, setParentOpen] = useState(false);
   const [parentTitle, setParentTitle] = useState("");
   const [allTasks, setAllTasks] = useState<{ id: string; title: string; parent_id: string | null }[]>([]);
-
-  const { canEdit, canComment, isOwner } = useShareAccess("task", task.id, task.user_id);
 
   useEffect(() => { setT(task); }, [task.id]);
 
@@ -134,7 +133,7 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
     supabase.from("tags").select("id,name,color").order("name").then(({ data }) => {
       setTags((data || []) as any);
     });
-    supabase.from("tasks").select("id,title,parent_id").eq("user_id", user.id).order("title").then(({ data }) => {
+    supabase.from("tasks").select("id,title,parent_id").order("title").then(({ data }) => {
       setAllTasks((data || []) as unknown as typeof allTasks);
     });
   }, [user]);
@@ -167,7 +166,7 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
   };
 
   const toggleTag = async (tagId: string) => {
-    if (!user || !isOwner) return;
+    if (!user || !canEdit) return;
     if (taskTagIds.includes(tagId)) {
       setTaskTagIds(taskTagIds.filter(x => x !== tagId));
       await supabase.from("task_tags").delete().eq("task_id", t.id).eq("tag_id", tagId);
@@ -184,13 +183,12 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
   };
 
   const save = async (patch: Partial<Task>) => {
-    if (!canEdit) { toast(T("فقط مشاهده", "Read only")); return; }
+    if (!canEdit) return;
     setT({ ...t, ...patch });
     await supabase.from("tasks").update(patch as any).eq("id", t.id);
   };
 
   const deleteTask = () => {
-    if (!isOwner) { toast(T("فقط صاحب تسک می‌تواند آن را حذف کند", "Only the task owner can delete")); return; }
     setConfirm({
       kind: "task",
       id: t.id,
@@ -211,8 +209,7 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
   };
 
   const addNote = async () => {
-    if (!user) return;
-    if (!isOwner) { toast(T("فقط صاحب تسک می‌تواند نوت اضافه کند", "Only the task owner can add notes")); return; }
+    if (!user || !canEdit) return;
     const { data, error } = await supabase.from("notes").insert({
       user_id: user.id, task_id: t.id, title: T("نوت جدید", "New note"), content: "",
     }).select().single();
@@ -225,14 +222,13 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
   };
 
   const saveNote = async (id: string, patch: Partial<TaskNote>) => {
-    if (!isOwner) { toast(T("فقط صاحب تسک می‌تواند نوت را ویرایش کند", "Only the task owner can edit notes")); return; }
+    if (!canEdit) return;
     setTaskNotes(taskNotes.map(n => n.id === id ? { ...n, ...patch } : n));
     if (activeNote?.id === id) setActiveNote({ ...activeNote, ...patch });
     await supabase.from("notes").update(patch).eq("id", id);
   };
 
   const askDelNote = (n: TaskNote) => {
-    if (!isOwner) { toast(T("فقط صاحب تسک می‌تواند نوت را حذف کند", "Only the task owner can delete notes")); return; }
     setConfirm({
       kind: "note", id: n.id, title: n.title || T("بدون عنوان", "Untitled"),
       onConfirm: async () => {
@@ -272,18 +268,16 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
   }: any) => (
     <button
       type="button"
-      onClick={disabled ? undefined : onClick}
+      onClick={onClick}
       disabled={disabled}
       title={label}
       aria-label={label}
-      className={`relative flex flex-col items-center justify-center gap-0 min-w-[52px] h-11 rounded-xl transition active:scale-95 ${
-        disabled
-          ? "opacity-40 cursor-not-allowed bg-muted/30 text-muted-foreground"
-          : active
-            ? accent
-              ? "bg-primary/15 text-primary"
-              : "bg-secondary text-secondary-foreground"
-            : "text-muted-foreground hover:bg-muted/60"
+      className={`relative flex flex-col items-center justify-center gap-0 min-w-[52px] h-11 rounded-xl transition active:scale-95 disabled:opacity-50 disabled:cursor-default ${
+        active
+          ? accent
+            ? "bg-primary/15 text-primary"
+            : "bg-secondary text-secondary-foreground"
+          : "text-muted-foreground hover:bg-muted/60"
       } ${className || ""}`}
     >
       <Icon className="w-4 h-4" />
@@ -301,8 +295,8 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
       onClick={disabled ? undefined : onClick}
       className={`inline-flex items-center gap-1 px-2 h-6 rounded-full text-[10px] transition ${
         disabled
-          ? "opacity-50 bg-muted/50 text-muted-foreground cursor-not-allowed"
-          : `cursor-pointer ${color || "bg-muted/60 text-foreground/80 hover:bg-muted"}`
+          ? "text-muted-foreground/50"
+          : color || "bg-muted/60 text-foreground/80 hover:bg-muted cursor-pointer"
       }`}
     >
       {Icon && <Icon className="w-3 h-3" />}
@@ -334,7 +328,7 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
           value={t.title}
           onChange={(e) => setT({ ...t, title: e.target.value })}
           onBlur={() => save({ title: t.title })}
-          disabled={!canEdit}
+          readOnly={!canEdit}
           minHeight={44}
           maxHeight={220}
           rows={1}
@@ -363,17 +357,18 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
         />
       </div>
       <div className="flex items-center gap-2 mt-1 px-0">
-        <Button
-          size="sm"
-          variant="ghost"
-          disabled={!isOwner}
-          onClick={async () => { await addNote(); }}
-          className="h-6 gap-1 text-[11px] text-muted-foreground hover:text-foreground rounded-full px-2"
-        >
-          <Plus className="w-3 h-3" />
-          <FileText className="w-3.5 h-3.5" />
-          {T("افزودن نوت با عنوان", "Add titled note")}
-        </Button>
+        {canEdit && (
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={async () => { await addNote(); }}
+            className="h-6 gap-1 text-[11px] text-muted-foreground hover:text-foreground rounded-full px-2"
+          >
+            <Plus className="w-3 h-3" />
+            <FileText className="w-3.5 h-3.5" />
+            {T("افزودن نوت با عنوان", "Add titled note")}
+          </Button>
+        )}
         {taskNotes.length > 0 && (
           <button
             type="button"
@@ -395,8 +390,8 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
           icon={CalendarIcon}
           onClick={() => setScheduleOpen(true)}
           onClear={() => save({ due_date: null, reminder_at: null })}
-          color="bg-primary/10 text-primary"
           disabled={!canEdit}
+          color="bg-primary/10 text-primary"
         >
           {dueLabel}
         </Chip>
@@ -409,8 +404,8 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
                 <Chip
                   icon={CalendarDays}
                   onClear={() => save({ bucket_kind: null, bucket_calendar: null, bucket_anchor: null } as any)}
-                  color="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
                   disabled={!canEdit}
+                  color="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
                 >
                   {kindLabel(t.bucket_kind, isEn ? "en" : "fa")} · {bucketLabel(t.bucket_kind, (t.bucket_calendar as any) || "gregorian", t.bucket_anchor, isEn ? "en" : "fa")}
                 </Chip>
@@ -425,9 +420,9 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
       {t.priority !== "none" && (
         <Chip
           icon={Flag}
-          onClick={() => save({ priority: "none" as any })}
-          color={`${priorityMeta.bgClass} ${priorityMeta.textClass}`}
+          onClick={() => save({ priority: "none" as Priority })}
           disabled={!canEdit}
+          color={`${priorityMeta.bgClass} ${priorityMeta.textClass}`}
         >
           {T(priorityMeta.label, priorityMeta.labelEn)}
         </Chip>
@@ -436,8 +431,8 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
         <Chip
           icon={Repeat}
           onClear={() => save({ recurrence_rule: null } as any)}
-          color="bg-violet-500/10 text-violet-600 dark:text-violet-400"
           disabled={!canEdit}
+          color="bg-violet-500/10 text-violet-600 dark:text-violet-400"
         >
           {recLabel}
         </Chip>
@@ -450,7 +445,7 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
           icon={ListTree}
           color="bg-amber-500/10 text-amber-600 dark:text-amber-400"
           onClick={() => navigate(`/app/tasks/${t.parent_id}`)}
-          onClear={() => save({ parent_id: null })}
+          onClear={isOwner ? () => save({ parent_id: null }) : undefined}
           disabled={!canEdit}
         >
           {parentTitle || "—"}
@@ -470,8 +465,8 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
         <Chip
           icon={Ban}
           onClear={() => save({ is_avoidance: false } as any)}
-          color="bg-amber-500/15 text-amber-700 dark:text-amber-400"
           disabled={!canEdit}
+          color="bg-amber-500/15 text-amber-700 dark:text-amber-400"
         >
           {T("اجتنابی", "Avoidance")}
         </Chip>
@@ -490,7 +485,7 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
   const [linkUrl, setLinkUrl] = useState("");
 
   const createFolderAndAssign = async () => {
-    if (!user || !newFolderName.trim()) return;
+    if (!user || !isOwner || !newFolderName.trim()) return;
     const { data, error } = await supabase
       .from("folders")
       .insert({ user_id: user.id, name: newFolderName.trim(), color: newFolderColor })
@@ -503,7 +498,7 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
   };
 
   const createTagAndAssign = async () => {
-    if (!user || !isOwner || !newTagName.trim()) return;
+    if (!user || !canEdit || !newTagName.trim()) return;
     const { data, error } = await supabase
       .from("tags")
       .insert({ user_id: user.id, name: newTagName.trim(), color: newTagColor })
@@ -537,7 +532,6 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
   };
 
   const pickFileType = (accept: string) => {
-    if (!canEdit) return;
     setShowAttachments(true);
     // Defer so the section mounts first
     setTimeout(() => {
@@ -545,22 +539,23 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
     }, 50);
   };
 
-  // ── Bottom icon rail — portal'd to body so it sits above BottomTabBar
+  // ── Top action bar ─────────────────────────────────────────────────
   const railInner = (
-    <div className="mx-auto max-w-3xl">
-      <div className="flex items-center gap-0.5 overflow-x-auto no-scrollbar px-2 py-1">
+    <div className="mx-auto max-w-3xl px-1 pb-2">
+      <div className="flex flex-wrap gap-2" dir="ltr">
         {/* 1. Schedule (Date + Time block + Repeat + Bucket) */}
+        <div className="w-full order-3">
         <Sheet open={scheduleOpen} onOpenChange={setScheduleOpen}>
           <SheetTrigger asChild>
-            <span>
-              <RailButton
-                icon={CalendarIcon}
-                disabled={!canEdit}
-                label={T("زمان‌بندی", "Schedule")}
-                active={!!t.due_date || !!t.reminder_at || hasTimeBlock || !!t.recurrence_rule || !!t.bucket_kind}
-                accent
-              />
-            </span>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={!canEdit}
+              className={`w-full h-11 rounded-xl text-sm font-medium gap-2 justify-center ${isScheduled ? "bg-primary/15 text-primary border-primary/40" : "bg-muted/40 text-foreground hover:bg-muted"}`}
+            >
+              <CalendarIcon className="w-4 h-4" />
+              {isScheduled ? T("ویرایش زمان‌بندی", "Edit schedule") : T("زمان‌بندی", "Schedule")}
+            </Button>
           </SheetTrigger>
           <SheetContent side="bottom" className="w-full max-w-2xl mx-auto rounded-t-2xl p-4 max-h-[85vh] overflow-y-auto" aria-describedby="schedule-sheet-desc">
             <SheetHeader className="mb-3">
@@ -675,13 +670,21 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
             <p id="schedule-sheet-desc" className="sr-only">{T("زمان‌بندی تسک", "Task scheduling")}</p>
           </SheetContent>
         </Sheet>
+        </div>
 
         {/* 2. Priority */}
+        <div className="flex-1 order-2 min-w-0">
         <Popover>
           <PopoverTrigger asChild>
-            <span>
-              <RailButton icon={Flag} label={T("اولویت", "Priority")} active={t.priority !== "none"} accent disabled={!canEdit} />
-            </span>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={!canEdit}
+              className={`w-full h-11 rounded-xl text-sm font-medium gap-2 justify-start px-3 ${t.priority !== "none" ? `${priorityMeta.bgClass} ${priorityMeta.textClass}` : "bg-muted/40 text-foreground hover:bg-muted"}`}
+            >
+              <Flag className="w-4 h-4" />
+              <span className="truncate">{t.priority !== "none" ? T(priorityMeta.label, priorityMeta.labelEn) : T("اولویت", "Priority")}</span>
+            </Button>
           </PopoverTrigger>
           <PopoverContent className="w-60 p-2" align="start" side="top">
             <div className="grid grid-cols-2 gap-1.5">
@@ -689,16 +692,16 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
                 const m = PRIORITY_META[p];
                 const active = t.priority === p;
                 return (
-                  <button key={p} onClick={() => save({ priority: p })}
-                    className={`px-2 h-9 rounded-xl text-[12px] font-medium transition ${active ? `${m.bgClass} ${m.textClass}` : "bg-muted/40 text-muted-foreground hover:bg-muted"}`}>
+                  <button key={p} disabled={!canEdit} onClick={() => save({ priority: p })}
+                    className={`px-2 h-9 rounded-xl text-[12px] font-medium transition disabled:opacity-50 disabled:cursor-default ${active ? `${m.bgClass} ${m.textClass}` : "bg-muted/40 text-muted-foreground hover:bg-muted"}`}>
                     {m.emoji} {T(m.label, m.labelEn)}
                   </button>
                 );
               })}
             </div>
             {t.priority !== "none" && (
-              <button onClick={() => save({ priority: "none" as any })}
-                className="w-full mt-2 h-8 rounded-lg text-xs text-muted-foreground hover:bg-muted">
+              <button disabled={!canEdit} onClick={() => save({ priority: "none" as Priority })}
+                className="w-full mt-2 h-8 rounded-lg text-xs text-muted-foreground hover:bg-muted disabled:opacity-50 disabled:cursor-default">
                 {T("حذف اولویت", "Clear priority")}
               </button>
             )}
@@ -710,23 +713,32 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
             </div>
           </PopoverContent>
         </Popover>
+        </div>
 
         {/* 3. Folder + quick-create */}
+        <div className="flex-1 order-1 min-w-0">
         <Popover>
           <PopoverTrigger asChild>
-            <span>
-              <RailButton icon={FolderIcon} label={T("فولدر", "Folder")} active={!!t.folder_id} disabled={!canEdit} />
-            </span>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={!canEdit}
+              className={`w-full h-11 rounded-xl text-sm font-medium gap-2 justify-start px-3 ${t.folder_id ? "bg-primary/15 text-primary border-primary/40" : "bg-muted/40 text-foreground hover:bg-muted"}`}
+            >
+              <FolderIcon className="w-4 h-4" />
+              <span className="truncate">{t.folder_id ? folderName(t.folder_id) : T("فولدر", "Folder")}</span>
+            </Button>
           </PopoverTrigger>
           <PopoverContent className="w-72 p-2 max-h-[55vh] overflow-y-auto" align="start" side="top">
-            {!showFolderCreate ? (
+            {isOwner && !showFolderCreate && (
               <button
                 onClick={() => setShowFolderCreate(true)}
                 className="w-full flex items-center gap-2 p-2 mb-1 rounded-xl bg-muted/40 hover:bg-accent text-sm text-muted-foreground"
               >
                 <Plus className="w-4 h-4" /> {T("ساخت فولدر جدید", "Create new folder")}
               </button>
-            ) : (
+            )}
+            {isOwner && showFolderCreate && (
               <>
                 <div className="flex items-center gap-1.5 mb-2 p-1.5 rounded-xl bg-muted/40">
                   <span className="w-6 h-6 rounded-md shrink-0" style={{ background: newFolderColor }} />
@@ -755,8 +767,9 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
               </>
             )}
             <button
+              disabled={!isOwner}
               onClick={() => save({ folder_id: null })}
-              className={`w-full text-start p-2 rounded-lg text-sm hover:bg-accent ${t.folder_id === null ? "bg-accent" : ""}`}
+              className={`w-full text-start p-2 rounded-lg text-sm hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent ${t.folder_id === null ? "bg-accent" : ""}`}
             >{T("بدون فولدر (Inbox)", "No folder (Inbox)")}</button>
             {folders.filter(f => !f.parent_id).map(f => {
               const children = folders.filter(c => c.parent_id === f.id);
@@ -783,12 +796,14 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
             })}
           </PopoverContent>
         </Popover>
+        </div>
 
+        <div className="w-full order-4 flex items-center gap-0.5 overflow-x-auto no-scrollbar py-1" dir="rtl">
         {/* 4. Tags + quick-create */}
         <Popover>
           <PopoverTrigger asChild>
             <span>
-              <RailButton icon={TagIcon} label={T("تگ", "Tags")} active={taskTagIds.length > 0} badge={taskTagIds.length || undefined} disabled={!isOwner} />
+              <RailButton icon={TagIcon} label={T("تگ", "Tags")} active={taskTagIds.length > 0} badge={taskTagIds.length || undefined} />
             </span>
           </PopoverTrigger>
           <PopoverContent className="w-72 p-2 max-h-[55vh] overflow-y-auto" align="start" side="top">
@@ -883,16 +898,18 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
           </PopoverTrigger>
           <PopoverContent className="w-72 p-2 max-h-[55vh] overflow-y-auto" align="start" side="top">
             <button
+              disabled={!isOwner || t.parent_id === null}
               onClick={() => { save({ parent_id: null }); setParentOpen(false); }}
-              className={`w-full text-start p-2 rounded-lg text-sm hover:bg-accent ${t.parent_id === null ? "bg-accent" : ""}`}
+              className={`w-full text-start p-2 rounded-lg text-sm hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent ${t.parent_id === null ? "bg-accent" : ""}`}
             >
               {T("بدون والد (سطح بالا)", "No parent (top-level)")}
             </button>
             {parentCandidates.map((c) => (
               <button
                 key={c.id}
+                disabled={!canEdit || c.id === t.parent_id}
                 onClick={() => { save({ parent_id: c.id }); setParentOpen(false); }}
-                className={`w-full text-start p-2 rounded-lg text-sm hover:bg-accent truncate ${t.parent_id === c.id ? "bg-accent" : ""}`}
+                className={`w-full text-start p-2 rounded-lg text-sm hover:bg-accent truncate disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent ${t.parent_id === c.id ? "bg-accent" : ""}`}
               >
                 {c.title || T("بدون عنوان", "Untitled")}
               </button>
@@ -908,7 +925,7 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
                 icon={ListChecks}
                 label={T("آیتم‌ها", "Items")}
                 active={showSubtasks || showSteps}
-                disabled={!canEdit}
+                disabled={!(canEdit || canComment)}
               />
             </span>
           </PopoverTrigger>
@@ -937,39 +954,25 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
           icon={Sparkles}
           label="AI"
           accent
-          disabled={!canEdit}
           onClick={() => setAiOpen(true)}
+          disabled={!canEdit}
         />
 
-        {allowDelete && (
+        {allowDelete && canEdit && (
           <>
             <span className="w-px h-5 bg-border/60 mx-0.5" />
             <RailButton
               icon={Trash2}
               label={T("حذف", "Delete")}
-              disabled={!isOwner}
               className="text-destructive hover:text-destructive hover:bg-destructive/10"
               onClick={deleteTask}
             />
           </>
         )}
+        </div>
       </div>
     </div>
   );
-
-  const portalRail = mode !== "drawer";
-  const rail = typeof document !== "undefined" && portalRail
-    ? createPortal(
-        <div
-          dir="rtl"
-          className="fixed inset-x-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-t border-border/40 shadow-[0_-2px_10px_-4px_rgba(0,0,0,0.08)]"
-          style={{ bottom: "calc(56px + env(safe-area-inset-bottom))" }}
-        >
-          {railInner}
-        </div>,
-        document.body,
-      )
-    : null;
 
   // ── Expandable inline blocks (only when toggled) ────────────────────
   const expandables = (
@@ -979,7 +982,7 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
       {showSubtasks && (
         <TaskSubtasksInline
           taskId={t.id}
-          readOnly={!isOwner}
+          readOnly={!canEdit}
           onOpenSubtask={(id) => {
             supabase.from("tasks").select("*").eq("id", id).single().then(({ data }) => {
               if (data) { onChanged(); setT(data as any); }
@@ -998,7 +1001,7 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
             <label className="text-sm font-medium flex items-center gap-1.5">
               <FileText className="w-3.5 h-3.5" /> {T("نوت‌ها", "Notes")} ({taskNotes.length})
             </label>
-            <Button size="sm" variant="outline" onClick={addNote} className="gap-1 rounded-full h-7 text-xs">
+            <Button size="sm" variant="outline" onClick={addNote} disabled={!canEdit} className="gap-1 rounded-full h-7 text-xs">
               <Plus className="w-3 h-3" /> {T("جدید", "New")}
             </Button>
           </div>
@@ -1008,9 +1011,11 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
                 <button className="flex-1 text-start text-sm truncate px-1" onClick={() => setActiveNote(n)}>
                   <BidiText text={n.title} />
                 </button>
-                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => askDelNote(n)}>
-                  <Trash2 className="w-3 h-3" />
-                </Button>
+                {canEdit && (
+                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => askDelNote(n)}>
+                    <Trash2 className="w-3 h-3" />
+                  </Button>
+                )}
               </Card>
             ))}
           </div>
@@ -1021,10 +1026,10 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
 
   const body = (
     <div className="mt-1 task-detail-sections flex flex-col min-h-[50vh]">
+      {railInner}
       {hero}
       {quickChips}
       <div className="flex-1">{expandables}</div>
-      {rail}
     </div>
   );
 
@@ -1038,16 +1043,16 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
       </div>
       <Input
         value={activeNote.title}
+        readOnly={!canEdit}
         onChange={(e) => saveNote(activeNote.id, { title: e.target.value })}
-        disabled={!isOwner}
         className="border-none focus-visible:ring-0 px-0 text-lg font-semibold"
         dir="auto"
       />
       <NoteEditorTabs
         noteId={activeNote.id}
+        readOnly={!canEdit}
         markdown={activeNote.content || ""}
         onChange={(md) => saveNote(activeNote.id, { content: md })}
-        readOnly={!isOwner}
       />
     </div>
   );
@@ -1063,10 +1068,10 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
           size="icon"
           variant="ghost"
           className="h-8 w-8"
-          onClick={() => { setSnap(1); }}
-          title={T("فول اسکرین", "Full screen")}
+          onClick={() => { setSnap(snap === 1 ? 0.55 : 1); }}
+          title={snap === 1 ? T("کوچک‌نمایی", "Collapse") : T("فول اسکرین", "Full screen")}
         >
-          <Maximize2 className="w-4 h-4" />
+          {snap === 1 ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
         </Button>
       </div>
     </div>
@@ -1075,21 +1080,18 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
   return (
     <>
       {mode === "page" ? (
-        <div className="w-full max-w-3xl mx-auto px-2 sm:px-3 md:px-4 py-2 pb-40 md:pb-4">
+        <div className="w-full max-w-3xl mx-auto px-2 sm:px-3 md:px-4 py-2 pb-4">
           {activeNote ? noteEditorBody : body}
         </div>
       ) : mode === "drawer" ? (
         <Drawer open={true} onOpenChange={(v) => !v && onClose()} snapPoints={[0.55, 1]} activeSnapPoint={snap} setActiveSnapPoint={setSnap} shouldScaleBackground={false}>
-          <DrawerContent className="max-h-[95vh] flex flex-col" aria-describedby="task-drawer-desc">
+          <DrawerContent className={`max-h-[95vh] flex flex-col ${snap === 1 ? "!h-screen !max-h-screen !m-0 !rounded-none" : ""}`} aria-describedby="task-drawer-desc">
             <DrawerHeader className="sr-only">
               <DrawerTitle>{activeNote ? T("ویرایش نوت", "Edit note") : T("جزئیات تسک", "Task")}</DrawerTitle>
             </DrawerHeader>
             {drawerHeader}
             <div className="flex-1 overflow-y-auto min-h-0 px-3 pb-4">
               {activeNote ? noteEditorBody : body}
-            </div>
-            <div className="shrink-0 z-10 bg-background/95 backdrop-blur border-t border-border/40">
-              {railInner}
             </div>
             <p id="task-drawer-desc" className="sr-only">{T("جزئیات و ویرایش تسک", "Task details and editing")}</p>
           </DrawerContent>
