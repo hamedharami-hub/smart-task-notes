@@ -16,6 +16,7 @@ import { PRIORITY_META, PRIORITY_SELECTABLE, type Priority } from "@/lib/priorit
 import type { Task } from "@/lib/taskTypes";
 import { listTaskTemplates, buildTaskFromTemplate } from "@/lib/taskTemplates";
 import { uploadMediaFull } from "@/lib/uploadMedia";
+import { VoiceInputButton } from "@/components/VoiceInputButton";
 
 type Defaults = {
   folder_id?: string | null;
@@ -320,6 +321,12 @@ export function QuickAddTask({
           className="flex-1 h-10 text-sm bg-background"
           dir="auto"
           disabled={busy}
+        />
+        <VoiceInputButton
+          onTranscript={(text) => setTitle((prev) => (prev ? prev.trimEnd() + " " + text : text))}
+          disabled={busy}
+          size="icon"
+          className="h-10 w-10 shrink-0"
         />
         <Popover>
           <PopoverTrigger asChild>

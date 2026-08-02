@@ -15,6 +15,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { toast } from "sonner";
 import { NoteEditorTabs } from "@/components/NoteEditorTabs";
 import { markdownToHtml } from "@/lib/markdown";
+import { VoiceInputButton } from "@/components/VoiceInputButton";
 import { BidiText } from "@/components/BidiText";
 import { callAI, getAILanguage, type AILanguage } from "@/lib/ai";
 import { AILangToggle } from "@/components/AILangToggle";
@@ -206,6 +207,12 @@ export default function NotesView() {
         <Input value={selected.title} onChange={(e) => save({ title: e.target.value })}
           disabled={!canEdit}
           className="text-xl font-bold border-none focus-visible:ring-0 px-0 flex-1 min-w-[120px]" dir="auto" />
+        <VoiceInputButton
+          onTranscript={(text) => save({ title: selected.title ? selected.title.trimEnd() + " " + text : text })}
+          disabled={!canEdit}
+          size="icon"
+          className="h-9 w-9 shrink-0"
+        />
         <AILangToggle value={aiLang} onChange={setAiLang} />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

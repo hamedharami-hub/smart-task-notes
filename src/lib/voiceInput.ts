@@ -1,75 +1,89 @@
 // Web Speech API for voice input (tasks and notes)
 // Supports Persian (fa-IR) and English (en-US)
 
-type VoiceInputState = {
-  isListening: boolean;
-  transcript: string;
-  error: string | null;
-};
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
-type VoiceInputCallbacks = {
+type VoiceInputOptions = {
   onTranscript: (text: string) => void;
+  onInterim?: (text: string) => void;
   onError?: (error: string) => void;
   onListeningChange?: (isListening: boolean) => void;
+  continuous?: boolean;
 };
 
 export class VoiceInput {
   private recognition: any = null;
   private isListening = false;
-  private callbacks: VoiceInputCallbacks;
+  private options: VoiceInputOptions;
 
-  constructor(callbacks: VoiceInputCallbacks) {
-    this.callbacks = callbacks;
+  constructor(options: VoiceInputOptions) {
+    this.options = options;
     this.init();
   }
 
   private init() {
-    if (typeof window === "undefined" || !("webkitSpeechRecognition" in window) && !("SpeechRecognition" in window)) {
-      this.callbacks.onError?.("Voice input not supported in this browser");
+    if (typeof window === "undefined" || (!("webkitSpeechRecognition" in window) && !("SpeechRecognition" in window))) {
+      this.options.onError?.("Voice input not supported in this browser");
       return;
     }
 
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     this.recognition = new SpeechRecognition();
-    this.recognition.continuous = false;
+    this.recognition.continuous = this.options.continuous ?? false;
     this.recognition.interimResults = true;
-    this.recognition.lang = "fa-IR"; // Default to Persian
+    this.recognition.lang = "fa-IR";
 
     this.recognition.onstart = () => {
       this.isListening = true;
-      this.callbacks.onListeningChange?.(true);
+      this.options.onListeningChange?.(true);
     };
 
     this.recognition.onend = () => {
       this.isListening = false;
-      this.callbacks.onListeningChange?.(false);
+      this.options.onListeningChange?.(false);
     };
 
     this.recognition.onresult = (event: any) => {
-      const transcript = Array.from(event.results)
-        .map((result: any) => result[0])
-        .map((result: any) => result.transcript)
-        .join("");
-      this.callbacks.onTranscript(transcript);
+      let finalTranscript = "";
+      let interimTranscript = "";
+
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const result = event.results[i];
+        const transcript = result[0].transcript;
+        if (result.isFinal) {
+          finalTranscript += transcript;
+        } else {
+          interimTranscript += transcript;
+        }
+      }
+
+      if (finalTranscript) {
+        this.options.onTranscript(finalTranscript);
+      }
+      if (interimTranscript) {
+        this.options.onInterim?.(interimTranscript);
+      }
     };
 
     this.recognition.onerror = (event: any) => {
       this.isListening = false;
-      this.callbacks.onListeningChange?.(false);
+      this.options.onListeningChange?.(false);
       const error = event.error;
       if (error === "not-allowed") {
-        this.callbacks.onError?.("Microphone permission denied");
+        this.options.onError?.("Microphone permission denied");
       } else if (error === "no-speech") {
-        this.callbacks.onError?.("No speech detected");
+        this.options.onError?.("No speech detected");
+      } else if (error === "aborted") {
+        // User or code stopped; no need to show an error.
       } else {
-        this.callbacks.onError?.(`Voice error: ${error}`);
+        this.options.onError?.(`Voice error: ${error}`);
       }
     };
   }
 
   start(lang: "fa-IR" | "en-US" = "fa-IR") {
     if (!this.recognition) {
-      this.callbacks.onError?.("Voice input not supported");
+      this.options.onError?.("Voice input not supported");
       return;
     }
     if (this.isListening) {
