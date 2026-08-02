@@ -27,6 +27,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { callAI, getAILanguage } from "@/lib/ai";
 import { htmlToMarkdown, markdownToHtml } from "@/lib/markdown";
+import { VoiceInputButton } from "@/components/VoiceInputButton";
 
 const AI_ACTIONS = [
   { key: "improve", label: "✨ بهبود نگارش" },
@@ -307,6 +308,15 @@ export function RichEditor({
         <Button size="sm" variant="ghost" className="h-8 px-2" onClick={() => editor.chain().focus().setHorizontalRule().run()} title="خط افقی">
           <Minus className="w-4 h-4" />
         </Button>
+        <Separator orientation="vertical" className="h-6 mx-1" />
+        <VoiceInputButton
+          continuous
+          onTranscript={(text) => editor?.chain().focus().insertContent(text + " ").run()}
+          disabled={!editor || readOnly}
+          size="sm"
+          className="h-8 px-2"
+          title={"ضبط صوتی"}
+        />
       </div>
 
       {/* Bubble menu for AI */}

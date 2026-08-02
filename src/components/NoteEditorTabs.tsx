@@ -2,6 +2,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { RichEditor } from "@/components/RichEditor";
 import { markdownToHtml } from "@/lib/markdown";
+import { VoiceInputButton } from "@/components/VoiceInputButton";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -38,6 +39,18 @@ export function NoteEditorTabs({
       </TabsContent>
 
       <TabsContent value="markdown" className="mt-3 space-y-3">
+        <div className="flex items-center justify-end">
+          <VoiceInputButton
+            continuous
+            onTranscript={(text) => {
+              const next = (markdown || "").trimEnd() + " " + text;
+              onChange(next, markdownToHtml(next));
+            }}
+            disabled={readOnly}
+            size="sm"
+            className="h-8 px-2"
+          />
+        </div>
         <Textarea
           value={markdown}
           onChange={(e) => onChange(e.target.value, markdownToHtml(e.target.value))}

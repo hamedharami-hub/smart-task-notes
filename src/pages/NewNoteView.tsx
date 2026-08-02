@@ -5,10 +5,10 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { ArrowRight, Loader2, FolderInput, Pin, Mic, MicOff } from "lucide-react";
+import { ArrowRight, Loader2, FolderInput, Pin } from "lucide-react";
 import { toast } from "sonner";
 import { RichEditor } from "@/components/RichEditor";
-import { VoiceInput } from "@/lib/voiceInput";
+import { VoiceInputButton } from "@/components/VoiceInputButton";
 import { useTranslation } from "react-i18next";
 
 type Folder = { id: string; name: string };
@@ -26,32 +26,11 @@ export default function NewNoteView() {
   const [pinned, setPinned] = useState(false);
   const [folders, setFolders] = useState<Folder[]>([]);
   const [busy, setBusy] = useState(false);
-  const [voiceListening, setVoiceListening] = useState(false);
-  const [voiceInstance, setVoiceInstance] = useState<VoiceInput | null>(null);
 
   useEffect(() => {
     supabase.from("folders").select("id,name").order("position")
       .then(({ data }) => setFolders((data || []) as any));
   }, [user]);
-
-  // Initialize voice input for content
-  useEffect(() => {
-    const voice = new VoiceInput({
-      onTranscript: (text) => {
-        setContent(prev => prev + " " + text);
-      },
-      onError: (error) => {
-        toast.error(error);
-      },
-      onListeningChange: (isListening) => {
-        setVoiceListening(isListening);
-      },
-    });
-    setVoiceInstance(voice);
-    return () => {
-      voice.stop();
-    };
-  }, []);
 
   const submit = async () => {
     if (!user || !title.trim()) {
@@ -90,14 +69,21 @@ export default function NewNoteView() {
       </div>
 
       <Card className="p-4 space-y-4">
-        <Input
-          autoFocus
-          placeholder="عنوان نوت..."
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          dir="auto"
-          className="text-lg font-semibold"
-        />
+        <div className="flex items-center gap-2">
+          <Input
+            autoFocus
+            placeholder="عنوان نوت..."
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            dir="auto"
+            className="text-lg font-semibold flex-1"
+          />
+          <VoiceInputButton
+            onTranscript={(text) => setTitle((prev) => (prev ? prev.trimEnd() + " " + text : text))}
+            size="icon"
+            className="h-10 w-10 shrink-0"
+          />
+        </div>
 
         <div className="grid grid-cols-[1fr_auto] gap-3 items-end">
           <div>

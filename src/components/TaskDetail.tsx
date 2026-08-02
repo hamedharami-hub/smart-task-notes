@@ -88,7 +88,7 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
   useEffect(() => {
     const voice = new VoiceInput({
       onTranscript: (text) => {
-        setT(prev => ({ ...prev, title: text }));
+        setT(prev => ({ ...prev, title: prev.title ? prev.title.trimEnd() + " " + text : text }));
       },
       onError: (error) => {
         toast.error(error);
