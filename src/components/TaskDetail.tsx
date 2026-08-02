@@ -18,6 +18,7 @@ import {
   Folder as FolderIcon, Tag as TagIcon, Check, Calendar as CalendarIcon,
   Flag, Repeat, ListTree, Paperclip, X, Image as ImageIcon, Music, Link as LinkIcon,
   CheckSquare, ListChecks, CalendarDays, Mic, MicOff, Pin, PinOff, Maximize2, Minimize2,
+  GitBranch,
 } from "lucide-react";
 import { VoiceInput } from "@/lib/voiceInput";
 import { PRIORITY_META, PRIORITY_ORDER, type Priority } from "@/lib/priority";
@@ -31,6 +32,7 @@ import { TaskStepLists } from "@/components/TaskStepLists";
 import { TaskSubtasksInline } from "@/components/TaskSubtasksInline";
 import { TaskAttachments } from "@/components/TaskAttachments";
 import { TaskDescriptionEditor } from "@/components/TaskDescriptionEditor";
+import { TaskOutcomeSheet } from "@/components/TaskOutcomeSheet";
 import { DueDatePicker } from "@/components/DueDatePicker";
 import { BucketPickerBody } from "@/components/BucketPickerInline";
 import { bucketLabel, kindLabel } from "@/lib/timeBuckets";
@@ -81,6 +83,9 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
   const [parentOpen, setParentOpen] = useState(false);
   const [parentTitle, setParentTitle] = useState("");
   const [allTasks, setAllTasks] = useState<{ id: string; title: string; parent_id: string | null }[]>([]);
+  const [outcomeOpen, setOutcomeOpen] = useState(false);
+  const [outcomeCount, setOutcomeCount] = useState(0);
+
 
   useEffect(() => { setT(task); }, [task.id]);
 
@@ -107,12 +112,13 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const [notesRes, tagsRes, subRes, stepListsRes, attachRes] = await Promise.all([
+      const [notesRes, tagsRes, subRes, stepListsRes, attachRes, outcomesRes] = await Promise.all([
         supabase.from("notes").select("id,title,content").eq("task_id", task.id).order("updated_at", { ascending: false }),
         supabase.from("task_tags").select("tag_id").eq("task_id", task.id),
         supabase.from("subtasks").select("id", { count: "exact", head: true }).eq("task_id", task.id),
         supabase.from("task_step_lists").select("id", { count: "exact", head: true }).eq("task_id", task.id),
         supabase.from("task_attachments").select("id", { count: "exact", head: true }).eq("task_id", task.id),
+        supabase.from("task_outcomes").select("id", { count: "exact", head: true }).eq("task_id", task.id),
       ]);
       if (cancelled) return;
       const list = (notesRes.data || []) as any;
@@ -123,6 +129,7 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
       if ((stepListsRes.count || 0) > 0) setShowSteps(true);
       if ((attachRes.count || 0) > 0) setShowAttachments(true);
       if (hasTimeBlock) setShowTimeBlock(true);
+      setOutcomeCount(outcomesRes.count || 0);
     })();
     return () => { cancelled = true; };
   }, [task.id]);
@@ -977,6 +984,16 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
                   </PopoverContent>
                 </Popover>
 
+                {/* Outcomes */}
+                <RailButton
+                  icon={GitBranch}
+                  label={T("شاخه‌ها", "Branches")}
+                  active={outcomeCount > 0}
+                  badge={outcomeCount || undefined}
+                  onClick={() => setOutcomeOpen(true)}
+                  disabled={!canEdit}
+                />
+
                 {/* AI */}
                 <RailButton
                   icon={Sparkles}
@@ -1143,6 +1160,13 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
         open={aiOpen}
         onOpenChange={setAiOpen}
         onMetaApplied={refreshTask}
+      />
+
+      <TaskOutcomeSheet
+        task={t}
+        open={outcomeOpen}
+        onOpenChange={(open) => { setOutcomeOpen(open); if (!open) refreshTask(); }}
+        folders={folders.map((f) => ({ id: f.id, name: f.name }))}
       />
     </>
   );
