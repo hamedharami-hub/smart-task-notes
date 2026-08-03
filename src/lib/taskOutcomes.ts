@@ -21,9 +21,8 @@ export async function listTaskOutcomes(taskId: string): Promise<TaskOutcome[]> {
 }
 
 export async function saveTaskOutcome(outcome: Partial<TaskOutcome>): Promise<TaskOutcome> {
-  const payload = { ...outcome } as unknown;
   if (outcome.id) {
-    const { id: _id, ...rest } = outcome;
+    const { id: _id, user_id: _u, ...rest } = outcome;
     const { data, error } = await supabase
       .from("task_outcomes")
       .update(rest as never)
@@ -33,6 +32,11 @@ export async function saveTaskOutcome(outcome: Partial<TaskOutcome>): Promise<Ta
     if (error) throw error;
     return toOutcome(data as unknown);
   }
+  const { data: auth } = await supabase.auth.getUser();
+  const uid = auth.user?.id;
+  if (!uid) throw new Error("Not signed in");
+  const { id: _ignore, ...rest } = outcome;
+  const payload = { ...rest, user_id: uid };
   const { data, error } = await supabase.from("task_outcomes").insert(payload as never).select().single();
   if (error) throw error;
   return toOutcome(data as unknown);
