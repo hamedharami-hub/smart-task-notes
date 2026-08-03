@@ -144,7 +144,7 @@ export function QuickAddTask({
           due_date: finalDue,
           parent_id: defaults.parent_id ?? null,
           priority: finalPriority,
-        } as Record<string, unknown>)
+        } as never)
         .select()
         .single();
       if (error) throw error;
@@ -258,7 +258,7 @@ export function QuickAddTask({
         priority: finalPriority,
         folder_id: finalFolderId,
         due_offset_hours: finalDue ? Math.round((new Date(finalDue).getTime() - Date.now()) / 3600000) : null,
-      });
+      } as never);
       toast.success(T("ذخیره شد در تمپلیت‌ها", "Saved to templates"));
       setMoreOpen(false);
     } catch (e) {

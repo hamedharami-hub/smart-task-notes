@@ -9,7 +9,7 @@ export async function logTaskActivity(
 ) {
   const { error } = await supabase
     .from("task_activities")
-    .insert({ task_id: taskId, user_id: userId, action, payload });
+    .insert({ task_id: taskId, user_id: userId, action, payload } as never);
   if (error) console.error("logTaskActivity", error);
 }
 
@@ -21,5 +21,5 @@ export async function listTaskActivities(taskId: string) {
     .order("created_at", { ascending: false })
     .limit(100);
   if (error) throw error;
-  return (data || []) as TaskActivity[];
+  return (data || []) as unknown as TaskActivity[];
 }

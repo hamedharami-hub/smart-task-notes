@@ -114,15 +114,11 @@ export default function NewNoteView() {
         <div>
           <div className="flex items-center justify-between mb-1">
             <label className="text-xs text-muted-foreground">محتوا</label>
-            <Button
-              size="icon"
-              variant={voiceListening ? "default" : "ghost"}
-              onClick={() => voiceInstance?.toggle(isEn ? "en-US" : "fa-IR")}
+            <VoiceInputButton
+              onTranscript={(text) => setContent((c) => (c ? `${c} ${text}` : text))}
               className="h-8 w-8"
-              title="ضبط صوتی"
-            >
-              {voiceListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-            </Button>
+              title={isEn ? "Voice input" : "ضبط صوتی"}
+            />
           </div>
           <RichEditor initialMarkdown={content} onChange={(_html, md) => setContent(md)} />
         </div>

@@ -20,7 +20,7 @@ import {
   loadAISettings, saveAISettings, defaultConfig, recommendedConfig,
   PROVIDER_INFO, OPERATIONS, MODEL_DESCRIPTIONS, OP_RECOMMENDED,
   resolveOpConfig, resolveOpStrategy,
-  type Provider, type ProviderConfig, type AIPerOpSettings, type OperationMeta, type OpStrategy,
+  type Provider, type ProviderConfig, type AIPerOpSettings, type OperationMeta, type OpStrategy, type AIOperation,
 } from "@/lib/aiSettings";
 import { fetchProviderModels, getMergedModels, getAllKnownModels } from "@/lib/fetchModels";
 import { supabase } from "@/integrations/supabase/client";
@@ -1114,7 +1114,7 @@ export default function SettingsView() {
             return (
               <Select
                 value={landing === "home" ? "today" : (landing || "today")}
-                onValueChange={(v) => updateReminder({ default_landing: v })}
+                onValueChange={(v) => updateReminder({ default_landing: v as "home" | "last" | "today" })}
               >
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
