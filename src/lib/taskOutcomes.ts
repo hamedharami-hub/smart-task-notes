@@ -2,6 +2,11 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Task, TaskOutcome, OutcomeAction, OutcomeExecution } from "@/lib/taskTypes";
 import { addHours } from "date-fns";
 
+function isMissingColumnError(error: { code?: string; message?: string }, column: string): boolean {
+  const msg = (error.message || "").toLowerCase();
+  return error.code === "42703" || msg.includes("column") || msg.includes(column.toLowerCase());
+}
+
 function toOutcome(row: unknown): TaskOutcome {
   const r = row as { id: string; task_id: string; label: string; color?: string | null; icon?: string | null; position: number; actions?: unknown; created_at: string; updated_at: string };
   return {
@@ -53,21 +58,32 @@ export async function executeTaskOutcome(
   parentTask: Task,
 ): Promise<{ taskIds: string[]; execution: OutcomeExecution }> {
   const createdIds: string[] = [];
+  let outcomeColumnExists = true;
   for (const action of outcome.actions || []) {
     const due = action.due_offset_hours ? addHours(new Date(), action.due_offset_hours).toISOString() : null;
-    const insert: Record<string, unknown> = {
+    const baseInsert: Record<string, unknown> = {
       user_id: userId,
       title: action.title,
       description: action.description || null,
       priority: action.priority || "none",
       folder_id: action.folder_id ?? parentTask.folder_id,
+      parent_id: parentTask.id,
       due_date: due,
       status: "todo",
       completed: false,
     };
-    const { data, error } = await supabase.from("tasks").insert(insert as never).select("id").single();
-    if (error) throw error;
-    const createdId = (data as unknown as { id?: string } | null)?.id;
+    let payload: Record<string, unknown> = outcomeColumnExists
+      ? { ...baseInsert, outcome_id: outcome.id }
+      : baseInsert;
+    let res = await supabase.from("tasks").insert(payload as never).select("id").single();
+    if (res.error && !outcomeColumnExists) throw res.error;
+    if (res.error && isMissingColumnError(res.error, "outcome_id")) {
+      outcomeColumnExists = false;
+      payload = baseInsert;
+      res = await supabase.from("tasks").insert(payload as never).select("id").single();
+    }
+    if (res.error) throw res.error;
+    const createdId = (res.data as unknown as { id?: string } | null)?.id;
     if (createdId) {
       createdIds.push(createdId);
       if (action.tag_ids?.length) {

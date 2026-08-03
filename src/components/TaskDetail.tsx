@@ -33,6 +33,7 @@ import { TaskSubtasksInline } from "@/components/TaskSubtasksInline";
 import { TaskAttachments } from "@/components/TaskAttachments";
 import { TaskDescriptionEditor } from "@/components/TaskDescriptionEditor";
 import { TaskOutcomeSheet } from "@/components/TaskOutcomeSheet";
+import { TaskOutcomesInline } from "@/components/TaskOutcomesInline";
 import { DueDatePicker } from "@/components/DueDatePicker";
 import { BucketPickerBody } from "@/components/BucketPickerInline";
 import { bucketLabel, kindLabel } from "@/lib/timeBuckets";
@@ -70,14 +71,15 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
   const [tags, setTags] = useState<{ id: string; name: string; color: string | null }[]>([]);
   const [taskTagIds, setTaskTagIds] = useState<string[]>([]);
 
-  // Section reveal flags – open if data exists, otherwise stay hidden until user taps rail icon
+  // Section reveal flags – start open so subtasks, checklists and branches are visible by default
   const hasTimeBlock = !!(t.start_at || t.end_at || t.estimated_minutes);
   const isScheduled = !!t.due_date || !!t.reminder_at || !!t.recurrence_rule || !!t.bucket_kind || hasTimeBlock;
-  const [showSubtasks, setShowSubtasks] = useState(false);
-  const [showSteps, setShowSteps] = useState(false);
+  const [showSubtasks, setShowSubtasks] = useState(true);
+  const [showSteps, setShowSteps] = useState(true);
   const [showAttachments, setShowAttachments] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
   const [showTimeBlock, setShowTimeBlock] = useState(hasTimeBlock);
+  const [showOutcomes, setShowOutcomes] = useState(true);
   const [voiceListening, setVoiceListening] = useState(false);
   const [voiceInstance, setVoiceInstance] = useState<VoiceInput | null>(null);
   const [scheduleOpen, setScheduleOpen] = useState(false);
@@ -130,6 +132,7 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
       if ((stepListsRes.count || 0) > 0) setShowSteps(true);
       if ((attachRes.count || 0) > 0) setShowAttachments(true);
       if (hasTimeBlock) setShowTimeBlock(true);
+      if ((outcomesRes.count || 0) > 0) setShowOutcomes(true);
       setOutcomeCount(outcomesRes.count || 0);
     })();
     return () => { cancelled = true; };
@@ -1128,6 +1131,8 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
       )}
 
       {showSteps && <TaskStepLists taskId={t.id} />}
+
+      {showOutcomes && <TaskOutcomesInline taskId={t.id} onEdit={() => setOutcomeOpen(true)} />}
 
       {showAttachments && <TaskAttachments taskId={t.id} />}
 
