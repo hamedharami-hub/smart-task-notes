@@ -1439,6 +1439,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_share: { Args: { _share_id: string }; Returns: undefined }
       admin_user_list: {
         Args: never
         Returns: {
@@ -1453,6 +1454,7 @@ export type Database = {
           user_id: string
         }[]
       }
+      decline_share: { Args: { _share_id: string }; Returns: undefined }
       get_effective_share_permission: {
         Args: {
           _resource_id: string
