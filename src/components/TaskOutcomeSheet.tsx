@@ -127,6 +127,10 @@ export function TaskOutcomeSheet({
   };
 
   const save = async () => {
+    if (outcomes.length && outcomes.every((o) => !o.label.trim())) {
+      toast.error(T("برای هر شاخه یک عنوان بنویس", "Give each branch a title"));
+      return;
+    }
     setSaving(true);
     try {
       for (let i = 0; i < outcomes.length; i++) {
