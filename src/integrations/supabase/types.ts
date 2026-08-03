@@ -921,6 +921,33 @@ export type Database = {
         }
         Relationships: []
       }
+      task_activities: {
+        Row: {
+          action: string
+          created_at: string
+          id: string
+          payload: Json
+          task_id: string
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          id?: string
+          payload?: Json
+          task_id: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          id?: string
+          payload?: Json
+          task_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       task_attachments: {
         Row: {
           created_at: string
@@ -1117,6 +1144,56 @@ export type Database = {
           },
         ]
       }
+      task_templates: {
+        Row: {
+          created_at: string
+          description: string | null
+          due_offset_hours: number | null
+          folder_id: string | null
+          id: string
+          payload: Json
+          priority: Database["public"]["Enums"]["task_priority"]
+          recurrence: Database["public"]["Enums"]["recurrence_type"]
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          due_offset_hours?: number | null
+          folder_id?: string | null
+          id?: string
+          payload?: Json
+          priority?: Database["public"]["Enums"]["task_priority"]
+          recurrence?: Database["public"]["Enums"]["recurrence_type"]
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          due_offset_hours?: number | null
+          folder_id?: string | null
+          id?: string
+          payload?: Json
+          priority?: Database["public"]["Enums"]["task_priority"]
+          recurrence?: Database["public"]["Enums"]["recurrence_type"]
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_templates_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "folders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tasks: {
         Row: {
           bucket_anchor: string | null
@@ -1134,7 +1211,9 @@ export type Database = {
           id: string
           is_avoidance: boolean
           kanban_column_id: string | null
+          location: string | null
           parent_id: string | null
+          pinned: boolean
           position: number
           priority: Database["public"]["Enums"]["task_priority"]
           quadrant: number | null
@@ -1163,7 +1242,9 @@ export type Database = {
           id?: string
           is_avoidance?: boolean
           kanban_column_id?: string | null
+          location?: string | null
           parent_id?: string | null
+          pinned?: boolean
           position?: number
           priority?: Database["public"]["Enums"]["task_priority"]
           quadrant?: number | null
@@ -1192,7 +1273,9 @@ export type Database = {
           id?: string
           is_avoidance?: boolean
           kanban_column_id?: string | null
+          location?: string | null
           parent_id?: string | null
+          pinned?: boolean
           position?: number
           priority?: Database["public"]["Enums"]["task_priority"]
           quadrant?: number | null
@@ -1307,6 +1390,7 @@ export type Database = {
           micro_prompt_enabled: boolean
           notifications_enabled: boolean
           task_card_layout: string
+          task_defaults: Json
           theme: string
           ui_scale: number
           updated_at: string
@@ -1324,6 +1408,7 @@ export type Database = {
           micro_prompt_enabled?: boolean
           notifications_enabled?: boolean
           task_card_layout?: string
+          task_defaults?: Json
           theme?: string
           ui_scale?: number
           updated_at?: string
@@ -1341,6 +1426,7 @@ export type Database = {
           micro_prompt_enabled?: boolean
           notifications_enabled?: boolean
           task_card_layout?: string
+          task_defaults?: Json
           theme?: string
           ui_scale?: number
           updated_at?: string
@@ -1366,6 +1452,14 @@ export type Database = {
           task_count: number
           user_id: string
         }[]
+      }
+      get_effective_share_permission: {
+        Args: {
+          _resource_id: string
+          _resource_type: Database["public"]["Enums"]["share_resource_type"]
+          _user_id: string
+        }
+        Returns: Database["public"]["Enums"]["share_permission"]
       }
       has_role: {
         Args: {
