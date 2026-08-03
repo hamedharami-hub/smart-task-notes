@@ -650,6 +650,48 @@ export type Database = {
           },
         ]
       }
+      outcome_executions: {
+        Row: {
+          created_at: string
+          created_task_ids: string[]
+          id: string
+          outcome_id: string
+          task_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_task_ids?: string[]
+          id?: string
+          outcome_id: string
+          task_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          created_task_ids?: string[]
+          id?: string
+          outcome_id?: string
+          task_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "outcome_executions_outcome_id_fkey"
+            columns: ["outcome_id"]
+            isOneToOne: false
+            referencedRelation: "task_outcomes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outcome_executions_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pomodoro_sessions: {
         Row: {
           completed: boolean
@@ -920,6 +962,53 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      task_outcomes: {
+        Row: {
+          actions: Json
+          color: string | null
+          created_at: string
+          icon: string | null
+          id: string
+          label: string
+          position: number
+          task_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          actions?: Json
+          color?: string | null
+          created_at?: string
+          icon?: string | null
+          id?: string
+          label: string
+          position?: number
+          task_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          actions?: Json
+          color?: string | null
+          created_at?: string
+          icon?: string | null
+          id?: string
+          label?: string
+          position?: number
+          task_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_outcomes_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       task_step_lists: {
         Row: {
