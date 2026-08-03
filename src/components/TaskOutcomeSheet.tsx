@@ -35,7 +35,7 @@ export function TaskOutcomeSheet({
     setLoading(true);
     listTaskOutcomes(task.id)
       .then(setOutcomes)
-      .catch((e: unknown) => toast.error(e instanceof Error ? e.message : T("خطا در بارگذاری", "Load error")))
+      .catch((e: unknown) => toast.error(T("خطا در بارگذاری شاخه‌ها", "Failed to load branches") + ": " + (e instanceof Error ? e.message : String(e))))
       .finally(() => setLoading(false));
     setRemovedIds([]);
   }, [open, task.id]);
@@ -46,7 +46,7 @@ export function TaskOutcomeSheet({
       {
         id: "",
         task_id: task.id,
-        label: T("حالت جدید", "New outcome"),
+        label: "",
         color: null,
         icon: null,
         position: prev.length,
@@ -54,6 +54,28 @@ export function TaskOutcomeSheet({
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       } as TaskOutcome,
+    ]);
+  };
+
+  const addPresets = () => {
+    const presets = [
+      { label: T("انجام شد", "It happened"), color: "hsl(142 70% 40%)", icon: "✅" },
+      { label: T("انجام نشد", "It did not happen"), color: "hsl(0 72% 51%)", icon: "❌" },
+      { label: T("یک اتفاق دیگر افتاد", "Something else happened"), color: "hsl(38 92% 50%)", icon: "🔀" },
+    ];
+    setOutcomes((prev) => [
+      ...prev,
+      ...presets.map((p, i) => ({
+        id: "",
+        task_id: task.id,
+        label: p.label,
+        color: p.color,
+        icon: p.icon,
+        position: prev.length + i,
+        actions: [],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })) as TaskOutcome[],
     ]);
   };
 
@@ -72,7 +94,7 @@ export function TaskOutcomeSheet({
 
   const addAction = (idx: number) => {
     const newAction: OutcomeAction = {
-      title: T("تسک جدید", "New task"),
+      title: "",
       description: "",
       priority: "none",
       folder_id: null,
@@ -129,8 +151,8 @@ export function TaskOutcomeSheet({
       toast.success(T("ذخیره شد", "Saved"));
       onOpenChange(false);
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : T("خطا در ذخیره", "Save error");
-      toast.error(msg);
+      const msg = e instanceof Error ? e.message : String(e);
+      toast.error(T("خطا در ذخیره شاخه‌ها", "Failed to save branches") + ": " + msg);
     } finally {
       setSaving(false);
     }
@@ -159,7 +181,7 @@ export function TaskOutcomeSheet({
                 <Input
                   value={outcome.label}
                   onChange={(e) => updateOutcome(oi, { label: e.target.value })}
-                  placeholder={T("مثلاً جواب داد", "e.g. Answered")}
+                  placeholder={T("اگر … (مثلاً: جواب داد)", "If … (e.g. Answered)")}
                   className="flex-1 font-medium"
                 />
                 <Button size="icon" variant="ghost" onClick={() => removeOutcome(oi)} className="text-destructive shrink-0">
@@ -174,7 +196,7 @@ export function TaskOutcomeSheet({
                       <Input
                         value={action.title}
                         onChange={(e) => updateAction(oi, ai, { title: e.target.value })}
-                        placeholder={T("عنوان تسک بعدی", "Next task title")}
+                        placeholder={T("آنگاه این کار انجام شود…", "Then do this task…")}
                         className="flex-1 text-sm"
                       />
                       <Button size="icon" variant="ghost" onClick={() => removeAction(oi, ai)} className="h-8 w-8 text-muted-foreground">
@@ -236,6 +258,21 @@ export function TaskOutcomeSheet({
               </div>
             </Card>
           ))}
+
+          {!loading && outcomes.length === 0 && (
+            <div className="rounded-xl border border-dashed p-4 text-center space-y-3">
+              <p className="text-sm text-muted-foreground">
+                {T(
+                  "برای این تسک شاخه بساز: «اگر این اتفاق افتاد، این کارها را انجام بده».",
+                  "Add branches: “if this happens, then do these tasks”.",
+                )}
+              </p>
+              <Button type="button" size="sm" variant="secondary" onClick={addPresets} className="gap-1">
+                <Plus className="w-4 h-4" />
+                {T("افزودن سه شاخه پیش‌فرض", "Add 3 default branches")}
+              </Button>
+            </div>
+          )}
 
           <Button type="button" variant="outline" onClick={addOutcome} className="w-full gap-1">
             <Plus className="w-4 h-4" />
