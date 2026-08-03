@@ -1,5 +1,6 @@
 // Reminders engine — Web Notifications + auto daily task creation
 import { supabase } from "@/integrations/supabase/client";
+import { cacheGet, cacheSet } from "@/lib/offlineQueue";
 
 export type TaskDefaults = {
   default_date?: "none" | "today" | "tomorrow" | "next7" | null;
@@ -170,28 +171,65 @@ export async function ensureDailyTasks(userId: string, s: UserSettings) {
   localStorage.setItem(LAST_TASK_KEY, today);
 }
 
+const SETTINGS_CACHE_KEY = (userId: string) => `settings:${userId}`;
+const DEFAULT_SETTINGS: UserSettings = {
+  user_id: "",
+  checkin_reminder_enabled: true,
+  checkin_reminder_time: "20:00",
+  notifications_enabled: false,
+  micro_prompt_enabled: false,
+  theme: "system",
+  auto_create_daily_tasks: false,
+  font_size: "medium",
+  ui_scale: 1,
+  task_card_layout: "compact",
+  default_landing: "today",
+  task_defaults: {},
+};
+
 const settingsCache = new Map<string, Promise<UserSettings | null>>();
 export async function loadSettings(userId: string): Promise<UserSettings | null> {
   const cached = settingsCache.get(userId);
   if (cached) return cached;
   const p = (async () => {
-    const { data } = await supabase.from("user_settings").select("*").eq("user_id", userId).maybeSingle();
-    if (data) return { task_defaults: {}, ...(data as UserSettings) } as UserSettings;
-    const { data: created } = await supabase
-      .from("user_settings")
-      .insert({ user_id: userId })
-      .select()
-      .maybeSingle();
-    return (created as UserSettings) || null;
+    const cachedValue = await cacheGet<UserSettings>(SETTINGS_CACHE_KEY(userId));
+
+    // If offline, return cached or default immediately so navigation isn't blocked
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      return cachedValue ? { ...DEFAULT_SETTINGS, ...cachedValue, user_id: userId } : { ...DEFAULT_SETTINGS, user_id };
+    }
+
+    try {
+      const { data } = await supabase.from("user_settings").select("*").eq("user_id", userId).maybeSingle();
+      if (data) {
+        const settings = { task_defaults: {}, ...(data as UserSettings) } as UserSettings;
+        await cacheSet(SETTINGS_CACHE_KEY(userId), settings);
+        return settings;
+      }
+      const { data: created } = await supabase
+        .from("user_settings")
+        .insert({ user_id: userId })
+        .select()
+        .maybeSingle();
+      const settings = (created as UserSettings) || { ...DEFAULT_SETTINGS, user_id };
+      await cacheSet(SETTINGS_CACHE_KEY(userId), settings);
+      return settings;
+    } catch {
+      return cachedValue ? { ...DEFAULT_SETTINGS, ...cachedValue, user_id: userId } : { ...DEFAULT_SETTINGS, user_id };
+    }
   })();
   settingsCache.set(userId, p);
-  // Allow refresh after 30s
   setTimeout(() => settingsCache.delete(userId), 30_000);
   return p;
 }
 
 export async function saveSettings(userId: string, patch: Partial<UserSettings>) {
   settingsCache.delete(userId);
+  const current = (await cacheGet<UserSettings>(SETTINGS_CACHE_KEY(userId))) || { ...DEFAULT_SETTINGS, user_id: userId };
+  const next = { ...current, ...patch, user_id: userId };
+  await cacheSet(SETTINGS_CACHE_KEY(userId), next);
+
+  if (typeof navigator !== "undefined" && !navigator.onLine) return;
   const { error } = await supabase
     .from("user_settings")
     .upsert({ user_id: userId, ...patch }, { onConflict: "user_id" });

@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { TaskDetail } from "@/components/TaskDetail";
 import type { Task, ConfirmState } from "@/lib/taskTypes";
 import { Loader2, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { cacheGet } from "@/lib/offlineQueue";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -13,17 +15,31 @@ import {
 export default function TaskDetailView() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [task, setTask] = useState<Task | null>(null);
   const [confirm, setConfirm] = useState<ConfirmState>(null);
 
   const load = async () => {
     if (!id) return;
-    const { data } = await supabase.from("tasks").select("*").eq("id", id).maybeSingle();
-    if (data) setTask(data as any);
-    else setTask(null);
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      const cached = user ? await cacheGet<Task[]>(`tasks:all:${user.id}`) : null;
+      const match = cached?.find(t => t.id === id);
+      if (match) { setTask(match); return; }
+      setTask(null);
+      return;
+    }
+    try {
+      const { data } = await supabase.from("tasks").select("*").eq("id", id).maybeSingle();
+      if (data) setTask(data as Task);
+      else setTask(null);
+    } catch {
+      const cached = user ? await cacheGet<Task[]>(`tasks:all:${user.id}`) : null;
+      const match = cached?.find(t => t.id === id);
+      setTask(match || null);
+    }
   };
 
-  useEffect(() => { load(); }, [id]);
+  useEffect(() => { load(); }, [id, user]);
 
   if (!task) {
     return (
