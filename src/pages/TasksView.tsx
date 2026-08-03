@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { startOfDay, endOfDay, addDays, format } from "date-fns";
-import { Plus, Calendar, Trash2, ChevronRight, ChevronDown, Flag, GripVertical, CornerDownRight, Ban, Pin, Clock, FolderInput, Check, X } from "lucide-react";
+import { Plus, Calendar, Trash2, ChevronRight, ChevronDown, Flag, GripVertical, CornerDownRight, Ban, Pin, Clock, FolderInput, Check, X, GitBranch } from "lucide-react";
 import { MoveToDialog } from "@/components/MoveToDialog";
 import { FolderDeleteDialog } from "@/components/FolderDeleteDialog";
 import { useNavigate } from "react-router-dom";
@@ -33,7 +33,7 @@ import { TaskFilterSheet, DEFAULT_FILTERS, type TaskFilters, type SortLevel } fr
 import { QuickAddTask } from "@/components/QuickAddTask";
 import { VirtualTaskList } from "@/components/VirtualTaskList";
 import { TaskDetail } from "@/components/TaskDetail";
-import type { Task, ConfirmState, TaskOutcome } from "@/lib/taskTypes";
+import type { Task, ConfirmState, TaskOutcome, TaskStatus } from "@/lib/taskTypes";
 import { OutcomePicker } from "@/components/OutcomePicker";
 import { listTaskOutcomes, executeTaskOutcome } from "@/lib/taskOutcomes";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -53,6 +53,37 @@ import type { RecurrenceRule } from "@/lib/recurrence";
 const tasksCache = new Map<string, Task[]>();
 const TASKS_CACHE_KEY = (userId: string) => `tasks:all:${userId}`;
 
+function outcomeMeta(
+  task: Task,
+  byTaskId: Record<string, string>,
+  byId: Record<string, { label: string; color?: string | null; icon?: string | null }>,
+): { label: string; color?: string | null; icon?: string | null } | null {
+  const oid = task.outcome_id || byTaskId[task.id];
+  if (!oid) return null;
+  return byId[oid] || null;
+}
+
+function groupedChildren(
+  subs: Task[],
+  byTaskId: Record<string, string>,
+  byId: Record<string, { label: string; color?: string | null; icon?: string | null }>,
+): [string | null, { meta?: { label: string; color?: string | null; icon?: string | null }; tasks: Task[] }][] {
+  const groups = new Map<string | null, { meta?: { label: string; color?: string | null; icon?: string | null }; tasks: Task[] }>();
+  for (const s of subs) {
+    const oid = s.outcome_id || byTaskId[s.id] || null;
+    if (!groups.has(oid)) {
+      groups.set(oid, { meta: oid ? byId[oid] : undefined, tasks: [] });
+    }
+    groups.get(oid)!.tasks.push(s);
+  }
+  return [...groups.entries()].sort((a, b) => {
+    if (a[0] === null) return -1;
+    if (b[0] === null) return 1;
+    const la = a[1].meta?.label || "";
+    const lb = b[1].meta?.label || "";
+    return la.localeCompare(lb);
+  });
+}
 
 export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomorrow" | "next7" | "smart" | "folder" | "tag" }) {
   const { user } = useAuth();
@@ -67,6 +98,18 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       .then(({ data }) => { if (data?.task_card_layout) setLayout(data.task_card_layout as any); });
   }, [user]);
   const [allTasks, setAllTasks] = useState<Task[]>([]);
+  // Soft-completed / soft-deleted tasks are kept visible for a short grace period
+  // so users see the strikethrough before the item disappears.
+  const [graceTasks, setGraceTasks] = useState<Record<string, Task & { _graceUntil: number }>>({});
+  const [graceMap, setGraceMap] = useState<Record<string, number>>({});
+  const GRACE_MS = 5000;
+  const effectiveAllTasks = useMemo(() => {
+    const now = Date.now();
+    const activeGhosts = Object.values(graceTasks).filter(
+      (g) => (graceMap[g.id] || 0) > now && !allTasks.some((t) => t.id === g.id),
+    );
+    return activeGhosts.length ? [...allTasks, ...activeGhosts] : allTasks;
+  }, [allTasks, graceTasks, graceMap]);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   // selected task removed — clicks navigate to /app/tasks/:id
   const [folderName, setFolderName] = useState("");
@@ -82,11 +125,13 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
   const [outcomeTask, setOutcomeTask] = useState<Task | null>(null);
   const [outcomes, setOutcomes] = useState<TaskOutcome[]>([]);
   const [outcomeOpen, setOutcomeOpen] = useState(false);
+  const [outcomeById, setOutcomeById] = useState<Record<string, { label: string; color?: string | null; icon?: string | null }>>({});
+  const [outcomeByTaskId, setOutcomeByTaskId] = useState<Record<string, string>>({});
   const navigate = useNavigate();
 
   // Patch a task field optimistically + persist
   const patchTask = async (id: string, patch: Partial<Task>) => {
-    const target = allTasks.find(t => t.id === id);
+    const target = effectiveAllTasks.find(t => t.id === id);
     const owner = target ? target.user_id === user?.id : true;
     if (owner) setAllTasks(prev => prev.map(x => x.id === id ? { ...x, ...patch } as Task : x));
 
@@ -154,6 +199,29 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     });
   }, [user, allTasks.length]);
 
+  // Load outcome labels and task→outcome mappings so branch subtasks show their branch
+  useEffect(() => {
+    if (!user || effectiveAllTasks.length === 0) return;
+    const parentIds = [...new Set(effectiveAllTasks.filter(t => !t.parent_id).map(t => t.id))];
+    if (parentIds.length === 0) return;
+    (async () => {
+      const [{ data: outcomesData }, { data: execsData }] = await Promise.all([
+        supabase.from("task_outcomes").select("id,label,color,icon,task_id").in("task_id", parentIds),
+        supabase.from("outcome_executions").select("outcome_id,created_task_ids,task_id").in("task_id", parentIds),
+      ]);
+      const byId: Record<string, { label: string; color?: string | null; icon?: string | null }> = {};
+      (outcomesData || []).forEach((o: any) => {
+        byId[o.id] = { label: o.label, color: o.color, icon: o.icon };
+      });
+      const byTaskId: Record<string, string> = {};
+      (execsData || []).forEach((e: any) => {
+        (e.created_task_ids || []).forEach((tid: string) => { byTaskId[tid] = e.outcome_id; });
+      });
+      setOutcomeById(byId);
+      setOutcomeByTaskId(byTaskId);
+    })();
+  }, [effectiveAllTasks, user]);
+
   const title = {
     inbox: T("صندوق ورودی", "Inbox"), today: T("امروز", "Today"), tomorrow: T("فردا", "Tomorrow"), next7: T("۷ روز آینده", "Next 7 Days"),
     smart: T("لیست‌های هوشمند", "Smart Lists"), folder: folderName || T("فولدر", "Folder"), tag: `#${tagName || T("تگ", "Tag")}`,
@@ -162,11 +230,11 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
   // Build children map
   const childrenMap = useMemo(() => {
     const m: Record<string, Task[]> = {};
-    allTasks.forEach(t => {
+    effectiveAllTasks.forEach(t => {
       if (t.parent_id) (m[t.parent_id] ||= []).push(t);
     });
     return m;
-  }, [allTasks]);
+  }, [effectiveAllTasks]);
 
   // Module-scoped cache so navigating between scopes (or remounts) reuses
   // the last task list instantly instead of waiting on a roundtrip.
@@ -299,7 +367,9 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
 
   // Filter top-level visible tasks per scope
   const topLevel = useMemo(() => {
-    let list = allTasks.filter(t => !t.parent_id);
+    const nowMs = Date.now();
+    const isGraceActive = (id: string) => (graceMap[id] || 0) > nowMs;
+    let list = effectiveAllTasks.filter(t => !t.parent_id);
     if (scope === "inbox") list = list.filter(t => !t.folder_id);
     else if (scope === "today") {
       // Show overdue tasks plus today so the Today view matches TickTick (Overdue + Today groups)
@@ -314,13 +384,13 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       const e = endOfDay(addDays(new Date(), 7)).getTime();
       list = list.filter(t => t.due_date && new Date(t.due_date).getTime() <= e);
     } else if (scope === "smart") {
-      list = list.filter(t => t.priority === "high" && !t.completed);
+      list = list.filter(t => t.priority === "high" && (!t.completed || isGraceActive(t.id)));
     } else if (scope === "folder") {
       list = list.filter(t => t.folder_id === params.id);
     }
 
     // Apply advanced filters
-    if (!filters.show_completed) list = list.filter(t => !t.completed);
+    if (!filters.show_completed) list = list.filter(t => !t.completed || isGraceActive(t.id));
     if (filters.folder_ids.length) list = list.filter(t => t.folder_id && filters.folder_ids.includes(t.folder_id));
     if (filters.priorities.length) list = list.filter(t => filters.priorities.includes(t.priority as string));
     if (filters.tag_ids.length) {
@@ -356,9 +426,9 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       return cmpForLevel(primary)(a, b) || cmpForLevel(secondary)(a, b);
     });
     return list;
-  }, [allTasks, scope, params.id, filters, taskTagsMap]);
+  }, [effectiveAllTasks, scope, params.id, filters, taskTagsMap, graceMap]);
 
-  const taskMap = useMemo(() => new Map(allTasks.map(t => [t.id, t])), [allTasks]);
+  const taskMap = useMemo(() => new Map(effectiveAllTasks.map(t => [t.id, t])), [effectiveAllTasks]);
 
   // Date-based grouping for Today/Next7 to mimic TickTick (Overdue, Today, Tomorrow, ...)
   type TaskGroup = { key: string; label: string; tasks: Task[] };
@@ -416,6 +486,13 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     const patch = { completed: true, status: "done" as const, completed_at: new Date().toISOString() };
     if (isOwner) setAllTasks(prev => prev.map(x => x.id === t.id ? { ...x, ...patch } as Task : x));
 
+    // Keep the completed task visible (with strikethrough) for a few seconds
+    const until = Date.now() + GRACE_MS;
+    setGraceMap(prev => ({ ...prev, [t.id]: until }));
+    window.setTimeout(() => {
+      setGraceMap(prev => { const n = { ...prev }; delete n[t.id]; return n; });
+    }, GRACE_MS);
+
     if (typeof navigator !== "undefined" && !navigator.onLine) {
       await enqueueOp({ table: "tasks", op: "update", payload: patch, match: { id: t.id } });
       toast.info(T("تغییر ذخیره شد؛ با اتصال اینترنت همگام می‌شود", "Saved locally — will sync when online"));
@@ -452,6 +529,9 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     const isOwner = t.user_id === user?.id;
     const patch = { completed: false, status: "todo" as const, completed_at: null as string | null };
     if (isOwner) setAllTasks(prev => prev.map(x => x.id === t.id ? { ...x, ...patch } as Task : x));
+    // Cancel any pending grace for this task
+    setGraceMap(prev => { const n = { ...prev }; delete n[t.id]; return n; });
+    setGraceTasks(prev => { const n = { ...prev }; delete n[t.id]; return n; });
 
     if (typeof navigator !== "undefined" && !navigator.onLine) {
       await enqueueOp({ table: "tasks", op: "update", payload: patch, match: { id: t.id } });
@@ -529,23 +609,35 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
   };
 
   const delTask = async (id: string) => {
-    const target = allTasks.find(t => t.id === id);
+    const target = effectiveAllTasks.find(t => t.id === id);
     if (target && target.user_id !== user?.id) { toast(T("فقط صاحب تسک می‌تواند حذف کند", "Only the task owner can delete")); return; }
     // snapshot task + descendants + tag links for undo
     const collectIds = (rid: string): string[] => {
       const out = [rid];
-      const kids = allTasks.filter(t => t.parent_id === rid);
+      const kids = effectiveAllTasks.filter(t => t.parent_id === rid);
       kids.forEach(k => out.push(...collectIds(k.id)));
       return out;
     };
     const ids = collectIds(id);
     const snaps = allTasks.filter(t => ids.includes(t.id));
+    const until = Date.now() + GRACE_MS;
+    // Keep deleted task(s) visible with strikethrough for a short grace period
+    const ghosts: Record<string, Task & { _graceUntil: number }> = {};
+    for (const s of snaps) {
+      ghosts[s.id] = { ...s, completed: true, status: "done" as TaskStatus, _graceUntil: until };
+    }
     let tagLinks: Record<string, unknown>[] | null = null;
     if (typeof navigator === "undefined" || navigator.onLine) {
       const { data } = await supabase.from("task_tags").select("*").in("task_id", ids);
       tagLinks = (data as Record<string, unknown>[] | null) || null;
     }
     setAllTasks(prev => prev.filter(t => !ids.includes(t.id)));
+    setGraceTasks(prev => ({ ...prev, ...ghosts }));
+    setGraceMap(prev => ({ ...prev, ...Object.fromEntries(ids.map(i => [i, until])) }));
+    window.setTimeout(() => {
+      setGraceTasks(prev => { const n = { ...prev }; ids.forEach(i => delete n[i]); return n; });
+      setGraceMap(prev => { const n = { ...prev }; ids.forEach(i => delete n[i]); return n; });
+    }, GRACE_MS);
 
     if (typeof navigator !== "undefined" && !navigator.onLine) {
       await enqueueOp({ table: "tasks", op: "delete", match: { id } });
@@ -601,7 +693,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     if (!over || active.id === over.id) return;
     const activeId = String(active.id);
     const overId = String(over.id);
-    const activeTask = allTasks.find(t => t.id === activeId);
+    const activeTask = effectiveAllTasks.find(t => t.id === activeId);
     if (!activeTask) return;
 
     // Helper: when promoting a task to top-level, also fill scope-defining fields
@@ -625,7 +717,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       let p: string | null = newParent;
       while (p) {
         if (p === activeId) { toast.error(T("نمی‌توان داخل خودش انداخت", "Cannot move a task into itself")); return; }
-        const pt = allTasks.find(x => x.id === p);
+        const pt = effectiveAllTasks.find(x => x.id === p);
         p = pt?.parent_id || null;
       }
       setAllTasks(prev => prev.map(t => t.id === activeId ? { ...t, parent_id: newParent } : t));
@@ -642,7 +734,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       return;
     }
     // Dropped on another task row
-    const overTask = allTasks.find(t => t.id === overId);
+    const overTask = effectiveAllTasks.find(t => t.id === overId);
     if (!overTask) return;
 
     // TickTick-style: if user dragged horizontally significantly, treat as INDENT
@@ -653,7 +745,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       let p: string | null = overId;
       while (p) {
         if (p === activeId) { toast.error(T("نمی‌توان داخل خودش انداخت", "Cannot move a task into itself")); return; }
-        const pt = allTasks.find(x => x.id === p);
+        const pt = effectiveAllTasks.find(x => x.id === p);
         p = pt?.parent_id || null;
       }
       setAllTasks(prev => prev.map(t => t.id === activeId ? { ...t, parent_id: overId } : t));
@@ -713,7 +805,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     const pm = PRIORITY_META[t.priority] || PRIORITY_META.none;
     const prog = getProgress(t.id);
     const pct = prog.total > 0 ? Math.round((prog.done / prog.total) * 100) : 0;
-    const parent = t.parent_id ? allTasks.find(x => x.id === t.parent_id) : null;
+    const parent = t.parent_id ? effectiveAllTasks.find(x => x.id === t.parent_id) : null;
     const STEP = 18; // px per nesting level
     const lp = useLongPress({ onLongPress: () => setActionTask(t) });
     return (
@@ -950,16 +1042,44 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
                     <CornerDownRight className="w-3 h-3" /> {prog.done}/{prog.total}
                   </span>
                 )}
+                {(() => {
+                  const ometa = outcomeMeta(t, outcomeByTaskId, outcomeById);
+                  if (!ometa) return null;
+                  return (
+                    <span
+                      className="inline-flex items-center gap-0.5 text-[9px] px-1.5 h-4 rounded border"
+                      style={{ borderColor: ometa.color || "hsl(var(--primary))", background: ometa.color ? `${ometa.color}20` : "hsl(var(--primary) / 0.1)" }}
+                    >
+                      <GitBranch className="w-2.5 h-2.5" />
+                      <span style={{ color: ometa.color || undefined }}>{ometa.label}</span>
+                    </span>
+                  );
+                })()}
               </div>
             </Card>
             </SwipeableRow>
           )}
         </SortableTaskRow>
         {open && subs.length > 0 && (
-          <div className="mt-1 space-y-1">
-            <SortableContext items={subs.map(s => s.id)} strategy={verticalListSortingStrategy}>
-              {subs.map((s) => <TaskItem key={s.id} t={s} depth={depth + 1} />)}
-            </SortableContext>
+          <div className="mt-1 space-y-2">
+            {groupedChildren(subs, outcomeByTaskId, outcomeById).map(([oid, group]) => (
+              <div key={oid ?? "root"} className="space-y-1">
+                {group.meta && (
+                  <div className="flex items-center gap-1.5 ps-5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                    <span
+                      className="w-4 h-4 rounded-full flex items-center justify-center"
+                      style={{ background: group.meta.color || "hsl(var(--primary))", color: "#fff" }}
+                    >
+                      {group.meta.icon || "•"}
+                    </span>
+                    <span>{group.meta.label}</span>
+                  </div>
+                )}
+                <SortableContext items={group.tasks.map(s => s.id)} strategy={verticalListSortingStrategy}>
+                  {group.tasks.map((s) => <TaskItem key={s.id} t={s} depth={depth + 1} />)}
+                </SortableContext>
+              </div>
+            ))}
           </div>
         )}
       </div>
@@ -1037,7 +1157,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
               {activeDragId ? (
                 <Card className="p-3 shadow-lg opacity-90">
                   <p className="text-sm font-medium">
-                    {allTasks.find(x => x.id === activeDragId)?.title || "..."}
+                    {effectiveAllTasks.find(x => x.id === activeDragId)?.title || "..."}
                   </p>
                 </Card>
               ) : null}
@@ -1121,7 +1241,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
           open={!!makeChildOf}
           onOpenChange={(v) => !v && setMakeChildOf(null)}
           task={makeChildOf}
-          allTasks={allTasks}
+          allTasks={effectiveAllTasks}
           onDone={(newParentId) => {
             setAllTasks(prev => prev.map(x => x.id === makeChildOf!.id ? { ...x, parent_id: newParentId } : x));
             if (newParentId) setExpanded(s => ({ ...s, [newParentId]: true }));
