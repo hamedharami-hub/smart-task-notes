@@ -18,7 +18,7 @@ import { PRIORITY_META } from "@/lib/priority";
 import { FolderKanban } from "@/components/FolderKanban";
 import { pushUndo } from "@/lib/undoStack";
 import { pushDeleted } from "@/lib/recentlyDeleted";
-import { enqueueOp } from "@/lib/offlineQueue";
+import { enqueueOp, cacheGet, cacheSet, getPendingOps, type QueuedOp } from "@/lib/offlineQueue";
 import { logTaskActivity } from "@/lib/taskActivity";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { describeRule, nextOccurrence } from "@/lib/recurrence";
@@ -51,6 +51,7 @@ import type { RecurrenceRule } from "@/lib/recurrence";
 
 // Module-level cache shared across mounts: instantly hydrate from last fetch.
 const tasksCache = new Map<string, Task[]>();
+const TASKS_CACHE_KEY = (userId: string) => `tasks:all:${userId}`;
 
 
 export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomorrow" | "next7" | "smart" | "folder" | "tag" }) {
@@ -121,7 +122,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
           };
         }
       }
-    } catch {}
+    } catch { void 0; }
     return DEFAULT_FILTERS;
   };
   const [filters, setFilters] = useState<TaskFilters>(loadSavedFilters());
@@ -137,7 +138,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       const obj = raw ? JSON.parse(raw) : {};
       obj[scopeKey] = filters;
       localStorage.setItem(SORT_KEY, JSON.stringify(obj));
-    } catch {}
+    } catch { void 0; }
   }, [filters, scopeKey]);
   const [taskTagsMap, setTaskTagsMap] = useState<Record<string, string[]>>({});
 
@@ -186,31 +187,70 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     if (inflightRef.current) return inflightRef.current;
     lastLoadRef.current = now;
     const p = (async () => {
-      const { data: allData } = await supabase.from("tasks")
-        .select("*")
-        .order("position").order("created_at", { ascending: false })
-        .limit(2000);
-      const all = ((allData || []) as unknown) as Task[];
-      cache.set(user.id, all);
-      setAllTasks(all);
+      try {
+        const { data: allData } = await supabase.from("tasks")
+          .select("*")
+          .order("position").order("created_at", { ascending: false })
+          .limit(2000);
+        const all = ((allData || []) as unknown) as Task[];
+        cache.set(user.id, all);
+        setAllTasks(all);
+        await cacheSet(TASKS_CACHE_KEY(user.id), all);
+      } catch {
+        // Offline/network error: keep cache and persisted IndexedDB list
+        const persisted = await cacheGet<Task[]>(TASKS_CACHE_KEY(user.id));
+        if (persisted) {
+          cache.set(user.id, persisted);
+          setAllTasks(persisted);
+        }
+      }
     })();
     inflightRef.current = p;
     try { await p; } finally { inflightRef.current = null; }
+  };
+
+  const applyTaskQueue = async (base: Task[]): Promise<Task[]> => {
+    const ops = await getPendingOps("tasks");
+    const inserts = new Map<string, Task>();
+    const deletes = new Set<string>();
+    const updates = new Map<string, Partial<Task>>();
+    for (const op of ops) {
+      if (op.op === "insert" && op.payload) {
+        const p = op.payload as Task;
+        if (p && p.id) inserts.set(p.id, p);
+      } else if (op.op === "delete" && op.match?.id) {
+        deletes.add(op.match.id as string);
+      } else if (op.op === "update" && op.match?.id && op.payload) {
+        const id = op.match.id as string;
+        updates.set(id, { ...(updates.get(id) || {}), ...(op.payload as Partial<Task>) });
+      }
+    }
+    let next = base.filter(t => !deletes.has(t.id));
+    for (const t of inserts.values()) {
+      if (!next.some(x => x.id === t.id)) next = [t, ...next];
+    }
+    next = next.map(t => updates.has(t.id) ? { ...t, ...updates.get(t.id) } : t);
+    return next;
   };
 
   const load = async () => {
     if (!user) return;
     // Serve cached list synchronously on mount/scope-switch — refetch in background
     const cached = cache.get(user.id);
-    if (cached) setAllTasks(cached);
-    await fetchAll(!cached);
+    let base = cached || (await cacheGet<Task[]>(TASKS_CACHE_KEY(user.id))) || [];
+    base = await applyTaskQueue(base);
+    cache.set(user.id, base);
+    setAllTasks(base);
+    await fetchAll(!cache.get(user.id));
 
-    if (scope === "folder" && params.id) {
-      const { data: f } = await supabase.from("folders").select("name").eq("id", params.id).single();
-      if (f) setFolderName(f.name);
-    } else if (scope === "tag" && params.id) {
-      const { data: tg } = await supabase.from("tags").select("name").eq("id", params.id).single();
-      if (tg) setTagName(tg.name);
+    if (typeof navigator !== "undefined" && navigator.onLine) {
+      if (scope === "folder" && params.id) {
+        const { data: f } = await supabase.from("folders").select("name").eq("id", params.id).single();
+        if (f) setFolderName(f.name);
+      } else if (scope === "tag" && params.id) {
+        const { data: tg } = await supabase.from("tags").select("name").eq("id", params.id).single();
+        if (tg) setTagName(tg.name);
+      }
     }
   };
 
@@ -238,6 +278,8 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       if (!document.hidden && dirty) { dirty = false; fetchAll(true); }
     };
     document.addEventListener("visibilitychange", onVisible);
+    const onTasksChanged = () => load();
+    window.addEventListener("tasks-changed", onTasksChanged);
     const ch = supabase.channel(`tasks-rt-${user.id}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "tasks" }, scheduleLoad)
       .on("postgres_changes", { event: "*", schema: "public", table: "subtasks" }, scheduleLoad)
@@ -245,6 +287,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     return () => {
       if (pending != null) window.clearTimeout(pending);
       document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("tasks-changed", onTasksChanged);
       supabase.removeChannel(ch);
     };
   }, [user]);

@@ -1,6 +1,29 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { Session, User } from "@supabase/supabase-js";
+import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+
+function getPersistedAuth(): { session: Session | null; user: User | null } {
+  if (typeof window === "undefined") return { session: null, user: null };
+  try {
+    const key = Object.keys(localStorage).find((k) => k.endsWith("-auth-token"));
+    if (!key) return { session: null, user: null };
+    const raw = localStorage.getItem(key);
+    if (!raw) return { session: null, user: null };
+    const parsed = JSON.parse(raw);
+    const session = (parsed as Session) || null;
+    const user = parsed?.user || session?.user || null;
+    return { session, user };
+  } catch {
+    return { session: null, user: null };
+  }
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error("timeout")), ms)),
+  ]);
+}
 
 async function hydrateOAuthSessionFromUrl() {
   const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
@@ -53,27 +76,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Set up listener FIRST
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, sess) => {
-      setSession(sess);
-      setUser(sess?.user ?? null);
+    let resolved = false;
+    const resolve = (u: User | null, s: Session | null) => {
+      if (resolved) return;
+      resolved = true;
+      setSession(s);
+      setUser(u);
       setLoading(false);
+    };
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, sess) => {
+      if (event === "SIGNED_OUT") {
+        // If offline, keep the persisted session so the app stays usable.
+        if (typeof navigator !== "undefined" && !navigator.onLine) {
+          const persisted = getPersistedAuth();
+          resolve(persisted.user, persisted.session);
+          return;
+        }
+        resolve(null, null);
+        return;
+      }
+      resolve(sess?.user ?? null, sess ?? null);
     });
 
-    // THEN fetch existing session
     (async () => {
       const oauthSession = await hydrateOAuthSessionFromUrl();
       if (oauthSession) {
-        setSession(oauthSession);
-        setUser(oauthSession.user);
-        setLoading(false);
+        resolve(oauthSession.user, oauthSession);
         return;
       }
 
-      const { data: { session: sess } } = await supabase.auth.getSession();
-      setSession(sess);
-      setUser(sess?.user ?? null);
-      setLoading(false);
+      try {
+        const { data: { session: sess } } = await withTimeout(supabase.auth.getSession(), 2500);
+        if (sess?.user) {
+          resolve(sess.user, sess);
+          return;
+        }
+      } catch {
+        // Fall through to persisted session
+      }
+
+      // Offline or session refresh failed: use the locally stored token
+      const persisted = getPersistedAuth();
+      resolve(persisted.user, persisted.session);
     })();
 
     return () => subscription.unsubscribe();

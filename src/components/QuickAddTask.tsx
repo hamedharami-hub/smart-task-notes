@@ -17,6 +17,7 @@ import type { Task } from "@/lib/taskTypes";
 import { listTaskTemplates, buildTaskFromTemplate } from "@/lib/taskTemplates";
 import { uploadMediaFull } from "@/lib/uploadMedia";
 import { VoiceInputButton } from "@/components/VoiceInputButton";
+import { enqueueOp } from "@/lib/offlineQueue";
 
 type Defaults = {
   folder_id?: string | null;
@@ -131,9 +132,60 @@ export function QuickAddTask({
     ...parsed.tagIds,
   ]));
 
+  const generateId = () => {
+    try { return crypto.randomUUID(); } catch { return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`; }
+  };
+
   const submit = async () => {
     if (!user || !title.trim()) return;
     setBusy(true);
+
+    const tempId = generateId();
+    const baseTask = {
+      id: tempId,
+      user_id: user.id,
+      title: finalTitle,
+      folder_id: finalFolderId,
+      due_date: finalDue,
+      parent_id: defaults.parent_id ?? null,
+      priority: finalPriority,
+      completed: false,
+      status: "todo" as const,
+      created_at: new Date().toISOString(),
+      position: 0,
+    };
+
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      // Offline: queue task and tags. Attachments cannot be uploaded offline and are skipped.
+      try {
+        await enqueueOp({ table: "tasks", op: "insert", payload: baseTask });
+        if (finalTagIds.length) {
+          await enqueueOp({
+            table: "task_tags",
+            op: "insert",
+            payload: finalTagIds.map(tag_id => ({ task_id: tempId, tag_id, user_id: user.id })),
+          });
+        }
+        if (selectedFiles.length) {
+          toast.info(T("پیوست‌ها در حالت آفلاین ذخیره نمی‌شوند", "Attachments are not saved while offline"));
+        }
+        setTitle("");
+        setDue(defaults.due_date ?? null);
+        setPriority(null);
+        setFolderId(defaults.folder_id ?? null);
+        setTagIds(defaults.tag_id ? [defaults.tag_id] : []);
+        setSelectedFiles([]);
+        window.dispatchEvent(new Event("tasks-changed"));
+        onCreated?.(tempId);
+        toast.success(T("تسک ذخیره شد؛ با اتصال اینترنت همگام می‌شود", "Task saved — will sync when online"));
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : T("خطا", "Error"));
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from("tasks")
@@ -232,6 +284,25 @@ export function QuickAddTask({
     if (!user || !title.trim()) return;
     setBusy(true);
     try {
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        await enqueueOp({
+          table: "notes",
+          op: "insert",
+          payload: {
+            id: generateId(),
+            user_id: user.id,
+            title: finalTitle,
+            content: "",
+            folder_id: finalFolderId,
+            pinned: false,
+            updated_at: new Date().toISOString(),
+          },
+        });
+        setTitle("");
+        toast.success(T("نوت ذخیره شد؛ با اتصال اینترنت همگام می‌شود", "Note saved — will sync when online"));
+        navigate("/app/notes");
+        return;
+      }
       const { error } = await supabase.from("notes").insert({
         user_id: user.id,
         title: finalTitle,
@@ -252,13 +323,21 @@ export function QuickAddTask({
   const saveAsTemplate = async () => {
     if (!user || !title.trim()) return;
     try {
-      await supabase.from("task_templates").insert({
+      const payload = {
+        id: generateId(),
         user_id: user.id,
         title: finalTitle,
         priority: finalPriority,
         folder_id: finalFolderId,
         due_offset_hours: finalDue ? Math.round((new Date(finalDue).getTime() - Date.now()) / 3600000) : null,
-      } as never);
+      };
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        await enqueueOp({ table: "task_templates", op: "insert", payload });
+        toast.success(T("ذخیره شد؛ با اتصال اینترنت همگام می‌شود", "Saved — will sync when online"));
+        setMoreOpen(false);
+        return;
+      }
+      await supabase.from("task_templates").insert(payload as never);
       toast.success(T("ذخیره شد در تمپلیت‌ها", "Saved to templates"));
       setMoreOpen(false);
     } catch (e) {

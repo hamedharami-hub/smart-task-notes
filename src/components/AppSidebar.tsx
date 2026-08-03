@@ -35,6 +35,7 @@ import { readItemDrag, moveItemToFolder } from "@/lib/dragToFolder";
 import { useTranslation } from "react-i18next";
 import SidebarItemSheet from "@/components/SidebarItemSheet";
 import { useLongPress } from "@/lib/useLongPress";
+import { cacheGet, cacheSet, enqueueOp } from "@/lib/offlineQueue";
 
 // Bilingual label maps. SECTIONS uses the Persian label as the canonical key.
 const EN_LABELS: Record<string, string> = {
@@ -156,7 +157,7 @@ function loadOrder(): string[] {
         return merged;
       }
     }
-  } catch {}
+  } catch { void 0; }
   return DEFAULT_ORDER;
 }
 
@@ -286,7 +287,7 @@ export function AppSidebar() {
     try {
       const raw = localStorage.getItem("sidebar_sections_v1");
       if (raw) return JSON.parse(raw);
-    } catch {}
+    } catch { void 0; }
     const init: Record<string, boolean> = Object.fromEntries(SECTIONS.map((s) => [s.id, s.defaultOpen]));
     init.__folders = true;
     init.__tags = false;
@@ -295,7 +296,7 @@ export function AppSidebar() {
   const setSection = (id: string, open: boolean) => {
     setOpenSections((s) => {
       const n = { ...s, [id]: open };
-      try { localStorage.setItem("sidebar_sections_v1", JSON.stringify(n)); } catch {}
+      try { localStorage.setItem("sidebar_sections_v1", JSON.stringify(n)); } catch { void 0; }
       return n;
     });
   };
@@ -313,23 +314,48 @@ export function AppSidebar() {
     if (oldI < 0 || newI < 0) return;
     const next = arrayMove(order, oldI, newI);
     setOrder(next);
-    try { localStorage.setItem(ORDER_KEY, JSON.stringify(next)); } catch {}
+    try { localStorage.setItem(ORDER_KEY, JSON.stringify(next)); } catch { void 0; }
   };
 
   const resetOrder = () => {
     setOrder(DEFAULT_ORDER);
-    try { localStorage.removeItem(ORDER_KEY); } catch {}
+    try { localStorage.removeItem(ORDER_KEY); } catch { void 0; }
     toast.success(t("sidebar.resetDone"));
   };
 
+  const generateId = () => {
+    try { return crypto.randomUUID(); } catch { return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`; }
+  };
+
+  const FOLDERS_KEY = user ? `folders:${user.id}` : "";
+  const TAGS_KEY = user ? `tags:${user.id}` : "";
+
   const load = async () => {
     if (!user) return;
-    const [f, t] = await Promise.all([
-      supabase.from("folders").select("*").order("position"),
-      supabase.from("tags").select("*").order("name"),
-    ]);
-    if (f.data) setFolders(f.data as any);
-    if (t.data) setTags(t.data as any);
+    const cachedFolders = await cacheGet<Folder[]>(FOLDERS_KEY);
+    const cachedTags = await cacheGet<TagT[]>(TAGS_KEY);
+    if (cachedFolders) setFolders(cachedFolders);
+    if (cachedTags) setTags(cachedTags);
+
+    if (typeof navigator !== "undefined" && !navigator.onLine) return;
+
+    try {
+      const [f, t] = await Promise.all([
+        supabase.from("folders").select("*").order("position"),
+        supabase.from("tags").select("*").order("name"),
+      ]);
+      if (f.data) {
+        setFolders(f.data);
+        await cacheSet(FOLDERS_KEY, f.data);
+      }
+      if (t.data) {
+        setTags(t.data);
+        await cacheSet(TAGS_KEY, t.data);
+      }
+    } catch {
+      // Keep cached lists while offline
+      void 0;
+    }
   };
 
   useEffect(() => {
@@ -346,16 +372,48 @@ export function AppSidebar() {
 
   const createFolder = async () => {
     if (!newFolder.trim() || !user) return;
+    const folder: Folder = { id: generateId(), name: newFolder, user_id: user.id, parent_id: null, color: "" };
+    setFolders(prev => [...prev, folder]);
+    await cacheSet(FOLDERS_KEY, [...folders, folder]);
+
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      await enqueueOp({ table: "folders", op: "insert", payload: folder });
+      toast.success(t("folders.created") + " — " + t("offline.willSync", "با اتصال اینترنت همگام می‌شود"));
+      setNewFolder(""); setOpenFolderDlg(false);
+      return;
+    }
+
     const { error } = await supabase.from("folders").insert({ name: newFolder, user_id: user.id });
-    if (error) toast.error(error.message);
-    else { toast.success(t("folders.created")); setNewFolder(""); setOpenFolderDlg(false); }
+    if (error) {
+      toast.error(error.message);
+      setFolders(prev => prev.filter(x => x.id !== folder.id));
+    } else {
+      toast.success(t("folders.created")); setNewFolder(""); setOpenFolderDlg(false);
+      load();
+    }
   };
 
   const createTag = async () => {
     if (!newTag.trim() || !user) return;
+    const tag: TagT = { id: generateId(), name: newTag, user_id: user.id, color: "" };
+    setTags(prev => [...prev, tag]);
+    await cacheSet(TAGS_KEY, [...tags, tag]);
+
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      await enqueueOp({ table: "tags", op: "insert", payload: tag });
+      toast.success(t("tags.created") + " — " + t("offline.willSync", "با اتصال اینترنت همگام می‌شود"));
+      setNewTag(""); setOpenTagDlg(false);
+      return;
+    }
+
     const { error } = await supabase.from("tags").insert({ name: newTag, user_id: user.id });
-    if (error) toast.error(error.message);
-    else { toast.success(t("tags.created")); setNewTag(""); setOpenTagDlg(false); }
+    if (error) {
+      toast.error(error.message);
+      setTags(prev => prev.filter(x => x.id !== tag.id));
+    } else {
+      toast.success(t("tags.created")); setNewTag(""); setOpenTagDlg(false);
+      load();
+    }
   };
 
   const renderTree = (parentId: string | null, depth = 0) => {

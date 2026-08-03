@@ -23,6 +23,7 @@ import { pushUndo } from "@/lib/undoStack";
 import { pushDeleted } from "@/lib/recentlyDeleted";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { useShareAccess } from "@/hooks/useShareAccess";
+import { cacheGet, cacheSet, enqueueOp, getPendingOps } from "@/lib/offlineQueue";
 
 
 
@@ -95,15 +96,50 @@ export default function NotesView() {
 
   const { canEdit, isOwner } = useShareAccess("note", selected?.id, selected?.user_id);
 
-  const load = async () => {
-    if (!user) return;
-    const { data } = await supabase.from("notes").select("*")
-      .is("task_id", null)
-      .order("pinned", { ascending: false }).order("updated_at", { ascending: false });
-    setNotes(((data || []) as unknown) as Note[]);
+  const NOTES_CACHE_KEY = `notes:all:${user?.id}`;
+
+  const applyNoteQueue = async (base: Note[]): Promise<Note[]> => {
+    const ops = await getPendingOps("notes");
+    const inserts = new Map<string, Note>();
+    const deletes = new Set<string>();
+    const updates = new Map<string, Partial<Note>>();
+    for (const op of ops) {
+      if (op.op === "insert" && op.payload) {
+        const p = op.payload as Note;
+        if (p?.id) inserts.set(p.id, p);
+      } else if (op.op === "delete" && op.match?.id) {
+        deletes.add(op.match.id as string);
+      } else if (op.op === "update" && op.match?.id && op.payload) {
+        const id = op.match.id as string;
+        updates.set(id, { ...(updates.get(id) || {}), ...(op.payload as Partial<Note>) });
+      }
+    }
+    let next = base.filter(n => !deletes.has(n.id));
+    for (const n of inserts.values()) {
+      if (!next.some(x => x.id === n.id)) next = [n, ...next];
+    }
+    next = next.map(n => updates.has(n.id) ? { ...n, ...updates.get(n.id) } : n);
+    return next;
   };
 
-  useEffect(() => { load(); }, [user]);
+  const load = async () => {
+    if (!user) return;
+    let base = (await cacheGet<Note[]>(NOTES_CACHE_KEY)) || [];
+    try {
+      const { data } = await supabase.from("notes").select("*")
+        .is("task_id", null)
+        .order("pinned", { ascending: false }).order("updated_at", { ascending: false });
+      base = ((data || []) as unknown) as Note[];
+      await cacheSet(NOTES_CACHE_KEY, base);
+    } catch {
+      // Use cached base
+      void 0;
+    }
+    const merged = await applyNoteQueue(base);
+    setNotes(merged);
+  };
+
+  useEffect(() => { if (user) load(); }, [user]);
   useEffect(() => {
     const ch = supabase.channel("notes-list")
       .on("postgres_changes", { event: "*", schema: "public", table: "notes" }, load).subscribe();
@@ -122,25 +158,61 @@ export default function NotesView() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [preselectId, notes]);
 
+  const generateId = () => {
+    try { return crypto.randomUUID(); } catch { return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`; }
+  };
+
   const create = async () => {
     if (!user) return;
+    const note: Note = {
+      id: generateId(),
+      user_id: user.id,
+      title: T("نوت جدید", "New note"),
+      content: "",
+      pinned: false,
+      updated_at: new Date().toISOString(),
+      task_id: null,
+      folder_id: null,
+    };
+    setNotes(prev => [note, ...prev]);
+    setSelected(note);
+    setDraft({ html: "", md: "" });
+
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      await enqueueOp({ table: "notes", op: "insert", payload: note });
+      await cacheSet(NOTES_CACHE_KEY, [note, ...notes]);
+      toast.info(T("نوت ذخیره شد؛ با اتصال اینترنت همگام می‌شود", "Note saved — will sync when online"));
+      return;
+    }
+
     const { data, error } = await supabase.from("notes").insert({
-      user_id: user.id, title: T("نوت جدید", "New note"), content: "",
+      user_id: user.id, title: note.title, content: "",
     }).select().single();
-    if (error) toast.error(error.message);
-    else if (data) {
-      const note = data as Note;
-      setNotes(prev => [note, ...prev]);
-      setSelected(note);
-      setDraft({ html: "", md: "" });
+    if (error) {
+      toast.error(error.message);
+      setNotes(prev => prev.filter(n => n.id !== note.id));
+      return;
+    }
+    if (data) {
+      const saved = data as Note;
+      setNotes(prev => [saved, ...prev.filter(n => n.id !== note.id)]);
+      setSelected(saved);
+      await cacheSet(NOTES_CACHE_KEY, [saved, ...notes.filter(n => n.id !== note.id)]);
     }
   };
 
   const save = async (patch: Partial<Note>) => {
     if (!selected) return;
     if (!canEdit) { toast(T("دسترسی ویرایش ندارید", "You don't have edit permission")); return; }
-    const updated = { ...selected, ...patch };
+    const updated = { ...selected, ...patch, updated_at: new Date().toISOString() };
     setSelected(updated);
+    setNotes(prev => prev.map(n => n.id === selected.id ? updated : n));
+    await cacheSet(NOTES_CACHE_KEY, notes.map(n => n.id === selected.id ? updated : n));
+
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      await enqueueOp({ table: "notes", op: "update", payload: patch, match: { id: selected.id } });
+      return;
+    }
     await supabase.from("notes").update(patch).eq("id", selected.id);
   };
 
@@ -154,12 +226,29 @@ export default function NotesView() {
   const del = async (id: string) => {
     const note = notes.find(n => n.id === id);
     if (note && note.user_id !== user?.id) { toast(T("فقط صاحب نوت می‌تواند حذف کند", "Only the note owner can delete")); return; }
+    const previous = [...notes];
     setNotes(prev => prev.filter(n => n.id !== id));
+    await cacheSet(NOTES_CACHE_KEY, previous.filter(n => n.id !== id));
+
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      await enqueueOp({ table: "notes", op: "delete", match: { id } });
+      if (selected?.id === id) { setSelected(null); setDraft(null); }
+      if (note) {
+        const restore = async () => {
+          setNotes(prev => [note, ...prev]);
+          await enqueueOp({ table: "notes", op: "insert", payload: note });
+        };
+        pushUndo({ label: T(`نوت «${note.title || T("بدون عنوان", "Untitled")}» حذف شد`, `Note "${note.title || T("بدون عنوان", "Untitled")}" deleted`), undo: restore });
+        pushDeleted({ kind: "note", label: note.title || T("بدون عنوان", "Untitled"), restore });
+      }
+      return;
+    }
+
     await supabase.from("notes").delete().eq("id", id);
     if (selected?.id === id) { setSelected(null); setDraft(null); }
     if (note) {
       const restore = async () => {
-        await supabase.from("notes").insert(note as any);
+        await supabase.from("notes").insert(note as Note);
         load();
       };
       pushUndo({ label: T(`نوت «${note.title || T("بدون عنوان", "Untitled")}» حذف شد`, `Note "${note.title || T("بدون عنوان", "Untitled")}" deleted`), undo: restore });
@@ -185,6 +274,20 @@ export default function NotesView() {
     } finally {
       setAiBusy(false);
     }
+  };
+
+  const togglePin = async (n: Note) => {
+    const patch = { pinned: !n.pinned, updated_at: new Date().toISOString() };
+    const next = notes.map(x => x.id === n.id ? { ...x, ...patch } : x);
+    setNotes(next);
+    await cacheSet(NOTES_CACHE_KEY, next);
+
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      await enqueueOp({ table: "notes", op: "update", payload: patch, match: { id: n.id } });
+      return;
+    }
+    await supabase.from("notes").update(patch).eq("id", n.id);
+    load();
   };
 
   const filtered = notes.filter((n) =>
@@ -275,10 +378,7 @@ export default function NotesView() {
           {filtered.map((n) => (
             <SwipeableRow
               key={n.id}
-              onComplete={async () => {
-                await supabase.from("notes").update({ pinned: !n.pinned }).eq("id", n.id);
-                load();
-              }}
+              onComplete={async () => togglePin(n)}
               onDelete={() => del(n.id)}
               isCompleted={n.pinned}
               rightLabel={T("پین", "Pin")}

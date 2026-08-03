@@ -41,6 +41,7 @@ import { addDays, endOfDay } from "date-fns";
 
 import { Switch } from "@/components/ui/switch";
 import { pushUndo } from "@/lib/undoStack";
+import { enqueueOp, cacheGet, cacheSet } from "@/lib/offlineQueue";
 import type { Task, TaskNote, ConfirmState } from "@/lib/taskTypes";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 
@@ -136,6 +137,19 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
 
   useEffect(() => {
     if (!user) return;
+    const loadCached = async () => {
+      const [cf, ct, ca] = await Promise.all([
+        cacheGet<any[]>(`folders:${user.id}`),
+        cacheGet<any[]>(`tags:${user.id}`),
+        cacheGet<{ id: string; title: string; parent_id: string | null }[]>(`tasks:all:${user.id}`),
+      ]);
+      if (cf) setFolders(cf);
+      if (ct) setTags(ct);
+      if (ca) setAllTasks(ca.map(t => ({ id: t.id, title: t.title, parent_id: t.parent_id ?? null })));
+    };
+    loadCached();
+
+    if (typeof navigator !== "undefined" && !navigator.onLine) return;
     supabase.from("folders").select("id,name,parent_id,color").order("position").then(({ data }) => {
       setFolders((data || []) as any);
     });
@@ -174,27 +188,64 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
     return parent ? `${parent.name} / ${f.name}` : f.name;
   };
 
+  const generateId = () => {
+    try { return crypto.randomUUID(); } catch { return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`; }
+  };
+
   const toggleTag = async (tagId: string) => {
     if (!user || !canEdit) return;
     if (taskTagIds.includes(tagId)) {
-      setTaskTagIds(taskTagIds.filter(x => x !== tagId));
-      await supabase.from("task_tags").delete().eq("task_id", t.id).eq("tag_id", tagId);
+      const next = taskTagIds.filter(x => x !== tagId);
+      setTaskTagIds(next);
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        await enqueueOp({ table: "task_tags", op: "delete", match: { task_id: t.id, tag_id: tagId } });
+        return;
+      }
+      try { await supabase.from("task_tags").delete().eq("task_id", t.id).eq("tag_id", tagId); } catch { void 0; }
     } else {
       setTaskTagIds([...taskTagIds, tagId]);
-      await supabase.from("task_tags").insert({ task_id: t.id, tag_id: tagId, user_id: user.id });
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        await enqueueOp({ table: "task_tags", op: "insert", payload: { task_id: t.id, tag_id: tagId, user_id: user.id } });
+        return;
+      }
+      try { await supabase.from("task_tags").insert({ task_id: t.id, tag_id: tagId, user_id: user.id }); } catch { void 0; }
     }
   };
 
   const refreshTask = async () => {
-    const { data } = await supabase.from("tasks").select("*").eq("id", task.id).single();
-    if (data) setT(data as any);
-    onChanged();
+    if (typeof navigator !== "undefined" && !navigator.onLine) return;
+    try {
+      const { data } = await supabase.from("tasks").select("*").eq("id", task.id).single();
+      if (data) setT(data as any);
+      onChanged();
+    } catch {
+      // ignore network errors while offline
+    }
   };
 
   const save = async (patch: Partial<Task>) => {
     if (!canEdit) return;
-    setT({ ...t, ...patch });
-    await supabase.from("tasks").update(patch as any).eq("id", t.id);
+    const next = { ...t, ...patch };
+    setT(next);
+    onChanged();
+
+    if (user) {
+      const cached = await cacheGet<Task[]>(`tasks:all:${user.id}`);
+      if (cached) {
+        await cacheSet(`tasks:all:${user.id}`, cached.map(x => x.id === t.id ? { ...x, ...patch } : x));
+      }
+    }
+
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      await enqueueOp({ table: "tasks", op: "update", payload: patch, match: { id: t.id } });
+      return;
+    }
+    try {
+      await supabase.from("tasks").update(patch as any).eq("id", t.id);
+    } catch (e) {
+      // If the network call fails, queue the update so the edit isn't lost
+      await enqueueOp({ table: "tasks", op: "update", payload: patch, match: { id: t.id } });
+    }
   };
 
   const deleteTask = () => {
@@ -203,8 +254,23 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
       id: t.id,
       title: t.title || T("بدون عنوان", "Untitled"),
       onConfirm: async () => {
-        await supabase.from("tasks").delete().eq("id", t.id);
+        if (user) {
+          const cached = await cacheGet<Task[]>(`tasks:all:${user.id}`);
+          if (cached) await cacheSet(`tasks:all:${user.id}`, cached.filter(x => x.id !== t.id));
+        }
+        if (typeof navigator !== "undefined" && !navigator.onLine) {
+          await enqueueOp({ table: "tasks", op: "delete", match: { id: t.id } });
+          onClose();
+          onChanged();
+          return;
+        }
+        try {
+          await supabase.from("tasks").delete().eq("id", t.id);
+        } catch {
+          await enqueueOp({ table: "tasks", op: "delete", match: { id: t.id } });
+        }
         onClose();
+        onChanged();
       },
     });
   };
@@ -514,6 +580,18 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
 
   const createFolderAndAssign = async () => {
     if (!user || !isOwner || !newFolderName.trim()) return;
+    const folderId = generateId();
+    const newFolder = { id: folderId, user_id: user.id, name: newFolderName.trim(), color: newFolderColor, parent_id: null };
+
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      setFolders((f) => [...f, newFolder]);
+      setNewFolderName("");
+      await enqueueOp({ table: "folders", op: "insert", payload: newFolder });
+      await save({ folder_id: folderId });
+      toast.success(T("فولدر ساخته شد؛ با اتصال اینترنت همگام می‌شود", "Folder created — will sync when online"));
+      return;
+    }
+
     const { data, error } = await supabase
       .from("folders")
       .insert({ user_id: user.id, name: newFolderName.trim(), color: newFolderColor })
@@ -527,6 +605,19 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
 
   const createTagAndAssign = async () => {
     if (!user || !canEdit || !newTagName.trim()) return;
+    const tagId = generateId();
+    const newTag = { id: tagId, user_id: user.id, name: newTagName.trim(), color: newTagColor };
+
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      setTags((tg) => [...tg, newTag]);
+      setTaskTagIds([...taskTagIds, tagId]);
+      await enqueueOp({ table: "tags", op: "insert", payload: newTag });
+      await enqueueOp({ table: "task_tags", op: "insert", payload: { task_id: t.id, tag_id: tagId, user_id: user.id } });
+      setNewTagName("");
+      toast.success(T("تگ ساخته شد؛ با اتصال اینترنت همگام می‌شود", "Tag created — will sync when online"));
+      return;
+    }
+
     const { data, error } = await supabase
       .from("tags")
       .insert({ user_id: user.id, name: newTagName.trim(), color: newTagColor })

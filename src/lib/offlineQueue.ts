@@ -51,6 +51,12 @@ export async function getQueue(): Promise<QueuedOp[]> {
   return db.getAll(STORE);
 }
 
+export async function getPendingOps(table?: string): Promise<QueuedOp[]> {
+  const db = await getDB();
+  const all = await db.getAll(STORE);
+  return table ? all.filter((op) => op.table === table) : all;
+}
+
 export async function clearQueue() {
   const db = await getDB();
   await db.clear(STORE);
