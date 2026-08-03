@@ -513,8 +513,8 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     await supabase.from("tasks").delete().eq("id", id);
     const title = snaps.find(s => s.id === id)?.title || "";
     const restore = async () => {
-      await supabase.from("tasks").insert(snaps as Record<string, unknown>[]);
-      if (tagLinks?.length) await supabase.from("task_tags").insert(tagLinks);
+      await supabase.from("tasks").insert(snaps as never);
+      if (tagLinks?.length) await supabase.from("task_tags").insert(tagLinks as never);
       load();
     };
     pushUndo({ label: T(`تسک «${title}» حذف شد`, `Task "${title}" deleted`), undo: restore });
@@ -564,13 +564,14 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     // Helper: when promoting a task to top-level, also fill scope-defining fields
     // so it doesn't disappear from the current view.
     const scopeRootPatch = (): Record<string, any> => {
+      const sc = scope as string;
       const patch: Record<string, any> = { parent_id: null };
       const today = startOfDay(new Date()).toISOString();
       const tomorrowIso = addDays(new Date(), 1).toISOString();
-      if (scope === "today") patch.due_date = today;
-      else if (scope === "tomorrow") patch.due_date = tomorrowIso;
-      else if (scope === "next7" && !activeTask.due_date) patch.due_date = tomorrowIso;
-      else if (scope === "folder") patch.folder_id = params.id || null;
+      if (sc === "today") patch.due_date = today;
+      else if (sc === "tomorrow") patch.due_date = tomorrowIso;
+      else if (sc === "next7" && !activeTask.due_date) patch.due_date = tomorrowIso;
+      else if (sc === "folder") patch.folder_id = params.id || null;
       return patch;
     };
 
@@ -828,7 +829,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
                     <Ban className="w-2.5 h-2.5" /> {T("اجتنابی", "Avoidance")}
                   </span>
                 )}
-                {t.priority !== "none" && (
+                {(t.priority as string) !== "none" && (
                   <Popover>
                     <PopoverTrigger asChild>
                       <button
@@ -850,7 +851,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
                           </button>
                         );
                       })}
-                      {t.priority !== "none" && (
+                      {(t.priority as string) !== "none" && (
                         <button onClick={() => patchTask(t.id, { priority: "none" as Priority })}
                           className="w-full text-start px-2 py-1.5 text-xs rounded hover:bg-accent text-muted-foreground border-t mt-1">
                           {T("حذف اولویت", "Remove priority")}

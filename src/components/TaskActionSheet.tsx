@@ -67,7 +67,7 @@ export default function TaskActionSheet({
     if (onPatch) {
       await onPatch(patch);
     } else {
-      const { error } = await supabase.from("tasks").update(patch as Record<string, unknown>).eq("id", task.id);
+      const { error } = await supabase.from("tasks").update(patch as never).eq("id", task.id);
       if (error) { toast.error(error.message); return; }
     }
     if (activityAction && user) {
@@ -193,7 +193,7 @@ export default function TaskActionSheet({
     };
     setBusy(true);
     try {
-      const { data, error } = await supabase.from("tasks").insert(insert as Record<string, unknown>).select().single();
+      const { data, error } = await supabase.from("tasks").insert(insert as never).select().single();
       if (error) throw error;
       const newId = (data as { id: string } | null)?.id;
       await logTaskActivity(task.id, user.id, "duplicated", { new_task_id: newId });

@@ -650,6 +650,48 @@ export type Database = {
           },
         ]
       }
+      outcome_executions: {
+        Row: {
+          created_at: string
+          created_task_ids: string[]
+          id: string
+          outcome_id: string
+          task_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_task_ids?: string[]
+          id?: string
+          outcome_id: string
+          task_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          created_task_ids?: string[]
+          id?: string
+          outcome_id?: string
+          task_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "outcome_executions_outcome_id_fkey"
+            columns: ["outcome_id"]
+            isOneToOne: false
+            referencedRelation: "task_outcomes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outcome_executions_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pomodoro_sessions: {
         Row: {
           completed: boolean
@@ -879,6 +921,33 @@ export type Database = {
         }
         Relationships: []
       }
+      task_activities: {
+        Row: {
+          action: string
+          created_at: string
+          id: string
+          payload: Json
+          task_id: string
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          id?: string
+          payload?: Json
+          task_id: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          id?: string
+          payload?: Json
+          task_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       task_attachments: {
         Row: {
           created_at: string
@@ -920,6 +989,53 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      task_outcomes: {
+        Row: {
+          actions: Json
+          color: string | null
+          created_at: string
+          icon: string | null
+          id: string
+          label: string
+          position: number
+          task_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          actions?: Json
+          color?: string | null
+          created_at?: string
+          icon?: string | null
+          id?: string
+          label: string
+          position?: number
+          task_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          actions?: Json
+          color?: string | null
+          created_at?: string
+          icon?: string | null
+          id?: string
+          label?: string
+          position?: number
+          task_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_outcomes_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       task_step_lists: {
         Row: {
@@ -1028,6 +1144,56 @@ export type Database = {
           },
         ]
       }
+      task_templates: {
+        Row: {
+          created_at: string
+          description: string | null
+          due_offset_hours: number | null
+          folder_id: string | null
+          id: string
+          payload: Json
+          priority: Database["public"]["Enums"]["task_priority"]
+          recurrence: Database["public"]["Enums"]["recurrence_type"]
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          due_offset_hours?: number | null
+          folder_id?: string | null
+          id?: string
+          payload?: Json
+          priority?: Database["public"]["Enums"]["task_priority"]
+          recurrence?: Database["public"]["Enums"]["recurrence_type"]
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          due_offset_hours?: number | null
+          folder_id?: string | null
+          id?: string
+          payload?: Json
+          priority?: Database["public"]["Enums"]["task_priority"]
+          recurrence?: Database["public"]["Enums"]["recurrence_type"]
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_templates_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "folders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tasks: {
         Row: {
           bucket_anchor: string | null
@@ -1045,7 +1211,9 @@ export type Database = {
           id: string
           is_avoidance: boolean
           kanban_column_id: string | null
+          location: string | null
           parent_id: string | null
+          pinned: boolean
           position: number
           priority: Database["public"]["Enums"]["task_priority"]
           quadrant: number | null
@@ -1074,7 +1242,9 @@ export type Database = {
           id?: string
           is_avoidance?: boolean
           kanban_column_id?: string | null
+          location?: string | null
           parent_id?: string | null
+          pinned?: boolean
           position?: number
           priority?: Database["public"]["Enums"]["task_priority"]
           quadrant?: number | null
@@ -1103,7 +1273,9 @@ export type Database = {
           id?: string
           is_avoidance?: boolean
           kanban_column_id?: string | null
+          location?: string | null
           parent_id?: string | null
+          pinned?: boolean
           position?: number
           priority?: Database["public"]["Enums"]["task_priority"]
           quadrant?: number | null
@@ -1218,6 +1390,7 @@ export type Database = {
           micro_prompt_enabled: boolean
           notifications_enabled: boolean
           task_card_layout: string
+          task_defaults: Json
           theme: string
           ui_scale: number
           updated_at: string
@@ -1235,6 +1408,7 @@ export type Database = {
           micro_prompt_enabled?: boolean
           notifications_enabled?: boolean
           task_card_layout?: string
+          task_defaults?: Json
           theme?: string
           ui_scale?: number
           updated_at?: string
@@ -1252,6 +1426,7 @@ export type Database = {
           micro_prompt_enabled?: boolean
           notifications_enabled?: boolean
           task_card_layout?: string
+          task_defaults?: Json
           theme?: string
           ui_scale?: number
           updated_at?: string
@@ -1264,6 +1439,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_share: { Args: { _share_id: string }; Returns: undefined }
       admin_user_list: {
         Args: never
         Returns: {
@@ -1277,6 +1453,15 @@ export type Database = {
           task_count: number
           user_id: string
         }[]
+      }
+      decline_share: { Args: { _share_id: string }; Returns: undefined }
+      get_effective_share_permission: {
+        Args: {
+          _resource_id: string
+          _resource_type: Database["public"]["Enums"]["share_resource_type"]
+          _user_id: string
+        }
+        Returns: Database["public"]["Enums"]["share_permission"]
       }
       has_role: {
         Args: {

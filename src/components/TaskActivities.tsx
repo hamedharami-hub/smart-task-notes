@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { listTaskActivities, type TaskActivity } from "@/lib/taskActivity";
+import { listTaskActivities } from "@/lib/taskActivity";
+import type { TaskActivity } from "@/lib/taskTypes";
 import { formatDistanceToNow } from "date-fns";
 import { Loader2, History, Check, Plus, Trash2, Pin, Edit3, MapPin, FileText, Copy, Share2 } from "lucide-react";
 import { toPersianDigits } from "@/lib/persianDigits";

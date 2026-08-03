@@ -21,19 +21,23 @@ export async function listTaskOutcomes(taskId: string): Promise<TaskOutcome[]> {
 }
 
 export async function saveTaskOutcome(outcome: Partial<TaskOutcome>): Promise<TaskOutcome> {
-  const payload = { ...outcome } as unknown;
   if (outcome.id) {
-    const { id: _id, ...rest } = outcome;
+    const { id: _id, user_id: _u, ...rest } = outcome;
     const { data, error } = await supabase
       .from("task_outcomes")
-      .update(rest as unknown)
+      .update(rest as never)
       .eq("id", outcome.id)
       .select()
       .single();
     if (error) throw error;
     return toOutcome(data as unknown);
   }
-  const { data, error } = await supabase.from("task_outcomes").insert(payload).select().single();
+  const { data: auth } = await supabase.auth.getUser();
+  const uid = auth.user?.id;
+  if (!uid) throw new Error("Not signed in");
+  const { id: _ignore, ...rest } = outcome;
+  const payload = { ...rest, user_id: uid };
+  const { data, error } = await supabase.from("task_outcomes").insert(payload as never).select().single();
   if (error) throw error;
   return toOutcome(data as unknown);
 }
@@ -61,14 +65,14 @@ export async function executeTaskOutcome(
       status: "todo",
       completed: false,
     };
-    const { data, error } = await supabase.from("tasks").insert(insert).select("id").single();
+    const { data, error } = await supabase.from("tasks").insert(insert as never).select("id").single();
     if (error) throw error;
     const createdId = (data as unknown as { id?: string } | null)?.id;
     if (createdId) {
       createdIds.push(createdId);
       if (action.tag_ids?.length) {
         await supabase.from("task_tags").insert(
-          action.tag_ids.map((tagId) => ({ user_id: userId, task_id: createdId, tag_id: tagId })),
+          action.tag_ids.map((tagId) => ({ user_id: userId, task_id: createdId, tag_id: tagId })) as never,
         );
       }
     }
@@ -82,7 +86,7 @@ export async function executeTaskOutcome(
   };
   const { data, error } = await supabase
     .from("outcome_executions")
-    .insert(executionInsert)
+    .insert(executionInsert as never)
     .select()
     .single();
   if (error) throw error;

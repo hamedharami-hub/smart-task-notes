@@ -18,11 +18,11 @@ export async function saveTaskTemplate(userId: string, task: Task, title?: strin
         is_avoidance: task.is_avoidance,
         location: task.location,
       },
-    })
+    } as never)
     .select()
     .single();
   if (error) throw error;
-  return data as TaskTemplate | null;
+  return data as unknown as TaskTemplate | null;
 }
 
 export async function listTaskTemplates(userId: string): Promise<TaskTemplate[]> {
@@ -32,7 +32,7 @@ export async function listTaskTemplates(userId: string): Promise<TaskTemplate[]>
     .eq("user_id", userId)
     .order("updated_at", { ascending: false });
   if (error) throw error;
-  return (data || []) as TaskTemplate[];
+  return (data || []) as unknown as TaskTemplate[];
 }
 
 export async function deleteTaskTemplate(userId: string, id: string) {
@@ -63,9 +63,9 @@ export async function createTaskFromTemplate(
   const base = buildTaskFromTemplate(template);
   const { data, error } = await supabase
     .from("tasks")
-    .insert({ user_id: userId, ...base, ...overrides })
+    .insert({ user_id: userId, ...base, ...overrides } as never)
     .select()
     .single();
   if (error) throw error;
-  return data as Task | null;
+  return data as unknown as Task | null;
 }

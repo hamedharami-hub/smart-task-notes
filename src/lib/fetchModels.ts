@@ -79,7 +79,7 @@ export async function fetchProviderModels(provider: Provider, apiKey: string, ba
   return models;
 }
 
-import { loadAISettings, type Provider } from "./aiSettings";
+import { loadAISettings } from "./aiSettings";
 
 // Merge static + cached, dedupe, keep order: cached fresh first, then static fallbacks.
 // If `hidden` is not supplied, hidden model IDs saved in AI settings are filtered out.
