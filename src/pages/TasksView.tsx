@@ -33,7 +33,9 @@ import { TaskFilterSheet, DEFAULT_FILTERS, type TaskFilters, type SortLevel } fr
 import { QuickAddTask } from "@/components/QuickAddTask";
 import { VirtualTaskList } from "@/components/VirtualTaskList";
 import { TaskDetail } from "@/components/TaskDetail";
-import type { Task, ConfirmState } from "@/lib/taskTypes";
+import type { Task, ConfirmState, TaskOutcome } from "@/lib/taskTypes";
+import { OutcomePicker } from "@/components/OutcomePicker";
+import { listTaskOutcomes, executeTaskOutcome } from "@/lib/taskOutcomes";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import SwipeableRow, { type SwipeAction } from "@/components/gestures/SwipeableRow";
 import PullToRefresh from "@/components/gestures/PullToRefresh";
@@ -76,6 +78,9 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
   const [actionTask, setActionTask] = useState<Task | null>(null);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [pomoTask, setPomoTask] = useState<Task | null>(null);
+  const [outcomeTask, setOutcomeTask] = useState<Task | null>(null);
+  const [outcomes, setOutcomes] = useState<TaskOutcome[]>([]);
+  const [outcomeOpen, setOutcomeOpen] = useState(false);
   const navigate = useNavigate();
 
   // Patch a task field optimistically + persist
@@ -364,15 +369,70 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     return orderedKeys.map(k => groups.get(k)!);
   }, [topLevel, scope]);
 
-  const toggleTask = async (t: Task) => {
-    const newCompleted = !t.completed;
+  const completeTaskCore = async (t: Task, outcome: TaskOutcome | null, isOwner: boolean) => {
+    const patch = { completed: true, status: "done" as const, completed_at: new Date().toISOString() };
+    if (isOwner) setAllTasks(prev => prev.map(x => x.id === t.id ? { ...x, ...patch } as Task : x));
+
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      await enqueueOp({ table: "tasks", op: "update", payload: patch, match: { id: t.id } });
+      toast.info(T("تغییر ذخیره شد؛ با اتصال اینترنت همگام می‌شود", "Saved locally — will sync when online"));
+      return;
+    }
+
+    const { error } = await supabase.from("tasks").update(patch).eq("id", t.id);
+    if (error) { toast.error(error.message); return; }
+    if (!isOwner) setAllTasks(prev => prev.map(x => x.id === t.id ? { ...x, ...patch } as Task : x));
+    if (user) await logTaskActivity(t.id, user.id, "completed", { ...patch, outcome_id: outcome?.id } as Record<string, unknown>);
+  };
+
+  const completeTask = async (t: Task, outcome: TaskOutcome | null = null) => {
     const isOwner = t.user_id === user?.id;
 
-    // Recurring task: instead of marking complete, roll forward to next occurrence
-    if (newCompleted && t.recurrence_rule && user) {
+    if (outcome && user) {
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        toast.info(T("اتصال اینترنت برای اجرای سناریو لازم است", "Internet connection required to run outcome scenario"));
+      } else {
+        try {
+          await executeTaskOutcome(outcome, user.id, t);
+          toast.success(`${outcome.actions.length} ${T("تسک ساخته شد", "follow-up tasks created")}`);
+        } catch (e: any) {
+          toast.error(e.message || T("خطا در ساخت تسک‌ها", "Error creating tasks"));
+          return;
+        }
+      }
+    }
+
+    await completeTaskCore(t, outcome, isOwner);
+  };
+
+  const reopenTask = async (t: Task) => {
+    const isOwner = t.user_id === user?.id;
+    const patch = { completed: false, status: "todo" as const, completed_at: null as string | null };
+    if (isOwner) setAllTasks(prev => prev.map(x => x.id === t.id ? { ...x, ...patch } as Task : x));
+
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      await enqueueOp({ table: "tasks", op: "update", payload: patch, match: { id: t.id } });
+      toast.info(T("تغییر ذخیره شد؛ با اتصال اینترنت همگام می‌شود", "Saved locally — will sync when online"));
+      return;
+    }
+
+    const { error } = await supabase.from("tasks").update(patch).eq("id", t.id);
+    if (error) { toast.error(error.message); return; }
+    if (!isOwner) setAllTasks(prev => prev.map(x => x.id === t.id ? { ...x, ...patch } as Task : x));
+    if (user) await logTaskActivity(t.id, user.id, "reopened", patch as Record<string, unknown>);
+  };
+
+  const toggleTask = async (t: Task) => {
+    const newCompleted = !t.completed;
+
+    if (!newCompleted) {
+      await reopenTask(t);
+      return;
+    }
+
+    if (t.recurrence_rule && user) {
       const now = new Date();
       let next = nextOccurrence(t.recurrence_rule, t.due_date ? new Date(t.due_date) : now);
-      // Catch up: skip past missed occurrences until we reach one >= today
       let guard = 0;
       while (next && next < now && guard < 500) {
         const advanced = nextOccurrence(t.recurrence_rule, next);
@@ -394,7 +454,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
           completed: false,
           completed_at: null,
         };
-        if (isOwner) setAllTasks(prev => prev.map(x => x.id === t.id ? { ...x, ...patch } : x));
+        if (t.user_id === user?.id) setAllTasks(prev => prev.map(x => x.id === t.id ? { ...x, ...patch } : x));
 
         if (typeof navigator !== "undefined" && !navigator.onLine) {
           await enqueueOp({ table: "tasks", op: "update", payload: patch, match: { id: t.id } });
@@ -404,30 +464,25 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
 
         const { error } = await supabase.from("tasks").update(patch).eq("id", t.id);
         if (error) { toast.error(error.message); return; }
-        if (!isOwner) setAllTasks(prev => prev.map(x => x.id === t.id ? { ...x, ...patch } : x));
+        if (t.user_id !== user?.id) setAllTasks(prev => prev.map(x => x.id === t.id ? { ...x, ...patch } : x));
         toast.success(T(`نمونه بعدی به ${format(next, "yyyy-MM-dd HH:mm")} منتقل شد 🔁`, `Next instance moved to ${format(next, "yyyy-MM-dd HH:mm")} 🔁`));
         return;
       }
     }
 
-    const nextStatus: Task["status"] = newCompleted ? "done" : "todo";
-    if (isOwner) setAllTasks(prev => prev.map(x => x.id === t.id ? { ...x, completed: newCompleted, status: nextStatus } as Task : x));
-    const patch = {
-      completed: newCompleted,
-      status: nextStatus,
-      completed_at: newCompleted ? new Date().toISOString() : null,
-    };
-
-    if (typeof navigator !== "undefined" && !navigator.onLine) {
-      await enqueueOp({ table: "tasks", op: "update", payload: patch, match: { id: t.id } });
-      toast.info(T("تغییر ذخیره شد؛ با اتصال اینترنت همگام می‌شود", "Saved locally — will sync when online"));
-      return;
+    try {
+      const outs = await listTaskOutcomes(t.id);
+      if (outs.length > 0) {
+        setOutcomeTask(t);
+        setOutcomes(outs);
+        setOutcomeOpen(true);
+        return;
+      }
+    } catch (e) {
+      // No outcomes or network error; proceed to normal completion.
     }
 
-    const { error } = await supabase.from("tasks").update(patch).eq("id", t.id);
-    if (error) { toast.error(error.message); return; }
-    if (!isOwner) setAllTasks(prev => prev.map(x => x.id === t.id ? { ...x, completed: newCompleted, status: nextStatus } as Task : x));
-    if (!error && user) await logTaskActivity(t.id, user.id, newCompleted ? "completed" : "reopened", patch as Record<string, unknown>);
+    await completeTask(t);
   };
 
   const delTask = async (id: string) => {
@@ -1068,6 +1123,19 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
         task={pomoTask}
         open={!!pomoTask}
         onOpenChange={(v) => !v && setPomoTask(null)}
+      />
+
+      <OutcomePicker
+        outcomes={outcomes}
+        open={outcomeOpen}
+        onOpenChange={setOutcomeOpen}
+        onSelect={(outcome) => {
+          setOutcomeOpen(false);
+          if (outcomeTask) {
+            if (outcome) completeTask(outcomeTask, outcome);
+            else completeTask(outcomeTask);
+          }
+        }}
       />
     </div>
   );

@@ -51,6 +51,37 @@ export type TaskActivity = {
 
 export type TaskNote = { id: string; title: string; content: string };
 
+export type OutcomeAction = {
+  title: string;
+  description?: string | null;
+  priority?: Priority;
+  folder_id?: string | null;
+  due_offset_hours?: number | null;
+  tag_ids?: string[];
+};
+
+export type TaskOutcome = {
+  id: string;
+  user_id?: string;
+  task_id: string;
+  label: string;
+  color?: string | null;
+  icon?: string | null;
+  position: number;
+  actions: OutcomeAction[];
+  created_at: string;
+  updated_at: string;
+};
+
+export type OutcomeExecution = {
+  id: string;
+  user_id?: string;
+  task_id: string;
+  outcome_id: string;
+  created_task_ids: string[];
+  created_at: string;
+};
+
 export type ConfirmState =
   | { kind: "task" | "note" | "subtask-row"; id: string; title: string; onConfirm: () => Promise<void> }
   | null;
