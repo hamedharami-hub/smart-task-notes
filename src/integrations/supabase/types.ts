@@ -1389,6 +1389,7 @@ export type Database = {
           font_size: string
           micro_prompt_enabled: boolean
           notifications_enabled: boolean
+          show_daily_checkin: boolean
           task_card_layout: string
           task_defaults: Json
           theme: string
@@ -1407,6 +1408,7 @@ export type Database = {
           font_size?: string
           micro_prompt_enabled?: boolean
           notifications_enabled?: boolean
+          show_daily_checkin?: boolean
           task_card_layout?: string
           task_defaults?: Json
           theme?: string
@@ -1425,6 +1427,7 @@ export type Database = {
           font_size?: string
           micro_prompt_enabled?: boolean
           notifications_enabled?: boolean
+          show_daily_checkin?: boolean
           task_card_layout?: string
           task_defaults?: Json
           theme?: string

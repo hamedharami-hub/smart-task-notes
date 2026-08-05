@@ -12,6 +12,7 @@ import {
 } from "recharts";
 import { DISTORTION_LABELS } from "@/lib/distortions";
 import { SCREENERS, severityColor, type ScreenerType } from "@/lib/assessments/screeners";
+import { loadSettings, type UserSettings } from "@/lib/reminders";
 import { Card } from "@/components/ui/card";
 
 type Checkin = {
@@ -86,9 +87,15 @@ export default function MindView() {
   const [thoughtCount, setThoughtCount] = useState(0);
   const [topDistortions, setTopDistortions] = useState<{ key: string; n: number }[]>([]);
   const [abcCount, setAbcCount] = useState(0);
-  
+
   const [streak, setStreak] = useState(0);
   const [latestScreeners, setLatestScreeners] = useState<Record<string, any>>({});
+  const [settings, setSettings] = useState<UserSettings | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    loadSettings(user.id).then(setSettings);
+  }, [user]);
 
   useEffect(() => {
     if (!user) return;
@@ -175,7 +182,7 @@ export default function MindView() {
                 <span className="flex items-center gap-1.5"><Compass className="w-4 h-4 text-sky-500" /> تمرکز {today.focus ?? "—"}</span>
               </div>
             )}
-            {!isToday && (
+            {!isToday && settings?.show_daily_checkin !== false && (
               <Link to="/app/checkin" className="inline-flex items-center gap-2 mt-4 bg-primary text-primary-foreground font-medium rounded-full px-4 py-2 text-sm hover:bg-primary/90 transition">
                 ثبت Check-in امروز <ArrowLeft className="w-4 h-4" />
               </Link>

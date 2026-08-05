@@ -140,6 +140,8 @@ export default {
     browserNotifHelp: "On mobile, install the PWA",
     autoCheckin: "Auto-create daily check-in task",
     autoCheckinHelp: "A task is created in Today every day",
+    showCheckin: "Show daily check-in",
+    showCheckinHelp: "Show or hide the daily check-in card in Mind and its auto-created task",
     checkinReminder: "Check-in reminder 📝",
     reminderTime: "Reminder time",
     fontSize: "Font size",

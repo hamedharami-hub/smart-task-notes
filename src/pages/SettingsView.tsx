@@ -997,9 +997,23 @@ export default function SettingsView() {
 
           <div className="rounded-xl border border-border/60 p-3 bg-card/40 space-y-3">
             <div className="flex items-center justify-between">
+              <div>
+                <Label className="text-sm">{t("settings.showCheckin")}</Label>
+                <div className="text-xs text-muted-foreground">{t("settings.showCheckinHelp")}</div>
+              </div>
+              <Switch
+                checked={reminders.show_daily_checkin !== false}
+                onCheckedChange={(v) => updateReminder({ show_daily_checkin: v })}
+              />
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-border/60 p-3 bg-card/40 space-y-3">
+            <div className="flex items-center justify-between">
               <Label className="text-sm">{t("settings.checkinReminder")}</Label>
               <Switch
                 checked={reminders.checkin_reminder_enabled}
+                disabled={reminders.show_daily_checkin === false}
                 onCheckedChange={(v) => updateReminder({ checkin_reminder_enabled: v })}
               />
             </div>
