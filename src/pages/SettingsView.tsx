@@ -407,8 +407,12 @@ function AppUpdateCard({ isEn }: { isEn: boolean }) {
     }
   });
 
-  const version = (import.meta.env.VITE_APP_VERSION as string) || "live";
+  const version = (import.meta.env.VITE_APP_VERSION as string) || "0.0.0";
   const buildTime = (import.meta.env.VITE_BUILD_TIME as string) || "";
+  const buildId = (import.meta.env.VITE_BUILD_ID as string) || "";
+  const buildNumber = (import.meta.env.VITE_BUILD_NUMBER as string) || "";
+  const commit = (import.meta.env.VITE_GIT_COMMIT as string) || "";
+  const fullVersion = (import.meta.env.VITE_FULL_VERSION as string) || version;
 
   const forceReload = useCallback(async () => {
     try {
@@ -513,32 +517,55 @@ function AppUpdateCard({ isEn }: { isEn: boolean }) {
       );
     }, 12000);
     try {
-      // 1) PWA route: ask the registered service worker to check for updates
+      // 1) PWA route: prompt the registered service worker to look for an update
       const hasSwUpdate = await swHashCheck();
       if (hasSwUpdate) {
         setUpdateAvailable(true);
         setLastChecked(Date.now());
         toast.success(isEn ? "New version found — applying…" : "نسخه‌ی جدید پیدا شد — در حال اعمال…");
-        applyUpdate();
+        if (autoUpdate) applyUpdate();
         return;
       }
 
-      // 2) Non-PWA / fallback: fetch the current entry-script hash
-      const currentHash = getCurrentEntryHash();
-      const origin = window.location.origin;
-      const res = await fetch(`${origin}/?_v=${Date.now()}`, { cache: "no-store" });
-      if (!res.ok) throw new Error("HTTP " + res.status);
-      const html = await res.text();
-      const match = html.match(/<script[^>]+type=["']module["'][^>]+src=["']([^"']+)["']/i);
-      const remoteSrc = match ? match[1] : "";
-      const remoteHash = remoteSrc.split("/").pop() || "";
-
-      if (remoteHash && currentHash && remoteHash !== currentHash) {
-        setUpdateAvailable(true);
-        setLastChecked(Date.now());
-        toast.success(isEn ? "Update available — reloading…" : "نسخه‌ی جدید پیدا شد — در حال نصب…");
-        forceReload();
-        return;
+      // 2) Universal fallback: compare the live /version.json against the baked-in build number
+      const currentBuild = Number(buildNumber || buildId) || 0;
+      const currentCommit = commit;
+      const res = await fetch("/version.json", {
+        cache: "no-store",
+        headers: { Accept: "application/json" },
+      });
+      if (res.ok) {
+        const remote: any = await res.json().catch(() => ({}));
+        const remoteBuild = Number(remote.buildNumber || remote.buildId) || 0;
+        const remoteCommit = (remote.commit as string) || "";
+        const isNewer = remoteBuild
+          ? remoteBuild > currentBuild
+          : Boolean(remoteCommit && remoteCommit !== currentCommit);
+        if (isNewer) {
+          setUpdateAvailable(true);
+          setLastChecked(Date.now());
+          toast.success(isEn ? "Update available — reloading…" : "نسخه‌ی جدید پیدا شد — در حال نصب…");
+          applyUpdate();
+          return;
+        }
+      } else {
+        // Final fallback: compare the entry-script hash of the live index.html
+        const currentHash = getCurrentEntryHash();
+        const origin = window.location.origin;
+        const htmlRes = await fetch(`${origin}/?_v=${Date.now()}`, { cache: "no-store" });
+        if (htmlRes.ok) {
+          const html = await htmlRes.text();
+          const match = html.match(/<script[^>]+type=["']module["'][^>]+src=["']([^"']+)["']/i);
+          const remoteSrc = match ? match[1] : "";
+          const remoteHash = remoteSrc.split("/").pop() || "";
+          if (remoteHash && currentHash && remoteHash !== currentHash) {
+            setUpdateAvailable(true);
+            setLastChecked(Date.now());
+            toast.success(isEn ? "Update available — reloading…" : "نسخه‌ی جدید پیدا شد — در حال نصب…");
+            forceReload();
+            return;
+          }
+        }
       }
 
       setUpdateAvailable(false);
@@ -594,17 +621,26 @@ function AppUpdateCard({ isEn }: { isEn: boolean }) {
       </div>
 
       <div className="text-xs text-muted-foreground space-y-1">
-        <div>
-          {isEn ? "Version" : "نسخه"}: <span className="ltr inline-block font-mono">{version}</span>
-          {buildTime && (
-            <>
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="flex items-center gap-1">
+            <Package className="w-3 h-3" />
+            {isEn ? "Version" : "نسخه"}: <span className="ltr inline-block font-mono">{fullVersion}</span>
+          </span>
+          {buildNumber && (
+            <span className="flex items-center gap-1">
               <span className="mx-1">·</span>
-              <span className="ltr inline-block font-mono">{buildTime}</span>
-            </>
+              <span className="ltr inline-block font-mono">#{buildNumber}</span>
+            </span>
           )}
         </div>
+        {buildTime && (
+          <div className="flex items-center gap-1">
+            <Clock className="w-3 h-3" />
+            {isEn ? "Built" : "ساخته‌شده"}: <span className="ltr inline-block font-mono">{buildTime}</span>
+          </div>
+        )}
         <div className="flex items-center gap-1">
-          <Clock className="w-3 h-3" />
+          <RefreshCw className="w-3 h-3" />
           {pwaReady ? (isEn ? "PWA installed" : "PWA نصب شده") : (isEn ? "Web app" : "نسخه وب")}
         </div>
         {lastChecked && (
