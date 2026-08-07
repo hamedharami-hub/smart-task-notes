@@ -9,9 +9,11 @@ import type { TaskOutcome } from "@/lib/taskTypes";
 export function TaskOutcomesInline({
   taskId,
   onEdit,
+  refreshKey = 0,
 }: {
   taskId: string;
   onEdit?: () => void;
+  refreshKey?: number;
 }) {
   const { i18n } = useTranslation();
   const isEn = (i18n.language || "fa").startsWith("en");
@@ -28,7 +30,7 @@ export function TaskOutcomesInline({
       .catch(() => { if (!cancelled) setOutcomes([]); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [taskId]);
+  }, [taskId, refreshKey]);
 
   if (loading) {
     return (
