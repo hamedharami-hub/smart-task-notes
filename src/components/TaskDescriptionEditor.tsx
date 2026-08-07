@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Maximize2, Check } from "lucide-react";
+import { Maximize2, Check, Eraser } from "lucide-react";
 import { AutoTextarea } from "@/components/ui/auto-textarea";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -50,7 +50,7 @@ export function TaskDescriptionEditor({
           minHeight={32}
           maxHeight={360}
           dir="auto"
-          className="border-none bg-transparent focus-visible:ring-0 px-0 text-[14px] text-foreground/90 placeholder:text-muted-foreground/70 pe-14"
+          className={`border-none bg-transparent focus-visible:ring-0 px-0 text-[14px] text-foreground/90 placeholder:text-muted-foreground/70 ${hasContent ? "pe-[5.5rem]" : "pe-14"}`}
         />
       ) : (
         <button
@@ -58,7 +58,7 @@ export function TaskDescriptionEditor({
           onClick={() => !readOnly && setEditing(true)}
           disabled={readOnly}
           dir="auto"
-          className={`w-full text-start px-0 py-1 text-[14px] text-foreground/90 rounded transition pe-14 ${readOnly ? "" : "hover:bg-accent/30"}`}
+          className={`w-full text-start px-0 py-1 text-[14px] text-foreground/90 rounded transition ${readOnly ? "pe-14" : "pe-[5.5rem] hover:bg-accent/30"}`}
         >
           <div className="prose-note prose-sm max-w-none">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>{value}</ReactMarkdown>
@@ -68,6 +68,17 @@ export function TaskDescriptionEditor({
 
       {!readOnly && (
         <>
+          {hasContent && (
+            <button
+              type="button"
+              onClick={() => { onChange(""); onSave(""); setDraft(""); setEditing(true); }}
+              aria-label={T("پاک کردن متن", "Clear text")}
+              title={T("پاک کردن کامل متن", "Clear all text")}
+              className="absolute top-1 end-[3.25rem] p-1 rounded-md text-muted-foreground/70 hover:text-destructive hover:bg-accent/50 transition opacity-70 group-hover:opacity-100"
+            >
+              <Eraser className="w-3.5 h-3.5" />
+            </button>
+          )}
           <VoiceInputButton
             continuous
             onTranscript={(text) => {
