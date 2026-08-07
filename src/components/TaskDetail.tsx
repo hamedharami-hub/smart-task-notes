@@ -119,7 +119,7 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
       const [notesRes, tagsRes, subRes, stepListsRes, attachRes, outcomesRes] = await Promise.all([
         supabase.from("notes").select("id,title,content").eq("task_id", task.id).order("updated_at", { ascending: false }),
         supabase.from("task_tags").select("tag_id").eq("task_id", task.id),
-        supabase.from("subtasks").select("id", { count: "exact", head: true }).eq("task_id", task.id),
+        supabase.from("tasks").select("id", { count: "exact", head: true }).eq("parent_id", task.id),
         supabase.from("task_step_lists").select("id", { count: "exact", head: true }).eq("task_id", task.id),
         supabase.from("task_attachments").select("id", { count: "exact", head: true }).eq("task_id", task.id),
         supabase.from("task_outcomes").select("id", { count: "exact", head: true }).eq("task_id", task.id),
