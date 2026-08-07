@@ -88,6 +88,7 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
   const [allTasks, setAllTasks] = useState<{ id: string; title: string; parent_id: string | null }[]>([]);
   const [outcomeOpen, setOutcomeOpen] = useState(false);
   const [outcomeCount, setOutcomeCount] = useState(0);
+  const [outcomeRefresh, setOutcomeRefresh] = useState(0);
 
 
   useEffect(() => { setT(task); }, [task.id]);
@@ -221,6 +222,18 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
       const { data } = await supabase.from("tasks").select("*").eq("id", task.id).single();
       if (data) setT(data as any);
       onChanged();
+    } catch {
+      // ignore network errors while offline
+    }
+  };
+
+  const refreshOutcomeCount = async () => {
+    if (typeof navigator !== "undefined" && !navigator.onLine) return;
+    try {
+      const { count } = await supabase.from("task_outcomes").select("id", { count: "exact", head: true }).eq("task_id", task.id);
+      setOutcomeCount(count || 0);
+      if ((count || 0) > 0) setShowOutcomes(true);
+      setOutcomeRefresh(n => n + 1);
     } catch {
       // ignore network errors while offline
     }
@@ -1046,14 +1059,15 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
                   </PopoverContent>
                 </Popover>
 
-                {/* 6. Items: Subtasks or Steps */}
+                {/* 6. Items: Subtasks, Steps or Branches */}
                 <Popover>
                   <PopoverTrigger asChild>
                     <span>
                       <RailButton
                         icon={ListChecks}
                         label={T("آیتم‌ها", "Items")}
-                        active={showSubtasks || showSteps}
+                        active={showSubtasks || showSteps || showOutcomes}
+                        badge={outcomeCount || undefined}
                         disabled={!(canEdit || canComment)}
                       />
                     </span>
@@ -1075,18 +1089,20 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
                       <span className="flex-1 text-start">{T("مرحله / چک‌لیست", "Step / checklist")}</span>
                       {showSteps && <Check className="w-3.5 h-3.5" />}
                     </button>
+                    <button
+                      onClick={() => setShowOutcomes(s => !s)}
+                      disabled={!canEdit}
+                      className={`w-full flex items-center gap-2 p-2.5 rounded-lg text-sm hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent ${showOutcomes ? "bg-accent" : ""}`}
+                    >
+                      <GitBranch className="w-4 h-4 text-amber-500" />
+                      <span className="flex-1 text-start">{T("شاخه‌ها", "Branches")}</span>
+                      {outcomeCount > 0 && (
+                        <span className="text-[10px] text-muted-foreground tabular-nums">{outcomeCount}</span>
+                      )}
+                      {showOutcomes && <Check className="w-3.5 h-3.5" />}
+                    </button>
                   </PopoverContent>
                 </Popover>
-
-                {/* Outcomes */}
-                <RailButton
-                  icon={GitBranch}
-                  label={T("شاخه‌ها", "Branches")}
-                  active={outcomeCount > 0}
-                  badge={outcomeCount || undefined}
-                  onClick={() => setOutcomeOpen(true)}
-                  disabled={!canEdit}
-                />
 
                 {/* AI */}
                 <RailButton
@@ -1132,7 +1148,7 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
 
       {showSteps && <TaskStepLists taskId={t.id} />}
 
-      {showOutcomes && <TaskOutcomesInline taskId={t.id} onEdit={() => setOutcomeOpen(true)} />}
+      {showOutcomes && <TaskOutcomesInline taskId={t.id} refreshKey={outcomeRefresh} onEdit={() => setOutcomeOpen(true)} />}
 
       {showAttachments && <TaskAttachments taskId={t.id} />}
 
@@ -1261,7 +1277,7 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
       <TaskOutcomeSheet
         task={t}
         open={outcomeOpen}
-        onOpenChange={(open) => { setOutcomeOpen(open); if (!open) refreshTask(); }}
+        onOpenChange={(open) => { setOutcomeOpen(open); if (!open) { refreshTask(); refreshOutcomeCount(); } }}
         folders={folders.map((f) => ({ id: f.id, name: f.name }))}
       />
     </>
