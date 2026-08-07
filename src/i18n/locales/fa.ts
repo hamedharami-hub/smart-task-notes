@@ -140,6 +140,8 @@ export default {
     browserNotifHelp: "برای موبایل اپ رو نصب کن (PWA)",
     autoCheckin: "تسک خودکار «چک‌این» روزانه",
     autoCheckinHelp: "یک تسک هر روز در Today ساخته می‌شه",
+    showCheckin: "نمایش چک‌این روزانه",
+    showCheckinHelp: "کارت چک‌این در صفحه ذهن و تسک خودکار آن را نشان بده یا مخفی کن",
     checkinReminder: "یادآور چک‌این 📝",
     reminderTime: "ساعت یادآور",
     fontSize: "اندازه فونت",

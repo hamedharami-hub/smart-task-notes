@@ -14,6 +14,7 @@ export type TaskDefaults = {
 
 export type UserSettings = {
   user_id: string;
+  show_daily_checkin: boolean;
   checkin_reminder_enabled: boolean;
   checkin_reminder_time: string;
   notifications_enabled: boolean;
@@ -135,7 +136,7 @@ export async function ensureDailyTasks(userId: string, s: UserSettings) {
 
   const dueIso = new Date().toISOString();
   const items: { title: string; description: string }[] = [];
-  if (s.checkin_reminder_enabled) items.push({
+  if (s.checkin_reminder_enabled && s.show_daily_checkin !== false) items.push({
     title: "چک‌این روزانه 📝",
     description: "خلق، انرژی، تمرکز، استرس را ثبت کن. روی این تسک بزن تا مستقیم به صفحه چک‌این بری.",
   });
@@ -174,6 +175,7 @@ export async function ensureDailyTasks(userId: string, s: UserSettings) {
 const SETTINGS_CACHE_KEY = (userId: string) => `settings:${userId}`;
 const DEFAULT_SETTINGS: UserSettings = {
   user_id: "",
+  show_daily_checkin: true,
   checkin_reminder_enabled: true,
   checkin_reminder_time: "20:00",
   notifications_enabled: false,
@@ -202,7 +204,7 @@ export async function loadSettings(userId: string): Promise<UserSettings | null>
     try {
       const { data } = await supabase.from("user_settings").select("*").eq("user_id", userId).maybeSingle();
       if (data) {
-        const settings = { task_defaults: {}, ...(data as UserSettings) } as UserSettings;
+        const settings = { ...DEFAULT_SETTINGS, task_defaults: data.task_defaults || DEFAULT_SETTINGS.task_defaults, ...(data as UserSettings), user_id: userId } as UserSettings;
         await cacheSet(SETTINGS_CACHE_KEY(userId), settings);
         return settings;
       }
@@ -211,7 +213,7 @@ export async function loadSettings(userId: string): Promise<UserSettings | null>
         .insert({ user_id: userId })
         .select()
         .maybeSingle();
-      const settings = (created as UserSettings) || { ...DEFAULT_SETTINGS, user_id };
+      const settings = { ...DEFAULT_SETTINGS, ...(created as UserSettings), user_id: userId };
       await cacheSet(SETTINGS_CACHE_KEY(userId), settings);
       return settings;
     } catch {
