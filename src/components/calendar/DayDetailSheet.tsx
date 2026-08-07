@@ -8,7 +8,7 @@ import { isHoliday, type Holiday } from "@/lib/holidays";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
-import { Input } from "@/components/ui/input";
+import { AutoTextarea } from "@/components/ui/auto-textarea";
 import { toast } from "sonner";
 
 type Task = { id: string; title: string; due_date: string | null; priority: string };
@@ -147,7 +147,22 @@ export default function DayDetailSheet({
             {/* Quick Add */}
             <div className="border border-border/60 rounded-xl p-4 space-y-3 bg-card/40">
               <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground"><Plus className="w-4 h-4 text-primary" /> تسک جدید برای این روز</h3>
-              <Input placeholder="عنوان تسک" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addTask()} />
+              <AutoTextarea
+                placeholder="عنوان تسک"
+                value={newTitle}
+                onChange={(e) => setNewTitle(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    addTask();
+                  }
+                }}
+                rows={1}
+                minHeight={40}
+                maxHeight={160}
+                className="min-h-[40px] max-h-[160px] py-2.5"
+                dir="auto"
+              />
               <div className="flex items-center gap-2">
                 <select
                   className="flex h-9 rounded-md border bg-background px-2 text-sm flex-1"

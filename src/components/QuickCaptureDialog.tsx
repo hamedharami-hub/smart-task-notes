@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+import { AutoTextarea } from "@/components/ui/auto-textarea";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Loader2, ListTodo, FileText } from "lucide-react";
@@ -117,14 +117,23 @@ export default function QuickCaptureDialog() {
             </TabsTrigger>
           </TabsList>
           <TabsContent value="task" className="mt-3">
-            <Input
+            <AutoTextarea
               autoFocus
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && submit()}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  submit();
+                }
+              }}
               placeholder="عنوان تسک... (مثلاً: فردا ساعت ۵ خرید)"
               dir="auto"
               disabled={busy}
+              rows={1}
+              minHeight={40}
+              maxHeight={160}
+              className="min-h-[40px] max-h-[160px] py-2.5"
             />
             {dateHint && (
               <div className="mt-2 flex items-center gap-1.5 text-[11px] text-primary animate-fade-in">
@@ -134,14 +143,23 @@ export default function QuickCaptureDialog() {
             )}
           </TabsContent>
           <TabsContent value="note" className="mt-3">
-            <Input
+            <AutoTextarea
               autoFocus
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && submit()}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  submit();
+                }
+              }}
               placeholder="عنوان نوت..."
               dir="auto"
               disabled={busy}
+              rows={1}
+              minHeight={40}
+              maxHeight={160}
+              className="min-h-[40px] max-h-[160px] py-2.5"
             />
           </TabsContent>
         </Tabs>

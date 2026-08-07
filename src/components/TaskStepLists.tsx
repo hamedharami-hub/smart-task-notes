@@ -3,7 +3,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -158,13 +157,22 @@ export function TaskStepLists({ taskId }: { taskId: string }) {
 
       {/* New list creator */}
       <Card className="p-2 space-y-2 bg-muted/30">
-        <div className="flex gap-2 items-center">
-          <Input
+        <div className="flex gap-2 items-start">
+          <AutoTextarea
             placeholder="عنوان لیست مراحل..."
             value={newListTitle}
             onChange={(e) => setNewListTitle(e.target.value)}
-            className="h-8 text-xs flex-1"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                addList();
+              }
+            }}
+            className="text-xs flex-1 min-h-[32px] max-h-[120px] py-1.5"
             dir="auto"
+            rows={1}
+            minHeight={32}
+            maxHeight={120}
           />
           <Select value={newListStyle} onValueChange={(v) => setNewListStyle(v as StepStyle)}>
             <SelectTrigger className="h-8 text-xs w-32">
@@ -190,12 +198,21 @@ export function TaskStepLists({ taskId }: { taskId: string }) {
           .sort((a, b) => a.position - b.position);
         return (
           <Card key={list.id} className="p-3 space-y-2">
-            <div className="flex items-center gap-2">
-              <Input
+            <div className="flex items-start gap-2">
+              <AutoTextarea
                 value={list.title}
                 onChange={(e) => updateList(list.id, { title: e.target.value })}
-                className="flex-1 h-7 text-sm font-medium"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    (e.currentTarget as HTMLTextAreaElement).blur();
+                  }
+                }}
+                className="flex-1 text-sm font-medium min-h-[28px] max-h-[120px] py-1 px-2"
                 dir="auto"
+                rows={1}
+                minHeight={28}
+                maxHeight={120}
               />
               <Select
                 value={list.style}
@@ -253,14 +270,22 @@ export function TaskStepLists({ taskId }: { taskId: string }) {
               </SortableContext>
             </DndContext>
 
-            <div className="flex items-center gap-2">
-              <Input
+            <div className="flex items-start gap-2">
+              <AutoTextarea
                 value={newStep[list.id] || ""}
                 onChange={(e) => setNewStep((st) => ({ ...st, [list.id]: e.target.value }))}
-                onKeyDown={(e) => e.key === "Enter" && addStep(list.id)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    addStep(list.id);
+                  }
+                }}
                 placeholder="+ مرحله جدید..."
-                className="h-7 text-xs flex-1"
+                className="text-xs flex-1 min-h-[28px] max-h-[120px] py-1.5"
                 dir="auto"
+                rows={1}
+                minHeight={28}
+                maxHeight={120}
               />
               <Button size="icon" variant="ghost" onClick={() => addStep(list.id)} className="h-7 w-7">
                 <Plus className="w-3 h-3" />

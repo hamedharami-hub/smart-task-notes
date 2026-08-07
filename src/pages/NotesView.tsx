@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AutoTextarea } from "@/components/ui/auto-textarea";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
@@ -306,10 +307,23 @@ export default function NotesView() {
 
   const editor = selected ? (
     <div className="px-3 sm:px-4 py-2 w-full min-h-0 flex flex-col">
-      <div className="flex items-center gap-2 mb-3 flex-wrap">
-        <Input value={selected.title} onChange={(e) => save({ title: e.target.value })}
+      <div className="flex items-start gap-2 mb-3 flex-wrap">
+        <AutoTextarea
+          value={selected.title}
+          onChange={(e) => save({ title: e.target.value })}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              (e.currentTarget as HTMLTextAreaElement).blur();
+            }
+          }}
           disabled={!canEdit}
-          className="text-xl font-bold border-none focus-visible:ring-0 px-0 flex-1 min-w-[120px]" dir="auto" />
+          className="text-xl font-bold border-none focus-visible:ring-0 px-0 flex-1 min-w-[120px] py-1"
+          dir="auto"
+          rows={1}
+          minHeight={36}
+          maxHeight={200}
+        />
         <VoiceInputButton
           onTranscript={(text) => save({ title: selected.title ? selected.title.trimEnd() + " " + text : text })}
           disabled={!canEdit}

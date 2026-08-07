@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { AutoTextarea } from "@/components/ui/auto-textarea";
 import { Card } from "@/components/ui/card";
 import { Plus, Trash2, Save, GitBranch, Clock, Flag, FolderInput, X } from "lucide-react";
 import { toast } from "sonner";
@@ -182,11 +182,20 @@ export function TaskOutcomeSheet({
           {outcomes.map((outcome, oi) => (
             <Card key={oi} className="p-3 space-y-3">
               <div className="flex items-start gap-2">
-                <Input
+                <AutoTextarea
                   value={outcome.label}
                   onChange={(e) => updateOutcome(oi, { label: e.target.value })}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      (e.currentTarget as HTMLTextAreaElement).blur();
+                    }
+                  }}
                   placeholder={T("اگر … (مثلاً: جواب داد)", "If … (e.g. Answered)")}
-                  className="flex-1 font-medium"
+                  className="flex-1 font-medium min-h-[40px] max-h-[120px] py-1.5 px-2"
+                  rows={1}
+                  minHeight={40}
+                  maxHeight={120}
                 />
                 <Button size="icon" variant="ghost" onClick={() => removeOutcome(oi)} className="text-destructive shrink-0">
                   <Trash2 className="w-4 h-4" />
@@ -197,21 +206,33 @@ export function TaskOutcomeSheet({
                 {outcome.actions.map((action, ai) => (
                   <div key={ai} className="rounded-lg border p-2 space-y-2 bg-muted/20">
                     <div className="flex items-center gap-2">
-                      <Input
+                      <AutoTextarea
                         value={action.title}
                         onChange={(e) => updateAction(oi, ai, { title: e.target.value })}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && !e.shiftKey) {
+                            e.preventDefault();
+                            (e.currentTarget as HTMLTextAreaElement).blur();
+                          }
+                        }}
                         placeholder={T("آنگاه این کار انجام شود…", "Then do this task…")}
-                        className="flex-1 text-sm"
+                        className="flex-1 text-sm min-h-[36px] max-h-[120px] py-1.5 px-2"
+                        rows={1}
+                        minHeight={36}
+                        maxHeight={120}
                       />
                       <Button size="icon" variant="ghost" onClick={() => removeAction(oi, ai)} className="h-8 w-8 text-muted-foreground">
                         <X className="w-3.5 h-3.5" />
                       </Button>
                     </div>
-                    <Input
+                    <AutoTextarea
                       value={action.description || ""}
                       onChange={(e) => updateAction(oi, ai, { description: e.target.value })}
                       placeholder={T("توضیحات (اختیاری)", "Description (optional)")}
-                      className="text-xs"
+                      className="text-xs min-h-[36px] max-h-[160px] py-1.5 px-2"
+                      rows={1}
+                      minHeight={36}
+                      maxHeight={160}
                     />
                     <div className="flex items-center gap-2 flex-wrap">
                       <select

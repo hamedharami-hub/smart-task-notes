@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { AutoTextarea } from "@/components/ui/auto-textarea";
 import { Plus, Loader2, Calendar as CalendarIcon, CalendarClock, Tag, Folder, Flag, Image as ImageIcon, MoreHorizontal, LayoutTemplate, FileText, Maximize2, Settings, Save, Check, X } from "lucide-react";
 import { parseNaturalDate } from "@/lib/nlDate";
 import { toPersianDigits } from "@/lib/persianDigits";
@@ -392,14 +392,22 @@ export function QuickAddTask({
   return (
     <div className={`${className}`} dir={isEn ? "ltr" : "rtl"}>
       <div className="flex gap-1.5">
-        <Input
+        <AutoTextarea
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && submit()}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              submit();
+            }
+          }}
           placeholder={placeholderText}
-          className="flex-1 h-10 text-sm bg-background"
+          className="flex-1 text-sm bg-background min-h-[40px] max-h-[160px] py-2.5"
           dir="auto"
           disabled={busy}
+          rows={1}
+          minHeight={40}
+          maxHeight={160}
         />
         <VoiceInputButton
           onTranscript={(text) => setTitle((prev) => (prev ? prev.trimEnd() + " " + text : text))}

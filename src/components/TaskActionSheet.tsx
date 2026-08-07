@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { AutoTextarea } from "@/components/ui/auto-textarea";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import type { Task } from "@/lib/taskTypes";
@@ -304,13 +304,22 @@ export default function TaskActionSheet({
         return (
           <div className="animate-fade-in space-y-3">
             {header(T("افزودن زیرتسک", "Add Subtask"), backToMain)}
-            <Input
+            <AutoTextarea
               value={subtaskTitle}
               onChange={(e) => setSubtaskTitle(e.target.value)}
               placeholder={T("عنوان زیرتسک...", "Subtask title...")}
               dir="auto"
               autoFocus
-              onKeyDown={(e) => e.key === "Enter" && addSubtask()}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  addSubtask();
+                }
+              }}
+              rows={1}
+              minHeight={40}
+              maxHeight={160}
+              className="min-h-[40px] max-h-[160px] py-2.5"
             />
             <Button onClick={addSubtask} disabled={!subtaskTitle.trim() || busy} className="w-full">
               {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
@@ -358,11 +367,21 @@ export default function TaskActionSheet({
         return (
           <div className="animate-fade-in space-y-3">
             {header(T("موقعیت", "Location"), () => setView("more"))}
-            <Input
+            <AutoTextarea
               value={location}
               onChange={(e) => setLocation(e.target.value)}
               placeholder={T("مثلاً: دفتر، خانه...", "e.g. Office, Home...")}
               dir="auto"
+              rows={1}
+              minHeight={40}
+              maxHeight={120}
+              className="min-h-[40px] max-h-[120px] py-2.5"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  saveLocation();
+                }
+              }}
             />
             <Button onClick={saveLocation} className="w-full">
               {T("ذخیره موقعیت", "Save Location")}

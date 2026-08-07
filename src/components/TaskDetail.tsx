@@ -1183,8 +1183,8 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
 
   const body = (
     <div className="mt-1 task-detail-sections flex flex-col min-h-[40vh]">
-      {topControls}
       {hero}
+      {topControls}
       {quickChips}
       <div className="flex-1">{expandables}</div>
       {bottomRail}
@@ -1199,12 +1199,21 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
           {T("بازگشت به تسک", "Back to task")}
         </Button>
       </div>
-      <Input
+      <AutoTextarea
         value={activeNote.title}
         readOnly={!canEdit}
         onChange={(e) => saveNote(activeNote.id, { title: e.target.value })}
-        className="border-none focus-visible:ring-0 px-0 text-lg font-semibold"
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            (e.currentTarget as HTMLTextAreaElement).blur();
+          }
+        }}
+        className="border-none focus-visible:ring-0 px-0 text-lg font-semibold py-1"
         dir="auto"
+        rows={1}
+        minHeight={36}
+        maxHeight={200}
       />
       <NoteEditorTabs
         noteId={activeNote.id}
@@ -1244,8 +1253,10 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
       ) : mode === "drawer" ? (
         <Drawer open={true} onOpenChange={(v) => !v && onClose()} snapPoints={[0.5, 1]} activeSnapPoint={snap} setActiveSnapPoint={setSnap} shouldScaleBackground={false} dismissible>
           <DrawerContent className={`h-screen max-h-screen flex flex-col !mt-0 ${snap === 1 ? "!m-0 !rounded-none" : "min-h-[55vh]"}`} aria-describedby="task-drawer-desc">
-            <DrawerHeader className="sr-only">
-              <DrawerTitle>{activeNote ? T("ویرایش نوت", "Edit note") : T("جزئیات تسک", "Task")}</DrawerTitle>
+            <DrawerHeader className="px-4 pt-4 pb-1 text-center">
+              <DrawerTitle className="text-base font-semibold truncate" dir="auto">
+                {activeNote ? T("ویرایش نوت", "Edit note") : (t.title || T("بدون عنوان", "Untitled"))}
+              </DrawerTitle>
             </DrawerHeader>
             {drawerHeader}
             <div className={`flex-1 overflow-y-auto min-h-0 px-3 pb-4 ${snap === 1 ? "" : "max-h-[50vh]"}`}>
@@ -1258,8 +1269,8 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
         <Sheet open={true} onOpenChange={(v) => !v && onClose()}>
           <SheetContent className="w-full sm:max-w-full overflow-y-auto p-3 sm:p-4 flex flex-col">
             <SheetHeader className="mb-1">
-              <SheetTitle className="sr-only">
-                {activeNote ? T("ویرایش نوت", "Edit note") : T("جزئیات تسک", "Task")}
+              <SheetTitle className="text-base font-semibold truncate" dir="auto">
+                {activeNote ? T("ویرایش نوت", "Edit note") : (t.title || T("بدون عنوان", "Untitled"))}
               </SheetTitle>
             </SheetHeader>
             {activeNote ? noteEditorBody : body}

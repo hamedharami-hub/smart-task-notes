@@ -3,7 +3,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { AutoTextarea } from "@/components/ui/auto-textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Trash2, ListTree, GripVertical } from "lucide-react";
@@ -168,14 +167,22 @@ export function TaskSubtasksInline({
       </DndContext>
 
       <div className="flex items-center gap-2">
-        <Input
+        <AutoTextarea
           value={newTitle}
           onChange={(e) => setNewTitle(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && add()}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              add();
+            }
+          }}
           disabled={readOnly}
           placeholder={readOnly ? "" : "+ زیرتسک جدید..."}
-          className="h-7 text-xs flex-1"
+          className="text-xs flex-1 min-h-[28px] max-h-[120px] py-1.5"
           dir="auto"
+          rows={1}
+          minHeight={28}
+          maxHeight={120}
         />
         <Button size="icon" variant="ghost" onClick={add} disabled={readOnly} className="h-7 w-7">
           <Plus className="w-3 h-3" />
