@@ -71,15 +71,15 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
   const [tags, setTags] = useState<{ id: string; name: string; color: string | null }[]>([]);
   const [taskTagIds, setTaskTagIds] = useState<string[]>([]);
 
-  // Section reveal flags – start open so subtasks, checklists and branches are visible by default
+  // Section reveal flags – hidden by default; auto-revealed only when data exists
   const hasTimeBlock = !!(t.start_at || t.end_at || t.estimated_minutes);
   const isScheduled = !!t.due_date || !!t.reminder_at || !!t.recurrence_rule || !!t.bucket_kind || hasTimeBlock;
-  const [showSubtasks, setShowSubtasks] = useState(true);
-  const [showSteps, setShowSteps] = useState(true);
+  const [showSubtasks, setShowSubtasks] = useState(false);
+  const [showSteps, setShowSteps] = useState(false);
   const [showAttachments, setShowAttachments] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
   const [showTimeBlock, setShowTimeBlock] = useState(hasTimeBlock);
-  const [showOutcomes, setShowOutcomes] = useState(true);
+  const [showOutcomes, setShowOutcomes] = useState(false);
   const [voiceListening, setVoiceListening] = useState(false);
   const [voiceInstance, setVoiceInstance] = useState<VoiceInput | null>(null);
   const [scheduleOpen, setScheduleOpen] = useState(false);
