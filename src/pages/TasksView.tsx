@@ -25,7 +25,7 @@ import { describeRule, nextOccurrence } from "@/lib/recurrence";
 import {
   DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor, TouchSensor,
   closestCenter, useSensor, useSensors,
-  SortableTaskRow, RootDropZone,
+  SortableTaskRow,
 } from "@/components/TaskDnDHelpers";
 import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 
@@ -1121,7 +1121,6 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
             onDragEnd={onDragEnd}
             onDragCancel={() => setActiveDragId(null)}
           >
-            <RootDropZone />
             <div className="space-y-1 mt-1">
               {isEmpty && (
                 <Card className="p-5 text-center text-muted-foreground text-sm border-dashed">{T("هیچ تسکی نیست", "No tasks")}</Card>
