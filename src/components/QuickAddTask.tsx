@@ -393,13 +393,14 @@ export function QuickAddTask({
             <Button
               type="button"
               variant="outline"
-              size="sm"
-              title={T("اولویت", "Priority")}
-              className={`h-8 gap-1.5 rounded-lg text-xs px-2.5 ${finalPriority !== "none" ? "border-primary" : ""}`}
+              size="icon"
+              title={finalPriority !== "none" ? T(PRIORITY_META[finalPriority].label, PRIORITY_META[finalPriority].labelEn) : T("اولویت", "Priority")}
+              aria-label={T("اولویت", "Priority")}
+              className={`h-9 w-9 shrink-0 rounded-full ${finalPriority !== "none" ? "border-primary" : ""}`}
             >
-              <Flag className={`w-3.5 h-3.5 ${finalPriority !== "none" ? PRIORITY_META[finalPriority].textClass : ""}`} />
-              <span>{finalPriority !== "none" ? T(PRIORITY_META[finalPriority].label, PRIORITY_META[finalPriority].labelEn) : T("اولویت", "Priority")}</span>
+              <Flag className={`w-4 h-4 ${finalPriority !== "none" ? PRIORITY_META[finalPriority].textClass : ""}`} />
             </Button>
+
           </PopoverTrigger>
           <PopoverContent className="w-48 p-1.5" align="start">
             {PRIORITY_SELECTABLE.map(p => {
