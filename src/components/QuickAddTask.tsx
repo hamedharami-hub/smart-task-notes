@@ -45,11 +45,13 @@ export function QuickAddTask({
   placeholder,
   onCreated,
   className = "",
+  chipsTrailing,
 }: {
   defaults?: Defaults;
   placeholder?: string;
   onCreated?: (taskId: string) => void;
   className?: string;
+  chipsTrailing?: React.ReactNode;
 }) {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -481,6 +483,8 @@ export function QuickAddTask({
             ))}
           </PopoverContent>
         </Popover>
+
+        {chipsTrailing}
       </div>
 
       {/* Title input */}
