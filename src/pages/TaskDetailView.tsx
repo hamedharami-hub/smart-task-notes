@@ -34,7 +34,7 @@ export default function TaskDetailView() {
     }
     try {
       const { data } = await supabase.from("tasks").select("*").eq("id", id).maybeSingle();
-      if (data) setTask(data as Task);
+      if (data) setTask(data as unknown as Task);
       else setTask(null);
     } catch {
       const cached = user ? await cacheGet<Task[]>(`tasks:all:${user.id}`) : null;

@@ -198,13 +198,13 @@ export async function loadSettings(userId: string): Promise<UserSettings | null>
 
     // If offline, return cached or default immediately so navigation isn't blocked
     if (typeof navigator !== "undefined" && !navigator.onLine) {
-      return cachedValue ? { ...DEFAULT_SETTINGS, ...cachedValue, user_id: userId } : { ...DEFAULT_SETTINGS, user_id };
+      return cachedValue ? { ...DEFAULT_SETTINGS, ...cachedValue, user_id: userId } : { ...DEFAULT_SETTINGS, user_id: userId };
     }
 
     try {
       const { data } = await supabase.from("user_settings").select("*").eq("user_id", userId).maybeSingle();
       if (data) {
-        const settings = { ...DEFAULT_SETTINGS, task_defaults: data.task_defaults || DEFAULT_SETTINGS.task_defaults, ...(data as UserSettings), user_id: userId } as UserSettings;
+        const settings = { ...DEFAULT_SETTINGS, task_defaults: data.task_defaults || DEFAULT_SETTINGS.task_defaults, ...(data as unknown as Partial<UserSettings>), user_id: userId } as UserSettings;
         await cacheSet(SETTINGS_CACHE_KEY(userId), settings);
         return settings;
       }
@@ -213,11 +213,11 @@ export async function loadSettings(userId: string): Promise<UserSettings | null>
         .insert({ user_id: userId })
         .select()
         .maybeSingle();
-      const settings = { ...DEFAULT_SETTINGS, ...(created as UserSettings), user_id: userId };
+      const settings = { ...DEFAULT_SETTINGS, ...(created as unknown as Partial<UserSettings>), user_id: userId };
       await cacheSet(SETTINGS_CACHE_KEY(userId), settings);
       return settings;
     } catch {
-      return cachedValue ? { ...DEFAULT_SETTINGS, ...cachedValue, user_id: userId } : { ...DEFAULT_SETTINGS, user_id };
+      return cachedValue ? { ...DEFAULT_SETTINGS, ...cachedValue, user_id: userId } : { ...DEFAULT_SETTINGS, user_id: userId };
     }
   })();
   settingsCache.set(userId, p);
@@ -234,6 +234,6 @@ export async function saveSettings(userId: string, patch: Partial<UserSettings>)
   if (typeof navigator !== "undefined" && !navigator.onLine) return;
   const { error } = await supabase
     .from("user_settings")
-    .upsert({ user_id: userId, ...patch }, { onConflict: "user_id" });
+    .upsert({ user_id: userId, ...patch } as never, { onConflict: "user_id" });
   if (error) throw error;
 }

@@ -4,7 +4,7 @@
 import { openDB, type IDBPDatabase } from "idb";
 import { supabase } from "@/integrations/supabase/client";
 
-type QueuedOp = {
+export type QueuedOp = {
   id?: number;
   table: string;
   op: "insert" | "update" | "delete" | "upsert";
