@@ -162,14 +162,14 @@ export function TaskFilterSheet({
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-1.5">
+        <Button variant="outline" size="icon" className="h-9 w-9 shrink-0 rounded-full relative" title="فیلتر" aria-label="فیلتر">
           <Filter className="w-4 h-4" />
-          فیلتر
           {activeCount > 0 && (
-            <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">{activeCount}</Badge>
+            <Badge variant="secondary" className="absolute -top-1 -end-1 h-4 min-w-4 px-1 text-[9px] leading-none flex items-center justify-center rounded-full">{activeCount}</Badge>
           )}
         </Button>
       </SheetTrigger>
+
       <SheetContent dir="rtl" className="w-full sm:max-w-md overflow-y-auto">
         <SheetHeader>
           <SheetTitle>فیلتر و مرتب‌سازی</SheetTitle>
