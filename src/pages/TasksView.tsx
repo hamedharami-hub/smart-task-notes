@@ -1168,8 +1168,8 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
 
   return (
     <div className="p-2 sm:p-3 md:p-4 w-full max-w-5xl mx-auto">
-      <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
-        <BidiText as="h1" text={title} className="text-xl md:text-2xl font-bold" />
+      <HeaderTitlePortal title={title} />
+      <div className="flex items-center justify-end mb-3 gap-2 flex-wrap">
         {isFolder && (
           <Button size="sm" variant="outline" onClick={() => setDelFolderOpen(true)} className="text-destructive">
             <Trash2 className="w-3.5 h-3.5 ms-1" /> {T("حذف فولدر", "Delete folder")}

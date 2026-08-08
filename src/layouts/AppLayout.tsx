@@ -60,6 +60,7 @@ export default function AppLayout() {
             <div className="flex items-center gap-1">
               <SidebarTrigger />
               <HeaderBackButton />
+              <div id="app-header-title" className="min-w-0 flex items-center" />
             </div>
             <div className="flex items-center gap-2 flex-1 justify-end">
               <button
