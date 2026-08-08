@@ -45,11 +45,13 @@ export function QuickAddTask({
   placeholder,
   onCreated,
   className = "",
+  chipsTrailing,
 }: {
   defaults?: Defaults;
   placeholder?: string;
   onCreated?: (taskId: string) => void;
   className?: string;
+  chipsTrailing?: React.ReactNode;
 }) {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -368,19 +370,20 @@ export function QuickAddTask({
   return (
     <div className={`${className}`} dir={isEn ? "ltr" : "rtl"}>
       {/* Top param selectors: date / priority / folder / tag */}
-      <div className="flex items-center gap-1.5 flex-wrap mb-1.5">
+      <div className="flex items-center gap-1.5 flex-nowrap mb-1.5 overflow-x-auto no-scrollbar">
         <Popover>
           <PopoverTrigger asChild>
             <Button
               type="button"
               variant="outline"
-              size="sm"
-              title={T("تاریخ", "Date")}
-              className={`h-8 gap-1.5 rounded-lg text-xs px-2.5 ${finalDue ? "border-primary text-primary" : ""}`}
+              size="icon"
+              title={finalDue ? formatDueShort(finalDue) : T("تاریخ", "Date")}
+              aria-label={T("تاریخ", "Date")}
+              className={`h-9 w-9 shrink-0 rounded-full ${finalDue ? "border-primary text-primary" : ""}`}
             >
-              <CalendarIcon className="w-3.5 h-3.5" />
-              <span className="truncate max-w-[8rem]">{finalDue ? formatDueShort(finalDue) : T("تاریخ", "Date")}</span>
+              <CalendarIcon className="w-4 h-4" />
             </Button>
+
           </PopoverTrigger>
           <PopoverContent className="w-72 space-y-3 p-3" align="start">
             <DueDatePicker value={due} onChange={setDue} compact />
@@ -392,13 +395,14 @@ export function QuickAddTask({
             <Button
               type="button"
               variant="outline"
-              size="sm"
-              title={T("اولویت", "Priority")}
-              className={`h-8 gap-1.5 rounded-lg text-xs px-2.5 ${finalPriority !== "none" ? "border-primary" : ""}`}
+              size="icon"
+              title={finalPriority !== "none" ? T(PRIORITY_META[finalPriority].label, PRIORITY_META[finalPriority].labelEn) : T("اولویت", "Priority")}
+              aria-label={T("اولویت", "Priority")}
+              className={`h-9 w-9 shrink-0 rounded-full ${finalPriority !== "none" ? "border-primary" : ""}`}
             >
-              <Flag className={`w-3.5 h-3.5 ${finalPriority !== "none" ? PRIORITY_META[finalPriority].textClass : ""}`} />
-              <span>{finalPriority !== "none" ? T(PRIORITY_META[finalPriority].label, PRIORITY_META[finalPriority].labelEn) : T("اولویت", "Priority")}</span>
+              <Flag className={`w-4 h-4 ${finalPriority !== "none" ? PRIORITY_META[finalPriority].textClass : ""}`} />
             </Button>
+
           </PopoverTrigger>
           <PopoverContent className="w-48 p-1.5" align="start">
             {PRIORITY_SELECTABLE.map(p => {
@@ -425,13 +429,14 @@ export function QuickAddTask({
             <Button
               type="button"
               variant="outline"
-              size="sm"
-              title={T("فولدر", "Folder")}
-              className={`h-8 gap-1.5 rounded-lg text-xs px-2.5 ${finalFolderId ? "border-primary text-primary" : ""}`}
+              size="icon"
+              title={selectedFolder ? selectedFolder.name : T("فولدر", "Folder")}
+              aria-label={T("فولدر", "Folder")}
+              className={`h-9 w-9 shrink-0 rounded-full ${finalFolderId ? "border-primary text-primary" : ""}`}
             >
-              <Folder className="w-3.5 h-3.5" />
-              <span className="truncate max-w-[7rem]">{selectedFolder ? selectedFolder.name : T("فولدر", "Folder")}</span>
+              <Folder className="w-4 h-4" />
             </Button>
+
           </PopoverTrigger>
           <PopoverContent className="w-56 p-1.5" align="start">
             <button type="button" onClick={() => applyFolder(null)} className={`w-full text-start px-2 py-1.5 text-xs rounded ${finalFolderId === null ? "bg-accent" : "hover:bg-accent/50"}`}>
@@ -455,13 +460,14 @@ export function QuickAddTask({
             <Button
               type="button"
               variant="outline"
-              size="sm"
-              title={T("تگ", "Tag")}
-              className={`h-8 gap-1.5 rounded-lg text-xs px-2.5 ${finalTagIds.length ? "border-primary text-primary" : ""}`}
+              size="icon"
+              title={finalTagIds.length ? (selectedTag ? selectedTag.name : `+${finalTagIds.length}`) : T("تگ", "Tag")}
+              aria-label={T("تگ", "Tag")}
+              className={`h-9 w-9 shrink-0 rounded-full ${finalTagIds.length ? "border-primary text-primary" : ""}`}
             >
-              <Tag className="w-3.5 h-3.5" />
-              <span>{finalTagIds.length ? (selectedTag ? selectedTag.name : `+${finalTagIds.length}`) : T("تگ", "Tag")}</span>
+              <Tag className="w-4 h-4" />
             </Button>
+
           </PopoverTrigger>
           <PopoverContent className="w-56 p-1.5" align="start">
             {tags.map(t => (
@@ -477,6 +483,8 @@ export function QuickAddTask({
             ))}
           </PopoverContent>
         </Popover>
+
+        {chipsTrailing}
       </div>
 
       {/* Title input */}

@@ -10,6 +10,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { BidiText } from "@/components/BidiText";
+import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
+
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card } from "@/components/ui/card";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -1090,23 +1092,22 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
 
   const listView = (
     <PullToRefresh onRefresh={load}>
-      <div className="flex gap-1.5 mb-3 items-center">
-        <div className="flex-1">
-          <QuickAddTask
-            defaults={{
-              folder_id: scope === "folder" ? params.id || null : null,
-              due_date: scope === "today"
-                ? new Date().toISOString()
-                : scope === "next7"
-                  ? addDays(new Date(), 1).toISOString()
-                  : null,
-              tag_id: scope === "tag" ? params.id || null : null,
-            }}
-            onCreated={() => load()}
-          />
-        </div>
-        <TaskFilterSheet filters={filters} onChange={setFilters} />
+      <div className="mb-3">
+        <QuickAddTask
+          defaults={{
+            folder_id: scope === "folder" ? params.id || null : null,
+            due_date: scope === "today"
+              ? new Date().toISOString()
+              : scope === "next7"
+                ? addDays(new Date(), 1).toISOString()
+                : null,
+            tag_id: scope === "tag" ? params.id || null : null,
+          }}
+          chipsTrailing={<TaskFilterSheet filters={filters} onChange={setFilters} />}
+          onCreated={() => load()}
+        />
       </div>
+
 
       {(() => {
         const isEmpty = groupedTasks ? groupedTasks.length === 0 : topLevel.length === 0;
@@ -1169,8 +1170,8 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
 
   return (
     <div className="p-2 sm:p-3 md:p-4 w-full max-w-5xl mx-auto">
-      <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
-        <BidiText as="h1" text={title} className="text-xl md:text-2xl font-bold" />
+      <HeaderTitlePortal title={title} />
+      <div className="flex items-center justify-end mb-3 gap-2 flex-wrap">
         {isFolder && (
           <Button size="sm" variant="outline" onClick={() => setDelFolderOpen(true)} className="text-destructive">
             <Trash2 className="w-3.5 h-3.5 ms-1" /> {T("حذف فولدر", "Delete folder")}

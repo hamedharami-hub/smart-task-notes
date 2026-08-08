@@ -249,7 +249,7 @@ export default function NotesView() {
     if (selected?.id === id) { setSelected(null); setDraft(null); }
     if (note) {
       const restore = async () => {
-        await supabase.from("notes").insert(note as Note);
+        await supabase.from("notes").insert(note as never);
         load();
       };
       pushUndo({ label: T(`نوت «${note.title || T("بدون عنوان", "Untitled")}» حذف شد`, `Note "${note.title || T("بدون عنوان", "Untitled")}" deleted`), undo: restore });
