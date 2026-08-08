@@ -458,13 +458,14 @@ export function QuickAddTask({
             <Button
               type="button"
               variant="outline"
-              size="sm"
-              title={T("تگ", "Tag")}
-              className={`h-8 gap-1.5 rounded-lg text-xs px-2.5 ${finalTagIds.length ? "border-primary text-primary" : ""}`}
+              size="icon"
+              title={finalTagIds.length ? (selectedTag ? selectedTag.name : `+${finalTagIds.length}`) : T("تگ", "Tag")}
+              aria-label={T("تگ", "Tag")}
+              className={`h-9 w-9 shrink-0 rounded-full ${finalTagIds.length ? "border-primary text-primary" : ""}`}
             >
-              <Tag className="w-3.5 h-3.5" />
-              <span>{finalTagIds.length ? (selectedTag ? selectedTag.name : `+${finalTagIds.length}`) : T("تگ", "Tag")}</span>
+              <Tag className="w-4 h-4" />
             </Button>
+
           </PopoverTrigger>
           <PopoverContent className="w-56 p-1.5" align="start">
             {tags.map(t => (
