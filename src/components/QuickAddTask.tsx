@@ -427,13 +427,14 @@ export function QuickAddTask({
             <Button
               type="button"
               variant="outline"
-              size="sm"
-              title={T("فولدر", "Folder")}
-              className={`h-8 gap-1.5 rounded-lg text-xs px-2.5 ${finalFolderId ? "border-primary text-primary" : ""}`}
+              size="icon"
+              title={selectedFolder ? selectedFolder.name : T("فولدر", "Folder")}
+              aria-label={T("فولدر", "Folder")}
+              className={`h-9 w-9 shrink-0 rounded-full ${finalFolderId ? "border-primary text-primary" : ""}`}
             >
-              <Folder className="w-3.5 h-3.5" />
-              <span className="truncate max-w-[7rem]">{selectedFolder ? selectedFolder.name : T("فولدر", "Folder")}</span>
+              <Folder className="w-4 h-4" />
             </Button>
+
           </PopoverTrigger>
           <PopoverContent className="w-56 p-1.5" align="start">
             <button type="button" onClick={() => applyFolder(null)} className={`w-full text-start px-2 py-1.5 text-xs rounded ${finalFolderId === null ? "bg-accent" : "hover:bg-accent/50"}`}>
