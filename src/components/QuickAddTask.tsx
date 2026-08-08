@@ -368,19 +368,20 @@ export function QuickAddTask({
   return (
     <div className={`${className}`} dir={isEn ? "ltr" : "rtl"}>
       {/* Top param selectors: date / priority / folder / tag */}
-      <div className="flex items-center gap-1.5 flex-wrap mb-1.5">
+      <div className="flex items-center gap-1.5 flex-nowrap mb-1.5 overflow-x-auto no-scrollbar">
         <Popover>
           <PopoverTrigger asChild>
             <Button
               type="button"
               variant="outline"
-              size="sm"
-              title={T("تاریخ", "Date")}
-              className={`h-8 gap-1.5 rounded-lg text-xs px-2.5 ${finalDue ? "border-primary text-primary" : ""}`}
+              size="icon"
+              title={finalDue ? formatDueShort(finalDue) : T("تاریخ", "Date")}
+              aria-label={T("تاریخ", "Date")}
+              className={`h-9 w-9 shrink-0 rounded-full ${finalDue ? "border-primary text-primary" : ""}`}
             >
-              <CalendarIcon className="w-3.5 h-3.5" />
-              <span className="truncate max-w-[8rem]">{finalDue ? formatDueShort(finalDue) : T("تاریخ", "Date")}</span>
+              <CalendarIcon className="w-4 h-4" />
             </Button>
+
           </PopoverTrigger>
           <PopoverContent className="w-72 space-y-3 p-3" align="start">
             <DueDatePicker value={due} onChange={setDue} compact />
