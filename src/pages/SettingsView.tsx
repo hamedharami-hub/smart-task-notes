@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
-import { Sparkles, Save, Trash2, Languages, Download, ShieldOff, Settings2, Bell, Moon, Palette, Type, ZoomIn, LayoutGrid, Heart, Coffee, Star, Wand2, RotateCw, Sun, Upload, CheckCircle2, AlertCircle, Clock, Zap, Cpu, Eye, EyeOff, RefreshCw, Package, ChevronDown } from "lucide-react";
+import { Sparkles, Save, Trash2, Languages, Download, ShieldOff, Settings2, Bell, Moon, Palette, Type, ZoomIn, LayoutGrid, Heart, Coffee, Star, Wand2, RotateCw, Sun, Upload, CheckCircle2, AlertCircle, Clock, Zap, Cpu, Eye, EyeOff, RefreshCw, Package, Database, Info } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { applyFontSize, applyUIScale, type FontSize } from "@/lib/uiScale";
@@ -11,8 +11,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Switch } from "@/components/ui/switch";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { getAILanguage, setAILanguage, type AILanguage } from "@/lib/ai";
@@ -33,10 +35,62 @@ import { useTheme } from "next-themes";
 import { applyTheme, getBaseTheme } from "@/lib/theme";
 import { TaskDefaultSettings } from "@/components/TaskDefaultSettings";
 import type { TaskDefaults } from "@/lib/reminders";
+import { cn } from "@/lib/utils";
+
+type LucideIcon = React.ComponentType<{ className?: string }>;
+
+function SectionCard({
+  icon: Icon,
+  title,
+  description,
+  children,
+  className,
+}: {
+  icon?: LucideIcon;
+  title: React.ReactNode;
+  description?: React.ReactNode;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <Card className={cn("p-5 space-y-4 bg-card/60 border-border/60", className)}>
+      <div className="flex items-center gap-2">
+        {Icon && <Icon className="w-4 h-4 text-primary" />}
+        <h2 className="font-semibold">{title}</h2>
+      </div>
+      {description && <p className="text-xs text-muted-foreground leading-6">{description}</p>}
+      {children}
+    </Card>
+  );
+}
+
+function SettingRow({
+  label,
+  help,
+  children,
+  className,
+}: {
+  label: React.ReactNode;
+  help?: React.ReactNode;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn("flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-3 border-b last:border-0 border-border/40", className)}>
+      <div className="space-y-0.5">
+        <Label className="text-sm font-medium">{label}</Label>
+        {help && <p className="text-xs text-muted-foreground">{help}</p>}
+      </div>
+      <div className="min-w-[140px] shrink-0">{children}</div>
+    </div>
+  );
+}
 
 function TimeBucketsSettings() {
   const [enabled, setEnabled] = useState<BucketKind[]>(() => getEnabledBuckets());
   const [cal, setCal] = useState<CalendarSystem>(() => getCalendarSystem());
+  const { t, i18n } = useTranslation();
+  const isEn = (i18n.language || "fa").startsWith("en");
   const toggle = (k: BucketKind) => {
     const next = enabled.includes(k) ? enabled.filter((x) => x !== k) : [...enabled, k];
     setEnabled(next);
@@ -47,33 +101,30 @@ function TimeBucketsSettings() {
     setCalendarSystem(v);
   };
   return (
-    <Card className="p-5 space-y-3 bg-card/60 border-border/60">
-      <div className="flex items-center gap-2">
-        <LayoutGrid className="w-4 h-4 text-primary" />
-        <h2 className="font-semibold">دسته‌بندی زمانی</h2>
-      </div>
-      <p className="text-xs text-muted-foreground leading-6">
-        مشخص کن کدام بازه‌ها در انتخاب «بازهٔ کلی» تسک‌ها نمایش داده شوند.
-      </p>
+    <SectionCard
+      icon={LayoutGrid}
+      title={t("settings.timeBucketsTitle")}
+      description={t("settings.timeBucketsDesc")}
+    >
       <div className="space-y-2">
         {ALL_BUCKET_KINDS.map((k) => (
           <div key={k} className="flex items-center justify-between p-2.5 rounded-xl border border-border/60 bg-card/40">
-            <span className="text-sm">{kindLabel(k)}</span>
+            <span className="text-sm">{kindLabel(k, isEn ? "en" : "fa")}</span>
             <Switch checked={enabled.includes(k)} onCheckedChange={() => toggle(k)} />
           </div>
         ))}
       </div>
       <div className="pt-2 border-t space-y-2">
-        <Label className="text-xs">سیستم تقویم برای نام ماه‌ها</Label>
+        <Label className="text-xs">{t("settings.calendarSystem")}</Label>
         <Select value={cal} onValueChange={(v) => changeCal(v as CalendarSystem)}>
           <SelectTrigger><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="jalali">شمسی (فروردین، اردیبهشت…)</SelectItem>
-            <SelectItem value="gregorian">میلادی (January, February…)</SelectItem>
+            <SelectItem value="jalali">{t("settings.jalali")}</SelectItem>
+            <SelectItem value="gregorian">{t("settings.gregorian")}</SelectItem>
           </SelectContent>
         </Select>
       </div>
-    </Card>
+    </SectionCard>
   );
 }
 
@@ -281,12 +332,11 @@ function ProviderModelManager({
   const activeAll = activeProvider && activeInfo ? getAllKnownModels(activeProvider, activeInfo.models) : [];
 
   return (
-    <Card className="p-5 space-y-4 bg-card/60 border-border/60">
-      <div className="flex items-center gap-2">
-        <Cpu className="w-4 h-4 text-primary" />
-        <h2 className="font-semibold">{t("ai.modelManagement")}</h2>
-      </div>
-      <p className="text-xs text-muted-foreground">{t("ai.modelManagementDesc")}</p>
+    <SectionCard
+      icon={Cpu}
+      title={t("ai.modelManagement")}
+      description={t("ai.modelManagementDesc")}
+    >
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {(Object.keys(PROVIDER_INFO) as Provider[]).map((p) => {
           const info = PROVIDER_INFO[p];
@@ -376,7 +426,7 @@ function ProviderModelManager({
           </DialogContent>
         )}
       </Dialog>
-    </Card>
+    </SectionCard>
   );
 }
 
@@ -388,6 +438,7 @@ type PwaGlobals = {
 };
 
 function AppUpdateCard({ isEn }: { isEn: boolean }) {
+  const { t } = useTranslation();
   const [checking, setChecking] = useState(false);
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [pwaReady, setPwaReady] = useState(false);
@@ -432,7 +483,6 @@ function AppUpdateCard({ isEn }: { isEn: boolean }) {
     const apply = (window as unknown as PwaGlobals).__applyPwaUpdate;
     if (typeof apply === "function") {
       try { apply(); } catch { /* ignore */ }
-      // If the SW hand-off doesn't reload within 3s, force it.
       setTimeout(() => window.location.reload(), 3000);
       return;
     }
@@ -446,7 +496,6 @@ function AppUpdateCard({ isEn }: { isEn: boolean }) {
   };
 
   const swHashCheck = async () => {
-    // If the PWA helper from main.tsx is available, use it (reliable).
     const check = (window as unknown as PwaGlobals).__pwaCheckUpdate;
     if (check) return await check();
 
@@ -512,12 +561,9 @@ function AppUpdateCard({ isEn }: { isEn: boolean }) {
     setChecking(true);
     const hardTimeout = setTimeout(() => {
       setChecking(false);
-      toast.info(
-        isEn ? "Check timed out. Try again with internet on." : "بررسی طولانی شد. اتصال اینترنت را بررسی کن."
-      );
+      toast.info(isEn ? "Check timed out. Try again with internet on." : "بررسی طولانی شد. اتصال اینترنت را بررسی کن.");
     }, 12000);
     try {
-      // 1) PWA route: prompt the registered service worker to look for an update
       const hasSwUpdate = await swHashCheck();
       if (hasSwUpdate) {
         setUpdateAvailable(true);
@@ -527,7 +573,6 @@ function AppUpdateCard({ isEn }: { isEn: boolean }) {
         return;
       }
 
-      // 2) Universal fallback: compare the live /version.json against the baked-in build number
       const currentBuild = Number(buildNumber || buildId) || 0;
       const currentCommit = commit;
       const res = await fetch("/version.json", {
@@ -535,9 +580,9 @@ function AppUpdateCard({ isEn }: { isEn: boolean }) {
         headers: { Accept: "application/json" },
       });
       if (res.ok) {
-        const remote: any = await res.json().catch(() => ({}));
-        const remoteBuild = Number(remote.buildNumber || remote.buildId) || 0;
-        const remoteCommit = (remote.commit as string) || "";
+        const remote = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+        const remoteBuild = Number(String(remote.buildNumber || remote.buildId || 0));
+        const remoteCommit = String(remote.commit || "");
         const isNewer = remoteBuild
           ? remoteBuild > currentBuild
           : Boolean(remoteCommit && remoteCommit !== currentCommit);
@@ -549,7 +594,6 @@ function AppUpdateCard({ isEn }: { isEn: boolean }) {
           return;
         }
       } else {
-        // Final fallback: compare the entry-script hash of the live index.html
         const currentHash = getCurrentEntryHash();
         const origin = window.location.origin;
         const htmlRes = await fetch(`${origin}/?_v=${Date.now()}`, { cache: "no-store" });
@@ -599,12 +643,11 @@ function AppUpdateCard({ isEn }: { isEn: boolean }) {
   };
 
   return (
-    <Card className="p-5 space-y-4 bg-card/60 border-border/60">
+    <SectionCard
+      icon={Package}
+      title={isEn ? "App version & updates" : "نسخه و به‌روزرسانی"}
+    >
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Download className="w-4 h-4 text-primary" />
-          <h2 className="font-semibold">{isEn ? "App version & updates" : "نسخه و به‌روزرسانی"}</h2>
-        </div>
         <Badge variant={updateAvailable ? "default" : "secondary"} className="gap-1 text-[10px]">
           {updateAvailable ? (
             <>
@@ -678,7 +721,7 @@ function AppUpdateCard({ isEn }: { isEn: boolean }) {
           {isEn ? "Clear cache & reload" : "پاکسازی کش و بارگذاری"}
         </Button>
       </div>
-    </Card>
+    </SectionCard>
   );
 }
 
@@ -688,10 +731,11 @@ export default function SettingsView() {
   const { theme, setTheme } = useTheme();
   const isEn = (i18n.language || "fa").startsWith("en");
   const [settings, setSettings] = useState<AIPerOpSettings>(() => loadAISettings());
-  const [lang, setLang] = useState<AILanguage>("fa");
+  const [lang, setLang] = useState<AILanguage>(() => getAILanguage());
   const [exporting, setExporting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [reminders, setReminders] = useState<UserSettings | null>(null);
+  const [activeTab, setActiveTab] = useState("general");
 
   useEffect(() => {
     setSettings(loadAISettings());
@@ -701,7 +745,11 @@ export default function SettingsView() {
     }
   }, [user]);
 
-  // Auto-scroll to a per-op row if URL has #ai-op-...
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash.startsWith("#ai-")) setActiveTab("ai");
+  }, []);
+
   useEffect(() => {
     if (!settings) return;
     const hash = window.location.hash;
@@ -716,7 +764,7 @@ export default function SettingsView() {
         }
       }, 200);
     }
-  }, [settings]);
+  }, [settings, activeTab]);
 
   const updateReminder = async (patch: Partial<UserSettings>) => {
     if (!user || !reminders) return;
@@ -724,8 +772,8 @@ export default function SettingsView() {
     setReminders(next);
     try {
       await saveSettings(user.id, patch);
-    } catch (e: any) {
-      toast.error((isEn ? "Save failed: " : "ذخیره نشد: ") + e.message);
+    } catch (e) {
+      toast.error((isEn ? "Save failed: " : "ذخیره نشد: ") + (e instanceof Error ? e.message : String(e)));
     }
   };
 
@@ -839,6 +887,10 @@ export default function SettingsView() {
     saveAISettings(next);
   };
 
+  // Dynamic table access for export/import/delete where table names are runtime strings.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const fromTable = (table: string) => (supabase as any).from(table);
+
   async function exportAll() {
     if (!user) return;
     setExporting(true);
@@ -849,9 +901,9 @@ export default function SettingsView() {
         "daily_checkins", "thought_records", "abc_records",
         "assessment_responses", "assessment_results", "mh_profile",
       ];
-      const out: Record<string, any> = { exported_at: new Date().toISOString(), user_id: user.id };
+      const out: Record<string, unknown> = { exported_at: new Date().toISOString(), user_id: user.id };
       for (const tbl of tables) {
-        const { data } = await supabase.from(tbl as any).select("*");
+        const { data } = await fromTable(tbl).select("*");
         out[tbl] = data || [];
       }
       const blob = new Blob([JSON.stringify(out, null, 2)], { type: "application/json" });
@@ -862,8 +914,8 @@ export default function SettingsView() {
       a.click();
       URL.revokeObjectURL(url);
       toast.success(isEn ? "Export complete" : "صادرات کامل شد");
-    } catch (e: any) {
-      toast.error(e.message || (isEn ? "Export error" : "خطا در صادرات"));
+    } catch (e) {
+      toast.error((e instanceof Error ? e.message : String(e)) || (isEn ? "Export error" : "خطا در صادرات"));
     } finally {
       setExporting(false);
     }
@@ -874,25 +926,26 @@ export default function SettingsView() {
     setExporting(true);
     try {
       const text = await file.text();
-      const data = JSON.parse(text);
-      if (!data.user_id || data.user_id !== user.id) {
+      const data = JSON.parse(text) as Record<string, unknown>;
+      if (typeof data.user_id !== "string" || data.user_id !== user.id) {
         toast.error(isEn ? "This export belongs to a different user" : "این صادرات متعلق به کاربر دیگری است");
         return;
       }
       let imported = 0;
       for (const tbl of Object.keys(data)) {
         if (tbl === "exported_at" || tbl === "user_id") continue;
-        const rows = data[tbl];
+        const rows = data[tbl] as unknown[];
         if (!Array.isArray(rows)) continue;
         for (const row of rows) {
-          if (row.user_id !== user.id) continue;
-          const { error } = await supabase.from(tbl as any).insert(row);
+          const record = row as Record<string, unknown>;
+          if (record.user_id !== user.id) continue;
+          const { error } = await fromTable(tbl).insert(record);
           if (!error) imported++;
         }
       }
       toast.success(isEn ? `Imported ${imported} items` : `${imported} آیتم وارد شد`);
-    } catch (e: any) {
-      toast.error(e.message || (isEn ? "Import error" : "خطا در واردات"));
+    } catch (e) {
+      toast.error((e instanceof Error ? e.message : String(e)) || (isEn ? "Import error" : "خطا در واردات"));
     } finally {
       setExporting(false);
     }
@@ -909,458 +962,437 @@ export default function SettingsView() {
         "assessment_responses", "assessment_results", "mh_profile",
       ];
       for (const tbl of tables) {
-        await supabase.from(tbl as any).delete().eq("user_id", user.id);
+        await fromTable(tbl).delete().eq("user_id", user.id);
       }
       await supabase.auth.signOut();
       localStorage.clear();
       toast.success(isEn ? "All data deleted" : "همه داده‌ها حذف شد");
       window.location.href = "/auth";
-    } catch (e: any) {
-      toast.error(e.message || (isEn ? "Delete error" : "خطا در حذف"));
+    } catch (e) {
+      toast.error((e instanceof Error ? e.message : String(e)) || (isEn ? "Delete error" : "خطا در حذف"));
     } finally {
       setDeleting(false);
     }
   }
 
+  const currentTheme = reminders?.theme || theme || "system";
+  const themeOptions = [
+    { value: "system", label: t("settings.themeSystem"), icon: Settings2 },
+    { value: "light", label: t("settings.themeLight"), icon: Sun },
+    { value: "dark", label: t("settings.themeDark"), icon: Moon },
+    { value: "ticktick-light", label: t("settings.themeTickTick"), icon: CheckCircle2 },
+    { value: "arshnaz-light", label: t("settings.themeArshnaz"), icon: Heart },
+    { value: "arshnaz-dark", label: t("settings.themeArshnazDark"), icon: Moon },
+  ];
+
+  const fontSizeOptions = [
+    { value: "small", label: t("settings.fontSmall") },
+    { value: "medium", label: t("settings.fontMedium") },
+    { value: "large", label: t("settings.fontLarge") },
+    { value: "xlarge", label: t("settings.fontXLarge") },
+  ];
+
+  const landingOptions = [
+    { value: "today", label: t("settings.landingToday") },
+    { value: "last", label: t("settings.landingLast") },
+  ];
+
+  const layoutOptions = [
+    { value: "comfortable", label: t("settings.layoutComfortable") },
+    { value: "compact", label: t("settings.layoutCompact") },
+  ];
+
+  const aiResponseOptions = [
+    { value: "fa", label: t("settings.persian") },
+    { value: "en", label: t("settings.english") },
+    { value: "auto", label: t("settings.aiAuto") },
+  ];
+
   return (
-    <div className="max-w-3xl mx-auto p-4 md:p-8 space-y-6 pb-20 animate-fade-in">
-      {/* Dedication card */}
-      <Card className="p-5 bg-card/60 border-border/60">
-        <div className="flex items-center gap-3">
-          <div className="grid place-items-center h-12 w-12 rounded-xl bg-primary/10 text-primary shrink-0">
-            <img src="/favicon.png" alt="ARSHNAZ" className="w-7 h-7" width={28} height={28} loading="lazy" />
-          </div>
-          <div>
-            <h2 className="font-bold text-lg text-foreground">
-              ARSHNAZ · آرشناز
-            </h2>
-            <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-              {t("app.tagline")} <Heart className="w-3 h-3 text-pink-500" />
-            </p>
-          </div>
-        </div>
-      </Card>
-
-      <LanguageSwitcher />
-
-      {/* Theme Toggle */}
-      <Card className="p-5 space-y-3 bg-card/60 border-border/60">
-        <div className="flex items-center gap-2">
-          <Palette className="w-4 h-4 text-primary" />
-          <h2 className="font-semibold">تم برنامه</h2>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-muted-foreground">حالت تاریک/روشن</span>
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              variant={theme === "light" ? "default" : "outline"}
-              onClick={() => setAppTheme("light")}
-            >
-              <Sun className="w-4 h-4" />
-            </Button>
-            <Button
-              size="sm"
-              variant={theme === "dark" ? "default" : "outline"}
-              onClick={() => setAppTheme("dark")}
-            >
-              <Moon className="w-4 h-4" />
-            </Button>
-            <Button
-              size="sm"
-              variant={theme === "system" ? "default" : "outline"}
-              onClick={() => setAppTheme("system")}
-            >
-              <Settings2 className="w-4 h-4" />
-            </Button>
-          </div>
-        </div>
-      </Card>
-
-      <AppUpdateCard isEn={isEn} />
-
-      <div>
+    <div className="max-w-3xl mx-auto p-4 md:p-8 pb-24 animate-fade-in" dir={isEn ? "ltr" : "rtl"}>
+      <div className="mb-6">
         <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
           <Sparkles className="w-6 h-6 text-primary" /> {t("settings.title")}
         </h1>
-        <p className="text-xs md:text-sm text-muted-foreground mt-1">{t("settings.subtitle")}</p>
+        <p className="text-sm text-muted-foreground mt-1">{t("settings.subtitle")}</p>
       </div>
 
-      <Card className="p-5 space-y-4 bg-card/60 border-border/60">
-        <div className="flex items-center gap-2">
-          <Languages className="w-4 h-4 text-primary" />
-          <h2 className="font-semibold">{t("settings.aiResponseLang")}</h2>
-        </div>
-        <Select value={lang} onValueChange={(v) => onLangChange(v as AILanguage)}>
-          <SelectTrigger><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="fa">🇮🇷 {t("settings.persian")}</SelectItem>
-            <SelectItem value="en">🇬🇧 {t("settings.english")}</SelectItem>
-            <SelectItem value="auto">🌐 {t("settings.aiAuto")}</SelectItem>
-          </SelectContent>
-        </Select>
-      </Card>
-
-      {reminders && (
-        <Card className="p-5 space-y-4 bg-card/60 border-border/60">
-          <div className="flex items-center gap-2">
-            <Bell className="w-4 h-4 text-primary" />
-            <h2 className="font-semibold">{t("settings.dailyReminders")}</h2>
-          </div>
-
-          <div className="flex items-center justify-between rounded-xl border border-border/60 p-3 bg-card/40">
-            <div>
-              <div className="text-sm font-medium">{t("settings.browserNotif")}</div>
-              <div className="text-xs text-muted-foreground">{t("settings.browserNotifHelp")}</div>
-            </div>
-            {reminders.notifications_enabled ? (
-              <Switch checked onCheckedChange={(v) => updateReminder({ notifications_enabled: v })} />
-            ) : (
-              <Button size="sm" onClick={enableNotifs}>{isEn ? "Enable" : "فعال‌سازی"}</Button>
-            )}
-          </div>
-
-          <div className="flex items-center justify-between rounded-xl border border-border/60 p-3 bg-card/40">
-            <div>
-              <div className="text-sm font-medium">{t("settings.autoCheckin")}</div>
-              <div className="text-xs text-muted-foreground">{t("settings.autoCheckinHelp")}</div>
-            </div>
-            <Switch
-              checked={reminders.auto_create_daily_tasks}
-              onCheckedChange={(v) => updateReminder({ auto_create_daily_tasks: v })}
-            />
-          </div>
-
-          <div className="rounded-xl border border-border/60 p-3 bg-card/40 space-y-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <Label className="text-sm">{t("settings.showCheckin")}</Label>
-                <div className="text-xs text-muted-foreground">{t("settings.showCheckinHelp")}</div>
-              </div>
-              <Switch
-                checked={reminders.show_daily_checkin !== false}
-                onCheckedChange={(v) => updateReminder({ show_daily_checkin: v })}
-              />
-            </div>
-          </div>
-
-          <div className="rounded-xl border border-border/60 p-3 bg-card/40 space-y-3">
-            <div className="flex items-center justify-between">
-              <Label className="text-sm">{t("settings.checkinReminder")}</Label>
-              <Switch
-                checked={reminders.checkin_reminder_enabled}
-                disabled={reminders.show_daily_checkin === false}
-                onCheckedChange={(v) => updateReminder({ checkin_reminder_enabled: v })}
-              />
-            </div>
-            {reminders.checkin_reminder_enabled && (
-              <>
-                <Label className="text-xs text-muted-foreground">{t("settings.reminderTime")}</Label>
-                <Input
-                  type="time"
-                  value={reminders.checkin_reminder_time.slice(0, 5)}
-                  onChange={(e) => updateReminder({ checkin_reminder_time: e.target.value })}
-                />
-              </>
-            )}
-          </div>
-        </Card>
-      )}
-
-      {reminders && (
-        <Card className="p-5 space-y-4 bg-card/60 border-border/60">
-          <div className="flex items-center gap-2">
-            <Palette className="w-4 h-4 text-primary" />
-            <h2 className="font-semibold">{t("settings.theme")}</h2>
-          </div>
-          <Select value={reminders.theme} onValueChange={(v) => setAppTheme(v)}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="system">🖥️ {t("settings.themeSystem")}</SelectItem>
-              <SelectItem value="light">☀️ {t("settings.themeLight")}</SelectItem>
-              <SelectItem value="dark">🌙 {t("settings.themeDark")}</SelectItem>
-              <SelectItem value="ticktick-light">✅ {t("settings.themeTickTick")}</SelectItem>
-              <SelectItem value="arshnaz-light">💖 {t("settings.themeArshnaz")}</SelectItem>
-              <SelectItem value="arshnaz-dark">💜 {t("settings.themeArshnazDark")}</SelectItem>
-            </SelectContent>
-          </Select>
-        </Card>
-      )}
-
-      {reminders && (
-        <Card className="p-5 space-y-4 bg-card/60 border-border/60">
-          <div className="flex items-center gap-2">
-            <Type className="w-4 h-4 text-primary" />
-            <h2 className="font-semibold">{t("settings.fontSize")}</h2>
-          </div>
-          <Select
-            value={(reminders as any).font_size || "medium"}
-            onValueChange={(v) => updateReminder({ font_size: v as any })}
-          >
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="small">{t("settings.fontSmall")}</SelectItem>
-              <SelectItem value="medium">{t("settings.fontMedium")}</SelectItem>
-              <SelectItem value="large">{t("settings.fontLarge")}</SelectItem>
-              <SelectItem value="xlarge">{t("settings.fontXLarge")}</SelectItem>
-            </SelectContent>
-          </Select>
-          <p className="text-[11px] text-muted-foreground">{t("settings.fontSizeHelp")}</p>
-        </Card>
-      )}
-
-      {reminders && (
-        <Card className="p-5 space-y-4 bg-card/60 border-border/60">
-          <div className="flex items-center gap-2">
-            <ZoomIn className="w-4 h-4 text-primary" />
-            <h2 className="font-semibold">{t("settings.uiZoom")}</h2>
-          </div>
-          <div className="flex items-center gap-3">
-            <Slider
-              value={[Math.round(((reminders as any).ui_scale || 1) * 100)]}
-              min={80} max={140} step={5}
-              onValueChange={([v]) => updateReminder({ ui_scale: v / 100 })}
-              className="flex-1"
-            />
-            <span className="text-sm font-mono w-12 text-center">
-              {Math.round(((reminders as any).ui_scale || 1) * 100)}%
-            </span>
-          </div>
-          <Button variant="outline" size="sm" onClick={() => updateReminder({ ui_scale: 1 })}>
-            {t("settings.resetTo100")}
-          </Button>
-          <p className="text-[11px] text-muted-foreground">{t("settings.uiZoomHelp")}</p>
-        </Card>
-      )}
-
-      {reminders && (
-        <Card className="p-5 space-y-4 bg-card/60 border-border/60">
-          <div className="flex items-center gap-2">
-            <LayoutGrid className="w-4 h-4 text-primary" />
-            <h2 className="font-semibold">{t("settings.taskCardLayout")}</h2>
-          </div>
-          <Select
-            value={(reminders as any).task_card_layout || "comfortable"}
-            onValueChange={(v) => updateReminder({ task_card_layout: v as any })}
-          >
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="comfortable">{t("settings.layoutComfortable")}</SelectItem>
-              <SelectItem value="compact">{t("settings.layoutCompact")}</SelectItem>
-            </SelectContent>
-          </Select>
-          <p className="text-[11px] text-muted-foreground">{t("settings.layoutHelp")}</p>
-        </Card>
-      )}
-
-      {reminders && (
-        <Card className="p-5 space-y-4 bg-card/60 border-border/60">
-          <div className="flex items-center gap-2">
-            <LayoutGrid className="w-4 h-4 text-primary" />
-            <h2 className="font-semibold">{t("settings.defaultLanding")}</h2>
-          </div>
-          {(() => {
-            const landing = (reminders as { default_landing?: string }).default_landing;
-            return (
-              <Select
-                value={landing === "home" ? "today" : (landing || "today")}
-                onValueChange={(v) => updateReminder({ default_landing: v as "home" | "last" | "today" })}
-              >
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="today">{t("settings.landingToday")}</SelectItem>
-                  <SelectItem value="last">{t("settings.landingLast")}</SelectItem>
-                </SelectContent>
-              </Select>
-            );
-          })()}
-        </Card>
-      )}
-
-      {/* AI per-section MAP */}
-      <Card className="p-5 space-y-4 bg-card/60 border-border/60" id="ai-section-map">
-        <div className="flex items-center gap-2">
-          <Wand2 className="w-4 h-4 text-primary" />
-          <h2 className="font-semibold">{t("ai.perSectionMap")}</h2>
-        </div>
-        <p className="text-xs text-muted-foreground">{t("settings.aiPerSectionDesc")}</p>
-
-        <div className="flex flex-wrap gap-2">
-          <Button size="sm" variant="outline" onClick={applyRecommendedToAll}>
-            <Star className="w-3.5 h-3.5 me-1" /> {t("settings.applyRecommendedToAll")}
-          </Button>
-          <Button size="sm" variant="ghost" onClick={clearAllOverrides}>
-            <Trash2 className="w-3.5 h-3.5 me-1" /> {t("settings.clearAllOverrides")}
-          </Button>
-        </div>
-
-        <Accordion type="multiple" className="w-full">
-          {grouped.map(({ label, ops }) => (
-            <AccordionItem key={label} value={label}>
-              <AccordionTrigger className="text-sm">{label} ({ops.length})</AccordionTrigger>
-              <AccordionContent className="space-y-4">
-                {ops.map((op) => {
-                  const strategy = resolveOpStrategy(settings, op.key);
-                  const cfg = resolveOpConfig(settings, op.key);
-                  const rec = OP_RECOMMENDED[op.key];
-                  const short = (m: string) => m.split("/").pop() || m;
-                  return (
-                    <div key={op.key} id={`ai-op-${op.key}`} className="border border-border/60 rounded-xl p-4 space-y-3 bg-card/40 transition-shadow hover:shadow-sm">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-sm font-medium">{isEn ? op.labelEn : op.labelFa}</span>
-                            <Badge variant="secondary" className="text-[10px] font-normal">
-                              {isEn ? op.usedInEn : op.usedInFa}
-                            </Badge>
-                          </div>
-                          <div className="text-[11px] text-muted-foreground mt-0.5">{isEn ? op.descEn : op.descFa}</div>
-                          <div className="mt-2 flex items-center gap-1.5 flex-wrap">
-                            <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary">
-                              <Star className="w-2.5 h-2.5" />
-                              {t("ai.recommended")}: <span className="font-mono">{short(rec.model)}</span>
-                            </span>
-                            <span className="text-[10px] text-muted-foreground">— {isEn ? rec.whyEn : rec.whyFa}</span>
-                          </div>
-                          <div className="mt-1 text-[10px] text-muted-foreground">
-                            {t("ai.using")}: <span className="font-mono text-foreground/80">{cfg.provider}/{short(cfg.model)}</span>
-                            {strategy === "recommended" && <span className="ms-1 text-primary">· {t("ai.recommended")}</span>}
-                            {strategy === "global" && <span className="ms-1 text-blue-600 dark:text-blue-400">· {t("ai.strategyGlobal")}</span>}
-                            {strategy === "custom" && <span className="ms-1 text-amber-600 dark:text-amber-400">· {t("ai.strategyCustom")}</span>}
-                          </div>
-                        </div>
-                        <div className="w-40 shrink-0">
-                          <Select value={strategy} onValueChange={(v) => setOpStrategy(op.key, v as OpStrategy)}>
-                            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="recommended">{t("ai.strategyRecommended")}</SelectItem>
-                              <SelectItem value="global">{t("ai.strategyGlobal")}</SelectItem>
-                              <SelectItem value="custom">{t("ai.strategyCustom")}</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                      {strategy === "custom" && (
-                        <ProviderEditor
-                          isEn={isEn}
-                          value={settings.perOp[op.key] || cfg}
-                          onChange={(c) => updateOpCustom(op.key, c)}
-                          hiddenModels={settings.providerHiddenModels}
-                          onUpdateHidden={updateProviderHidden}
-                        />
-                      )}
-                    </div>
-                  );
-                })}
-              </AccordionContent>
-            </AccordionItem>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid grid-cols-3 sm:grid-cols-6 gap-1 h-auto p-1 bg-muted/60">
+          {[
+            { id: "general", label: t("settings.tabs.general"), icon: Settings2 },
+            { id: "tasks", label: t("settings.tabs.tasks"), icon: LayoutGrid },
+            { id: "notifications", label: t("settings.tabs.notifications"), icon: Bell },
+            { id: "ai", label: t("settings.tabs.ai"), icon: Cpu },
+            { id: "data", label: t("settings.tabs.data"), icon: Database },
+            { id: "about", label: t("settings.tabs.about"), icon: Info },
+          ].map((tab) => (
+            <TabsTrigger
+              key={tab.id}
+              value={tab.id}
+              className="text-xs h-9 gap-1.5 data-[state=active]:bg-background data-[state=active]:shadow-sm"
+            >
+              <tab.icon className="w-3.5 h-3.5 hidden sm:inline" />
+              {tab.label}
+            </TabsTrigger>
           ))}
-        </Accordion>
-        <div className="flex gap-2 pt-2">
-          <Button onClick={save} className="gap-2"><Save className="w-4 h-4" /> {t("common.saveAll")}</Button>
-          <Button variant="outline" onClick={reset} className="gap-2"><Trash2 className="w-4 h-4" /> {t("common.reset")}</Button>
-        </div>
-      </Card>
+        </TabsList>
 
-      <ProviderModelManager settings={settings} isEn={isEn} onUpdateHidden={updateProviderHidden} />
+        <TabsContent value="general" className="space-y-5 mt-5">
+          <LanguageSwitcher />
 
-      <Card className="p-5 space-y-4 bg-card/60 border-border/60">
-        <div className="flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-primary" />
-          <h2 className="font-semibold">{t("settings.aiGlobalDefault")}</h2>
-        </div>
-        <p className="text-xs text-muted-foreground">{t("settings.aiGlobalDefaultDesc")}</p>
-        <ProviderEditor
-          isEn={isEn}
-          value={settings.default}
-          onChange={(c) => setSettings({ ...settings, default: c })}
-          hiddenModels={settings.providerHiddenModels}
-          onUpdateHidden={updateProviderHidden}
-        />
-        <div className="pt-1">
-          <Button onClick={save} size="sm" className="gap-2"><Save className="w-3.5 h-3.5" /> {t("common.save")}</Button>
-        </div>
-      </Card>
-
-      <Card className="p-5 space-y-4 bg-card/60 border-border/60">
-        <div className="flex items-center gap-2">
-          <Download className="w-4 h-4 text-primary" />
-          <h2 className="font-semibold">{t("settings.dataExport")}</h2>
-        </div>
-        <p className="text-xs text-muted-foreground leading-6">{t("settings.dataExportDesc")}</p>
-        <div className="flex gap-2 flex-wrap">
-          <Button onClick={exportAll} disabled={exporting} variant="outline" className="gap-2">
-            <Download className="w-4 h-4" /> {exporting ? t("settings.exporting") : t("settings.exportJson")}
-          </Button>
-          <Button
-            onClick={() => {
-              const input = document.createElement("input");
-              input.type = "file";
-              input.accept = ".json";
-              input.onchange = (e) => {
-                const file = (e.target as HTMLInputElement).files?.[0];
-                if (file) importAll(file);
-              };
-              input.click();
-            }}
-            disabled={exporting}
-            variant="outline"
-            className="gap-2"
+          <SectionCard
+            icon={Palette}
+            title={t("settings.appearance")}
+            description={t("settings.appearanceDesc")}
           >
-            <Upload className="w-4 h-4" /> {exporting ? t("settings.importing") : t("settings.importJson")}
-          </Button>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="destructive" className="gap-2">
-                <ShieldOff className="w-4 h-4" /> {t("settings.deleteAccount")}
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-xs">{t("settings.theme")}</Label>
+                <div className="flex flex-wrap gap-2">
+                  {themeOptions.slice(0, 3).map((opt) => (
+                    <Button
+                      key={opt.value}
+                      size="sm"
+                      variant={currentTheme === opt.value ? "default" : "outline"}
+                      onClick={() => setAppTheme(opt.value)}
+                      className="gap-1.5"
+                    >
+                      <opt.icon className="w-3.5 h-3.5" />
+                      {opt.label}
+                    </Button>
+                  ))}
+                </div>
+                <Select value={currentTheme} onValueChange={(v) => setAppTheme(v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {themeOptions.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {reminders && (
+                <>
+                  <SettingRow label={t("settings.fontSize")} help={t("settings.fontSizeHelp")}>
+                    <Select value={reminders.font_size} onValueChange={(v) => updateReminder({ font_size: v as UserSettings["font_size"] })}>
+                      <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {fontSizeOptions.map((o) => <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </SettingRow>
+
+                  <SettingRow label={t("settings.uiZoom")} help={t("settings.uiZoomHelp")}>
+                    <div className="flex items-center gap-3 w-full">
+                      <Slider
+                        value={[Math.round((reminders.ui_scale || 1) * 100)]}
+                        min={80} max={140} step={5}
+                        onValueChange={([v]) => updateReminder({ ui_scale: v / 100 })}
+                        className="flex-1"
+                      />
+                      <span className="text-sm font-mono w-12 text-center">{Math.round((reminders.ui_scale || 1) * 100)}%</span>
+                    </div>
+                    <Button variant="ghost" size="sm" onClick={() => updateReminder({ ui_scale: 1 })} className="mt-2 h-7 text-xs">
+                      {t("settings.resetTo100")}
+                    </Button>
+                  </SettingRow>
+
+                  <SettingRow label={t("settings.taskCardLayout")} help={t("settings.layoutHelp")}>
+                    <Select value={reminders.task_card_layout} onValueChange={(v) => updateReminder({ task_card_layout: v as UserSettings["task_card_layout"] })}>
+                      <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {layoutOptions.map((o) => <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </SettingRow>
+
+                  <SettingRow label={t("settings.defaultLanding")}>
+                    <Select value={(reminders as { default_landing?: string }).default_landing === "home" ? "today" : ((reminders as { default_landing?: string }).default_landing || "today")} onValueChange={(v) => updateReminder({ default_landing: v as "today" | "last" | "home" })}>
+                      <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {landingOptions.map((o) => <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </SettingRow>
+                </>
+              )}
+            </div>
+          </SectionCard>
+        </TabsContent>
+
+        <TabsContent value="tasks" className="space-y-5 mt-5">
+          {reminders && (
+            <TaskDefaultSettings
+              value={reminders.task_defaults || {}}
+              onChange={(next: TaskDefaults) => updateReminder({ task_defaults: { ...(reminders.task_defaults || {}), ...next } })}
+            />
+          )}
+          <TimeBucketsSettings />
+        </TabsContent>
+
+        <TabsContent value="notifications" className="space-y-5 mt-5">
+          {reminders && (
+            <SectionCard
+              icon={Bell}
+              title={t("settings.dailyReminders")}
+              description={t("notificationsCardDesc")}
+            >
+              <SettingRow label={t("settings.browserNotif")} help={t("settings.browserNotifHelp")}>
+                {reminders.notifications_enabled ? (
+                  <Switch checked onCheckedChange={(v) => updateReminder({ notifications_enabled: v })} />
+                ) : (
+                  <Button size="sm" onClick={enableNotifs}>{isEn ? "Enable" : "فعال‌سازی"}</Button>
+                )}
+              </SettingRow>
+
+              <SettingRow label={t("settings.autoCheckin")} help={t("settings.autoCheckinHelp")}>
+                <Switch checked={reminders.auto_create_daily_tasks} onCheckedChange={(v) => updateReminder({ auto_create_daily_tasks: v })} />
+              </SettingRow>
+
+              <SettingRow label={t("settings.showCheckin")} help={t("settings.showCheckinHelp")}>
+                <Switch checked={reminders.show_daily_checkin !== false} onCheckedChange={(v) => updateReminder({ show_daily_checkin: v })} />
+              </SettingRow>
+
+              <div className="space-y-3 rounded-xl border border-border/60 bg-card/40 p-3">
+                <SettingRow label={t("settings.checkinReminder")}>
+                  <Switch
+                    checked={reminders.checkin_reminder_enabled}
+                    disabled={reminders.show_daily_checkin === false}
+                    onCheckedChange={(v) => updateReminder({ checkin_reminder_enabled: v })}
+                  />
+                </SettingRow>
+                {reminders.checkin_reminder_enabled && (
+                  <>
+                    <Label className="text-xs text-muted-foreground">{t("settings.reminderTime")}</Label>
+                    <Input
+                      type="time"
+                      value={reminders.checkin_reminder_time.slice(0, 5)}
+                      onChange={(e) => updateReminder({ checkin_reminder_time: e.target.value })}
+                    />
+                  </>
+                )}
+              </div>
+            </SectionCard>
+          )}
+        </TabsContent>
+
+        <TabsContent value="ai" className="space-y-5 mt-5">
+          <SectionCard
+            icon={Languages}
+            title={t("settings.aiResponseLang")}
+            description={t("settings.aiResponseLangDesc")}
+          >
+            <Select value={lang} onValueChange={(v) => onLangChange(v as AILanguage)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {aiResponseOptions.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </SectionCard>
+
+          <SectionCard
+            icon={Sparkles}
+            title={t("settings.aiGlobalDefault")}
+            description={t("settings.aiGlobalDefaultDesc")}
+          >
+            <ProviderEditor
+              isEn={isEn}
+              value={settings.default}
+              onChange={(c) => setSettings({ ...settings, default: c })}
+              hiddenModels={settings.providerHiddenModels}
+              onUpdateHidden={updateProviderHidden}
+            />
+            <div className="pt-1">
+              <Button onClick={save} size="sm" className="gap-2"><Save className="w-3.5 h-3.5" /> {t("common.save")}</Button>
+            </div>
+          </SectionCard>
+
+          <ProviderModelManager settings={settings} isEn={isEn} onUpdateHidden={updateProviderHidden} />
+
+          <SectionCard
+            icon={Wand2}
+            title={t("ai.perSectionMap")}
+            description={t("settings.aiPerSectionDesc")}
+          >
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" variant="outline" onClick={applyRecommendedToAll}>
+                <Star className="w-3.5 h-3.5 me-1" /> {t("settings.applyRecommendedToAll")}
               </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>{t("settings.deleteAllConfirm")}</AlertDialogTitle>
-                <AlertDialogDescription>{t("settings.deleteAllConfirmDesc")}</AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
-                <AlertDialogAction onClick={deleteAll} disabled={deleting} className="bg-destructive hover:bg-destructive/90">
-                  {deleting ? t("settings.deleting") : t("settings.deleteAllYes")}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </div>
-      </Card>
+              <Button size="sm" variant="ghost" onClick={clearAllOverrides}>
+                <Trash2 className="w-3.5 h-3.5 me-1" /> {t("settings.clearAllOverrides")}
+              </Button>
+            </div>
 
-      {/* Donate */}
-      <Card className="p-5 space-y-3 bg-card/60 border-border/60">
-        <div className="flex items-center gap-2">
-          <Coffee className="w-4 h-4 text-pink-500" />
-          <h2 className="font-semibold">{t("settings.donate")}</h2>
-        </div>
-        <p className="text-xs text-muted-foreground leading-6">{t("settings.donateDesc")}</p>
-        <Button asChild variant="outline" className="gap-2 w-fit">
-          <a href="https://www.buymeacoffee.com/arshnaz" target="_blank" rel="noopener noreferrer">
-            <Heart className="w-4 h-4 text-pink-500" />
-            <span>{t("settings.donateButton")}</span>
-          </a>
-        </Button>
-      </Card>
+            <Accordion type="multiple" className="w-full">
+              {grouped.map(({ label, ops }) => (
+                <AccordionItem key={label} value={label}>
+                  <AccordionTrigger className="text-sm">{label} ({ops.length})</AccordionTrigger>
+                  <AccordionContent className="space-y-4">
+                    {ops.map((op) => {
+                      const strategy = resolveOpStrategy(settings, op.key);
+                      const cfg = resolveOpConfig(settings, op.key);
+                      const rec = OP_RECOMMENDED[op.key];
+                      const short = (m: string) => m.split("/").pop() || m;
+                      return (
+                        <div key={op.key} id={`ai-op-${op.key}`} className="border border-border/60 rounded-xl p-4 space-y-3 bg-card/40 transition-shadow hover:shadow-sm">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-sm font-medium">{isEn ? op.labelEn : op.labelFa}</span>
+                                <Badge variant="secondary" className="text-[10px] font-normal">
+                                  {isEn ? op.usedInEn : op.usedInFa}
+                                </Badge>
+                              </div>
+                              <div className="text-[11px] text-muted-foreground mt-0.5">{isEn ? op.descEn : op.descFa}</div>
+                              <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+                                <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                                  <Star className="w-2.5 h-2.5" />
+                                  {t("ai.recommended")}: <span className="font-mono">{short(rec.model)}</span>
+                                </span>
+                                <span className="text-[10px] text-muted-foreground">— {isEn ? rec.whyEn : rec.whyFa}</span>
+                              </div>
+                              <div className="mt-1 text-[10px] text-muted-foreground">
+                                {t("ai.using")}: <span className="font-mono text-foreground/80">{cfg.provider}/{short(cfg.model)}</span>
+                                {strategy === "recommended" && <span className="ms-1 text-primary">· {t("ai.recommended")}</span>}
+                                {strategy === "global" && <span className="ms-1 text-blue-600 dark:text-blue-400">· {t("ai.strategyGlobal")}</span>}
+                                {strategy === "custom" && <span className="ms-1 text-amber-600 dark:text-amber-400">· {t("ai.strategyCustom")}</span>}
+                              </div>
+                            </div>
+                            <div className="w-40 shrink-0">
+                              <Select value={strategy} onValueChange={(v) => setOpStrategy(op.key, v as OpStrategy)}>
+                                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="recommended">{t("ai.strategyRecommended")}</SelectItem>
+                                  <SelectItem value="global">{t("ai.strategyGlobal")}</SelectItem>
+                                  <SelectItem value="custom">{t("ai.strategyCustom")}</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                          {strategy === "custom" && (
+                            <ProviderEditor
+                              isEn={isEn}
+                              value={settings.perOp[op.key] || cfg}
+                              onChange={(c) => updateOpCustom(op.key, c)}
+                              hiddenModels={settings.providerHiddenModels}
+                              onUpdateHidden={updateProviderHidden}
+                            />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+            <div className="flex gap-2 pt-2">
+              <Button onClick={save} className="gap-2"><Save className="w-4 h-4" /> {t("common.saveAll")}</Button>
+              <Button variant="outline" onClick={reset} className="gap-2"><Trash2 className="w-4 h-4" /> {t("common.reset")}</Button>
+            </div>
+          </SectionCard>
+        </TabsContent>
 
-      {/* Time buckets settings */}
-      <TimeBucketsSettings />
+        <TabsContent value="data" className="space-y-5 mt-5">
+          <SectionCard
+            icon={Database}
+            title={t("settings.dataExport")}
+            description={t("settings.dataExportDesc")}
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Button onClick={exportAll} disabled={exporting} variant="outline" className="gap-2">
+                <Download className="w-4 h-4" /> {exporting ? t("settings.exporting") : t("settings.exportJson")}
+              </Button>
+              <Button
+                onClick={() => {
+                  const input = document.createElement("input");
+                  input.type = "file";
+                  input.accept = ".json";
+                  input.onchange = (e) => {
+                    const file = (e.target as HTMLInputElement).files?.[0];
+                    if (file) importAll(file);
+                  };
+                  input.click();
+                }}
+                disabled={exporting}
+                variant="outline"
+                className="gap-2"
+              >
+                <Upload className="w-4 h-4" /> {exporting ? t("settings.importing") : t("settings.importJson")}
+              </Button>
+            </div>
 
-      {reminders && (
-        <TaskDefaultSettings
-          value={reminders.task_defaults || {}}
-          onChange={(next: TaskDefaults) => updateReminder({ task_defaults: { ...(reminders.task_defaults || {}), ...next } })}
-        />
-      )}
+            <Separator />
 
-      <Card className="p-5 space-y-2 bg-card/60 border-border/60">
-        <h2 className="font-semibold">{t("settings.aboutTitle")}</h2>
-        <p className="text-sm text-muted-foreground leading-7">{t("settings.aboutBody")}</p>
-        <p className="text-xs text-muted-foreground leading-6 pt-2 border-t mt-3">{t("settings.aboutAiHint")}</p>
-      </Card>
+            <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 space-y-3">
+              <div className="flex items-center gap-2 text-destructive">
+                <ShieldOff className="w-4 h-4" />
+                <h3 className="font-semibold text-sm">{t("settings.deleteAccount")}</h3>
+              </div>
+              <p className="text-xs text-muted-foreground">{t("settings.deleteAllConfirmDesc")}</p>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" className="gap-2">
+                    <ShieldOff className="w-4 h-4" /> {t("settings.deleteAccount")}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>{t("settings.deleteAllConfirm")}</AlertDialogTitle>
+                    <AlertDialogDescription>{t("settings.deleteAllConfirmDesc")}</AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+                    <AlertDialogAction onClick={deleteAll} disabled={deleting} className="bg-destructive hover:bg-destructive/90">
+                      {deleting ? t("settings.deleting") : t("settings.deleteAllYes")}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          </SectionCard>
+        </TabsContent>
+
+        <TabsContent value="about" className="space-y-5 mt-5">
+          <Card className="p-5 bg-card/60 border-border/60">
+            <div className="flex items-center gap-3">
+              <div className="grid place-items-center h-12 w-12 rounded-xl bg-primary/10 text-primary shrink-0">
+                <img src="/favicon.png" alt="ARSHNAZ" className="w-7 h-7" width={28} height={28} loading="lazy" />
+              </div>
+              <div>
+                <h2 className="font-bold text-lg text-foreground">ARSHNAZ · آرشناز</h2>
+                <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                  {t("app.tagline")} <Heart className="w-3 h-3 text-pink-500" />
+                </p>
+              </div>
+            </div>
+          </Card>
+
+          <AppUpdateCard isEn={isEn} />
+
+          <SectionCard
+            icon={Info}
+            title={t("settings.aboutTitle")}
+          >
+            <p className="text-sm text-muted-foreground leading-7">{t("settings.aboutBody")}</p>
+            <p className="text-xs text-muted-foreground leading-6 pt-2 border-t mt-3">{t("settings.aboutAiHint")}</p>
+          </SectionCard>
+
+          <SectionCard
+            icon={Coffee}
+            title={t("settings.donate")}
+            description={t("settings.donateDesc")}
+          >
+            <Button asChild variant="outline" className="gap-2 w-fit">
+              <a href="https://www.buymeacoffee.com/arshnaz" target="_blank" rel="noopener noreferrer">
+                <Heart className="w-4 h-4 text-pink-500" />
+                <span>{t("settings.donateButton")}</span>
+              </a>
+            </Button>
+          </SectionCard>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
