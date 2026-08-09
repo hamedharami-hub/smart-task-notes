@@ -1361,7 +1361,7 @@ export default function SettingsView() {
                 <img src="/favicon.png" alt="ARSHNAZ" className="w-7 h-7" width={28} height={28} loading="lazy" />
               </div>
               <div>
-                <h2 className="font-bold text-lg text-foreground">ARSHNAZ · آرشناز</h2>
+                <h2 className="font-bold text-lg text-foreground">ARSHNAZ · ارشناز</h2>
                 <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
                   {t("app.tagline")} <Heart className="w-3 h-3 text-pink-500" />
                 </p>

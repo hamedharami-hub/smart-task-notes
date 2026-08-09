@@ -118,7 +118,7 @@ export default function Auth() {
             ARSHNAZ
           </h1>
           <p className="text-xs text-muted-foreground mt-1">
-            {isEn ? "Arshnaz · Manage tasks with love" : "آرشناز · مدیریت تسک با عشق"}
+            {isEn ? "Arshnaz · Manage tasks with love" : "ارشناز · مدیریت تسک با عشق"}
           </p>
           <p className="text-[11px] text-pink-600 dark:text-pink-400 mt-2 flex items-center gap-1">
             {t("auth.dedication")}

@@ -74,7 +74,7 @@ export default function ShareTargetView() {
             <ArrowRight className="w-4 h-4" /> لغو
           </Button>
           <h1 className="text-base font-bold flex items-center gap-2">
-            <Share2 className="w-4 h-4 text-primary" /> ذخیره در آرشناز
+            <Share2 className="w-4 h-4 text-primary" /> ذخیره در ارشناز
           </h1>
           <span className="w-12" />
         </div>
