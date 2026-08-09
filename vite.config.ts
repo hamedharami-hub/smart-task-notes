@@ -99,9 +99,9 @@ export default defineConfig(({ mode }) => {
       devOptions: { enabled: false },
       includeAssets: ["favicon.ico", "robots.txt", "pwa-512x512.png"],
       manifest: {
-        name: "ARSHNAZ — آرشناز · مدیریت تسک با عشق",
+        name: "ARSHNAZ — ارشناز · مدیریت تسک با عشق",
         short_name: "ARSHNAZ",
-        description: "آرشناز — مدیریت وظایف، یادداشت‌ها و سلامت روان با AI. تقدیم با عشق.",
+        description: "ارشناز — مدیریت وظایف، یادداشت‌ها و سلامت روان با AI. تقدیم با عشق.",
         theme_color: "#ec4899",
         background_color: "#0F172A",
         display: "standalone",
