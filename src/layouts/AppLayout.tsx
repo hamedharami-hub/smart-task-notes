@@ -91,10 +91,12 @@ export default function AppLayout() {
           </header>
           <main
             id="main-scroll"
-            className="flex-1 overflow-auto md:pb-4"
-            style={{ paddingBottom: "calc(5rem + env(safe-area-inset-bottom))" }}
+            className="flex-1 overflow-auto pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-8 lg:px-6 xl:px-10"
           >
-            <div key={loc.pathname} className="animate-fade-in motion-reduce:animate-none">
+            <div
+              key={loc.pathname}
+              className="animate-fade-in motion-reduce:animate-none w-full mx-auto lg:max-w-[1100px] xl:max-w-[1280px] 2xl:max-w-[1440px]"
+            >
               <Outlet />
             </div>
           </main>
