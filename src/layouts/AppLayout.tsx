@@ -48,8 +48,11 @@ export default function AppLayout() {
     applyTheme(stored);
     setTheme(getBaseTheme(stored));
   }, [setTheme]);
+  const desktopDefaultOpen =
+    typeof window !== "undefined" && window.innerWidth >= 1024;
+
   return (
-    <SidebarProvider defaultOpen={false}>
+    <SidebarProvider defaultOpen={desktopDefaultOpen}>
       <div className="min-h-screen flex w-full bg-background">
         <AppSidebar />
         <div className="flex-1 flex flex-col min-w-0">
