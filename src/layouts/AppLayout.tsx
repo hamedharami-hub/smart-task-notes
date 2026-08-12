@@ -57,7 +57,7 @@ export default function AppLayout() {
         <AppSidebar />
         <div className="flex-1 flex flex-col min-w-0">
           <header
-            className="border-b flex items-center justify-between px-3 bg-card/50 backdrop-blur sticky top-0 z-10"
+            className="border-b flex items-center justify-between px-3 lg:px-6 bg-card/50 backdrop-blur sticky top-0 z-10"
             style={{ paddingTop: "env(safe-area-inset-top)", minHeight: "calc(3rem + env(safe-area-inset-top))" }}
           >
             <div className="flex items-center gap-1">
