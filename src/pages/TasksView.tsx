@@ -1169,7 +1169,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
   );
 
   return (
-    <div className="p-2 sm:p-3 md:p-4 w-full max-w-5xl mx-auto">
+    <div className="p-2 sm:p-3 md:p-4 lg:py-6 w-full max-w-5xl lg:max-w-none mx-auto">
       <HeaderTitlePortal title={title} />
       <div className="flex items-center justify-end mb-3 gap-2 flex-wrap">
         {isFolder && (
