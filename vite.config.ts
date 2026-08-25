@@ -102,7 +102,7 @@ export default defineConfig(({ mode }) => {
         name: "ARSHNAZ — ارشناز · مدیریت تسک با عشق",
         short_name: "ARSHNAZ",
         description: "ارشناز — مدیریت وظایف، یادداشت‌ها و سلامت روان با AI. تقدیم با عشق.",
-        theme_color: "#ec4899",
+        theme_color: "#0F172A",
         background_color: "#0F172A",
         display: "standalone",
         orientation: "portrait",

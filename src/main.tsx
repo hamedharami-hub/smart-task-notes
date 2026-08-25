@@ -4,8 +4,10 @@ import "./index.css";
 import "./i18n";
 import { initOfflineSync } from "@/lib/offlineQueue";
 import { bootApplyUIPrefs } from "@/lib/uiScale";
+import { initStatusBarTheme } from "@/lib/statusBarTheme";
 
 bootApplyUIPrefs();
+initStatusBarTheme();
 
 // Guard: never register a service worker inside Lovable preview/iframe contexts
 const isInIframe = (() => {
