@@ -391,6 +391,17 @@ body {
 .safe-pb { padding-bottom: env(safe-area-inset-bottom); }
 .safe-px { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
 
+/* Edge-to-edge status bar: paint the notch area with the app background so the
+   system status bar blends into the app header instead of showing a black band. */
+html, body {
+  background-color: hsl(var(--background));
+}
+@supports (padding-top: env(safe-area-inset-top)) {
+  body { padding-top: 0; }
+  /* Any element opting in gets the notch/clock clearance */
+  .status-bar-safe { padding-top: env(safe-area-inset-top); }
+}
+
 /* Skip rendering offscreen sections — frees the main thread on long pages. */
 .cv-auto { content-visibility: auto; contain-intrinsic-size: 1px 120px; }
 
