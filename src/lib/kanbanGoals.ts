@@ -14,6 +14,22 @@ export interface GoalKanban {
   updatedAt: string;
 }
 
+export function generateUUID(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
+export function isValidUUID(str?: string | null): boolean {
+  if (!str) return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str);
+}
+
 export const TIME_HORIZONS: { id: TimeHorizon; labelFa: string; labelEn: string; icon: string; days: number }[] = [
   { id: "yearly", labelFa: "سالانه", labelEn: "Yearly", icon: "🗓️", days: 365 },
   { id: "quarterly", labelFa: "فصلی", labelEn: "Quarterly", icon: "🍂", days: 90 },
@@ -30,11 +46,11 @@ export const GOAL_PRIORITIES: { id: GoalPriority; labelFa: string; labelEn: stri
   { id: "none", labelFa: "عادی", labelEn: "None", color: "#64748b", badge: "⚪" },
 ];
 
-const GOALS_STORAGE_KEY = "arshnaz_kanban_goals_v2";
+const GOALS_STORAGE_KEY = "arshnaz_kanban_goals_v3";
 
 export const INITIAL_GOALS: GoalKanban[] = [
   {
-    id: "goal-edu",
+    id: "a0000000-0000-4000-8000-000000000001",
     title: "آموزش و خودآگاهی",
     description: "توسعه فردی، یادگیری مهارت‌های جدید و رشد ذهن",
     parentId: null,
@@ -46,10 +62,10 @@ export const INITIAL_GOALS: GoalKanban[] = [
     updatedAt: new Date().toISOString(),
   },
   {
-    id: "goal-edu-lang",
+    id: "a0000000-0000-4000-8000-000000000002",
     title: "زبان و مکالمه",
     description: "تمرین روزمره زبان، تقویت اسپیکینگ و دایره واژگان",
-    parentId: "goal-edu",
+    parentId: "a0000000-0000-4000-8000-000000000001",
     timeHorizon: "monthly",
     priority: "urgent",
     color: "#06b6d4",
@@ -58,10 +74,10 @@ export const INITIAL_GOALS: GoalKanban[] = [
     updatedAt: new Date().toISOString(),
   },
   {
-    id: "goal-edu-reading",
+    id: "a0000000-0000-4000-8000-000000000003",
     title: "خواندن و آموزش با هوش مصنوعی",
     description: "مطالعه کتاب‌های تخصصی و تمرین مکالمه هوش مصنوعی",
-    parentId: "goal-edu",
+    parentId: "a0000000-0000-4000-8000-000000000001",
     timeHorizon: "weekly",
     priority: "medium",
     color: "#8b5cf6",
@@ -70,7 +86,7 @@ export const INITIAL_GOALS: GoalKanban[] = [
     updatedAt: new Date().toISOString(),
   },
   {
-    id: "goal-career",
+    id: "a0000000-0000-4000-8000-000000000004",
     title: "کسب‌وکار و پروژه‌ها",
     description: "توسعه محصول، ارتقای اپلیکیشن و اهداف مالی",
     parentId: null,
@@ -82,7 +98,7 @@ export const INITIAL_GOALS: GoalKanban[] = [
     updatedAt: new Date().toISOString(),
   },
   {
-    id: "goal-health",
+    id: "a0000000-0000-4000-8000-000000000005",
     title: "سلامت و آرامش ذهن",
     description: "ورزش، تمرین تنفس، خواب منظم و چک‌این روزانه",
     parentId: null,
@@ -95,18 +111,38 @@ export const INITIAL_GOALS: GoalKanban[] = [
   },
 ];
 
+function sanitizeGoalsUUIDs(goals: GoalKanban[]): GoalKanban[] {
+  const idMap = new Map<string, string>();
+
+  // Map invalid UUIDs to valid UUIDs
+  goals.forEach((g) => {
+    if (!isValidUUID(g.id)) {
+      idMap.set(g.id, generateUUID());
+    }
+  });
+
+  if (idMap.size === 0) return goals;
+
+  return goals.map((g) => ({
+    ...g,
+    id: idMap.get(g.id) || g.id,
+    parentId: g.parentId ? idMap.get(g.parentId) || g.parentId : null,
+  }));
+}
+
 export function getKanbanGoals(folderId?: string | null, userId?: string): GoalKanban[] {
   const baseKey = folderId ? `${GOALS_STORAGE_KEY}_folder_${folderId}` : GOALS_STORAGE_KEY;
   const key = userId ? `${baseKey}_${userId}` : baseKey;
   try {
     const raw = localStorage.getItem(key);
     if (!raw) {
-      // Create folder-specific default goals if inside folder
+      const rootId = generateUUID();
+      const sub1Id = generateUUID();
       const defaults: GoalKanban[] = folderId
         ? [
             {
-              id: `goal-${folderId}-main`,
-              title: "هدف اصلی این فولدر",
+              id: rootId,
+              title: "هدف اصلی این بخش",
               description: "هدف کلی و مسیر پیشرفت این بخش",
               parentId: null,
               timeHorizon: "monthly",
@@ -117,10 +153,10 @@ export function getKanbanGoals(folderId?: string | null, userId?: string): GoalK
               updatedAt: new Date().toISOString(),
             },
             {
-              id: `goal-${folderId}-sub1`,
+              id: sub1Id,
               title: "گام‌های اول و یادگیری",
               description: "فعالیت‌های پایه و اقدامات هفتگی",
-              parentId: `goal-${folderId}-main`,
+              parentId: rootId,
               timeHorizon: "weekly",
               priority: "urgent",
               color: "#06b6d4",
@@ -134,18 +170,23 @@ export function getKanbanGoals(folderId?: string | null, userId?: string): GoalK
       return defaults;
     }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) && parsed.length > 0 ? parsed : INITIAL_GOALS;
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      const sanitized = sanitizeGoalsUUIDs(parsed);
+      return sanitized;
+    }
+    return INITIAL_GOALS;
   } catch {
     return INITIAL_GOALS;
   }
 }
 
 export function saveKanbanGoals(goals: GoalKanban[], folderId?: string | null, userId?: string) {
+  const sanitized = sanitizeGoalsUUIDs(goals);
   const baseKey = folderId ? `${GOALS_STORAGE_KEY}_folder_${folderId}` : GOALS_STORAGE_KEY;
   const key = userId ? `${baseKey}_${userId}` : baseKey;
   try {
-    localStorage.setItem(key, JSON.stringify(goals));
-    window.dispatchEvent(new CustomEvent("arshnaz-goals-updated", { detail: { folderId, goals } }));
+    localStorage.setItem(key, JSON.stringify(sanitized));
+    window.dispatchEvent(new CustomEvent("arshnaz-goals-updated", { detail: { folderId, goals: sanitized } }));
   } catch (e) {
     console.error("Failed to save kanban goals:", e);
   }

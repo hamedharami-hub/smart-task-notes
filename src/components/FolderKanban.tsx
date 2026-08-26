@@ -43,6 +43,8 @@ import {
   getKanbanGoals,
   saveKanbanGoals,
   getGoalById,
+  generateUUID,
+  isValidUUID,
   TIME_HORIZONS,
 } from "@/lib/kanbanGoals";
 import MultiTierTabs from "@/components/kanban/MultiTierTabs";
@@ -212,6 +214,7 @@ export function FolderKanban({
   const addQuickTask = async (title: string, status: Status = "todo") => {
     if (!title.trim() || !user) return;
     const completed = status === "done";
+    const validColumnId = isValidUUID(activeGoalId) ? activeGoalId : null;
     const { data, error } = await supabase
       .from("tasks")
       .insert({
@@ -221,7 +224,7 @@ export function FolderKanban({
         status,
         completed,
         completed_at: completed ? new Date().toISOString() : null,
-        kanban_column_id: activeGoalId || null,
+        kanban_column_id: validColumnId,
       } as any)
       .select()
       .single();
@@ -274,7 +277,7 @@ export function FolderKanban({
       toast.success("هدف با موفقیت بروزرسانی شد");
     } else {
       const newG: GoalKanban = {
-        id: `goal-${folderId}-${Date.now()}`,
+        id: generateUUID(),
         title: goalData.title || "هدف جدید",
         description: goalData.description,
         parentId: goalData.parentId || null,

@@ -48,6 +48,8 @@ import {
   saveKanbanGoals,
   getGoalById,
   getChildGoals,
+  generateUUID,
+  isValidUUID,
   TIME_HORIZONS,
   GOAL_PRIORITIES,
 } from "@/lib/kanbanGoals";
@@ -216,6 +218,7 @@ export default function KanbanView() {
   const addQuickTask = async (title: string, status: Status = "todo") => {
     if (!title.trim() || !user) return;
     const completed = status === "done";
+    const validColumnId = isValidUUID(activeGoalId) ? activeGoalId : null;
     const { data, error } = await supabase
       .from("tasks")
       .insert({
@@ -224,8 +227,7 @@ export default function KanbanView() {
         status,
         completed,
         completed_at: completed ? new Date().toISOString() : null,
-        kanban_column_id: activeGoalId || null,
-        folder_id: activeGoalId || null,
+        kanban_column_id: validColumnId,
       } as any)
       .select()
       .single();
@@ -280,7 +282,7 @@ export default function KanbanView() {
     } else {
       // Add new
       const newG: GoalKanban = {
-        id: `goal-${Date.now()}`,
+        id: generateUUID(),
         title: goalData.title || "هدف جدید",
         description: goalData.description,
         parentId: goalData.parentId || null,
