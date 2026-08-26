@@ -7,6 +7,11 @@ import { bootApplyUIPrefs } from "@/lib/uiScale";
 import { initStatusBarTheme } from "@/lib/statusBarTheme";
 import { startVersionWatcher, clearAllAppCaches } from "@/lib/versionCheck";
 
+type CapacitorGlobal = {
+  isNativePlatform?: () => boolean;
+  isNative?: boolean;
+};
+
 bootApplyUIPrefs();
 initStatusBarTheme();
 
@@ -24,12 +29,28 @@ const isPreviewHost =
   host.includes("lovableproject.com") ||
   (host.includes("lovable.app") && host.includes("id-preview"));
 
+const capacitor =
+  typeof window !== "undefined"
+    ? (window as Window & { Capacitor?: CapacitorGlobal }).Capacitor
+    : undefined;
 const isNativeCapacitor = Boolean(
   typeof window !== "undefined" &&
-    ((window as any).Capacitor?.isNativePlatform?.() ||
-      (window as any).Capacitor?.isNative ||
+    (capacitor?.isNativePlatform?.() ||
+      capacitor?.isNative ||
       window.location.protocol === "capacitor:")
 );
+
+if (isNativeCapacitor) {
+  void (async () => {
+    try {
+      const { StatusBar, Style } = await import("@capacitor/status-bar");
+      await StatusBar.setOverlaysWebView({ overlay: true });
+      await StatusBar.setStyle({ style: Style.Dark });
+    } catch {
+      // Status bar configuration is unavailable outside native Capacitor.
+    }
+  })();
+}
 
 if (isPreviewHost || isInIframe || isNativeCapacitor) {
   // In previews or native Capacitor APKs, disable Service Worker caching to avoid stale builds
