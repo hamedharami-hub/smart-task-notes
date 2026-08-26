@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
@@ -7,22 +7,77 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Flag, Calendar, Circle, Loader2, CheckCircle2, ArrowLeft, ArrowRight } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Plus,
+  Flag,
+  Calendar,
+  Circle,
+  Loader2,
+  CheckCircle2,
+  MoreVertical,
+  SlidersHorizontal,
+  ChevronDown,
+  ChevronUp,
+  LayoutGrid,
+  List,
+  Edit2,
+  FolderTree,
+  Sparkles,
+  ArrowLeft,
+  ArrowRight,
+  Check,
+} from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+} from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { PRIORITY_META, type Priority } from "@/lib/priority";
 import { haptic } from "@/lib/haptics";
 import {
-  DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor,
-  useSensor, useSensors, useDroppable, closestCorners,
+  type GoalKanban,
+  type TimeHorizon,
+  type GoalPriority,
+  getKanbanGoals,
+  saveKanbanGoals,
+  getGoalById,
+  getChildGoals,
+  TIME_HORIZONS,
+  GOAL_PRIORITIES,
+} from "@/lib/kanbanGoals";
+import MultiTierTabs from "@/components/kanban/MultiTierTabs";
+import GoalEditorModal from "@/components/kanban/GoalEditorModal";
+import {
+  DndContext,
+  DragEndEvent,
+  DragOverlay,
+  DragStartEvent,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  useDroppable,
+  closestCorners,
 } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
 type Status = "todo" | "in_progress" | "done";
 type Task = {
-  id: string; title: string; priority: Priority; due_date: string | null;
-  status: Status; completed: boolean; parent_id: string | null;
+  id: string;
+  title: string;
+  priority: Priority;
+  due_date: string | null;
+  status: Status;
+  completed: boolean;
+  parent_id: string | null;
+  folder_id?: string | null;
+  kanban_column_id?: string | null;
 };
 
 const COLUMNS: { id: Status; labelFa: string; labelEn: string; icon: any; accent: string }[] = [
@@ -34,57 +89,167 @@ const COL_ORDER: Status[] = ["todo", "in_progress", "done"];
 
 export default function KanbanView() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { i18n } = useTranslation();
   const isEn = (i18n.language || "fa").startsWith("en");
   const T = (fa: string, en: string) => (isEn ? en : fa);
-  const [tasks, setTasks] = useState<Task[]>([]);
+
+  // --- GOAL STATE ---
+  const [goals, setGoals] = useState<GoalKanban[]>(() => getKanbanGoals(user?.id));
+  const [selectedTier1Id, setSelectedTier1Id] = useState<string | null>(() => goals[0]?.id || null);
+  const [selectedTier2Id, setSelectedTier2Id] = useState<string | null>(null);
+  const [selectedTier3Id, setSelectedTier3Id] = useState<string | null>(null);
+
+  // Mode and Layout
+  const [viewMode, setViewMode] = useState<"hierarchy" | "time" | "priority">("hierarchy");
+  const [layoutMode, setLayoutMode] = useState<"stream" | "columns">("stream");
+  const [timeFilter, setTimeFilter] = useState<TimeHorizon | "all">("all");
+  const [priorityFilter, setPriorityFilter] = useState<GoalPriority | "all">("all");
+
+  // Goal Modal
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editingGoal, setEditingGoal] = useState<GoalKanban | null>(null);
+  const [newGoalParentId, setNewGoalParentId] = useState<string | null>(null);
+
+  // --- TASK STATE ---
+  const [allTasks, setAllTasks] = useState<Task[]>([]);
+  const [subtasks, setSubtasks] = useState<Task[]>([]);
+  const [completedOpen, setCompletedOpen] = useState(true);
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [newTitle, setNewTitle] = useState<Record<Status, string>>({ todo: "", in_progress: "", done: "" });
+  const [quickTitle, setQuickTitle] = useState("");
+  const [quickColumnTitle, setQuickColumnTitle] = useState<Record<Status, string>>({
+    todo: "",
+    in_progress: "",
+    done: "",
+  });
+
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
-  const load = async () => {
-    if (!user) return;
-    const { data } = await supabase.from("tasks").select("*").is("parent_id", null).order("position");
-    setTasks(((data || []) as unknown) as Task[]);
-  };
-
-  useEffect(() => { load(); }, [user]);
+  // Synchronize goals
   useEffect(() => {
-    if (!user) return;
-    const ch = supabase.channel(`kanban-${user.id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "tasks" }, load)
-      .subscribe();
-    return () => { supabase.removeChannel(ch); };
+    const list = getKanbanGoals(user?.id);
+    setGoals(list);
+    if (!selectedTier1Id && list.length > 0) {
+      setSelectedTier1Id(list[0].id);
+    }
   }, [user]);
 
-  const grouped = useMemo(() => {
-    const g: Record<Status, Task[]> = { todo: [], in_progress: [], done: [] };
-    tasks.forEach(t => { (g[t.status] ||= []).push(t); });
-    return g;
-  }, [tasks]);
-
-  const addCard = async (status: Status) => {
-    const title = newTitle[status].trim();
-    if (!title || !user) return;
-    const completed = status === "done";
-    const { data, error } = await supabase.from("tasks").insert({
-      user_id: user.id, title, status, completed,
-      completed_at: completed ? new Date().toISOString() : null,
-    }).select().single();
-    if (error) return toast.error(error.message);
-    if (data) setTasks(prev => [...prev, data as any]);
-    setNewTitle(s => ({ ...s, [status]: "" }));
+  // Load tasks from Supabase
+  const loadTasks = async () => {
+    if (!user) return;
+    const [parentsRes, subsRes] = await Promise.all([
+      supabase.from("tasks").select("*").is("parent_id", null).order("position"),
+      supabase.from("tasks").select("*").not("parent_id", "is", null).order("position"),
+    ]);
+    setAllTasks(((parentsRes.data || []) as unknown) as Task[]);
+    setSubtasks(((subsRes.data || []) as unknown) as Task[]);
   };
 
-  const moveTask = async (taskId: string, newStatus: Status) => {
-    const t = tasks.find(x => x.id === taskId);
+  useEffect(() => {
+    loadTasks();
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    const ch = supabase
+      .channel(`kanban-goals-${user.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "tasks" }, loadTasks)
+      .subscribe();
+    return () => {
+      supabase.removeChannel(ch);
+    };
+  }, [user]);
+
+  // Identify Active Goal (Tier 3 > Tier 2 > Tier 1)
+  const activeGoalId = selectedTier3Id || selectedTier2Id || selectedTier1Id;
+  const activeGoal = useMemo(() => {
+    if (!activeGoalId) return goals[0] || null;
+    return getGoalById(goals, activeGoalId) || goals[0] || null;
+  }, [goals, activeGoalId]);
+
+  // Task Counts per Goal (for badge indicators)
+  const taskCountsByGoal = useMemo(() => {
+    const map: Record<string, number> = {};
+    allTasks.forEach((t) => {
+      const gid = t.kanban_column_id || t.folder_id;
+      if (gid) map[gid] = (map[gid] || 0) + 1;
+    });
+    return map;
+  }, [allTasks]);
+
+  // Filtered tasks for current goal
+  const currentGoalTasks = useMemo(() => {
+    if (!activeGoalId) return allTasks;
+    // Match tasks assigned to this goal/column or folder
+    const direct = allTasks.filter(
+      (t) => t.kanban_column_id === activeGoalId || t.folder_id === activeGoalId
+    );
+    // If no direct matches and on root goal with "Not Sectioned" selected, show general tasks
+    if (direct.length === 0 && selectedTier2Id === null) {
+      return allTasks.filter((t) => !t.kanban_column_id && !t.folder_id);
+    }
+    return direct;
+  }, [allTasks, activeGoalId, selectedTier2Id]);
+
+  const incompleteTasks = useMemo(() => currentGoalTasks.filter((t) => !t.completed), [currentGoalTasks]);
+  const completedTasks = useMemo(() => currentGoalTasks.filter((t) => t.completed), [currentGoalTasks]);
+
+  // Task mutation helpers
+  const toggleTask = async (task: Task) => {
+    haptic("selection");
+    const newCompleted = !task.completed;
+    const newStatus: Status = newCompleted ? "done" : "todo";
+    setAllTasks((prev) =>
+      prev.map((t) => (t.id === task.id ? { ...t, completed: newCompleted, status: newStatus } : t))
+    );
+    const { error } = await supabase
+      .from("tasks")
+      .update({
+        completed: newCompleted,
+        status: newStatus,
+        completed_at: newCompleted ? new Date().toISOString() : null,
+      } as any)
+      .eq("id", task.id);
+    if (error) toast.error(error.message);
+  };
+
+  const addQuickTask = async (title: string, status: Status = "todo") => {
+    if (!title.trim() || !user) return;
+    const completed = status === "done";
+    const { data, error } = await supabase
+      .from("tasks")
+      .insert({
+        user_id: user.id,
+        title: title.trim(),
+        status,
+        completed,
+        completed_at: completed ? new Date().toISOString() : null,
+        kanban_column_id: activeGoalId || null,
+        folder_id: activeGoalId || null,
+      } as any)
+      .select()
+      .single();
+    if (error) return toast.error(error.message);
+    if (data) setAllTasks((prev) => [...prev, data as any]);
+    setQuickTitle("");
+    toast.success("تسک جدید با موفقیت افزوده شد");
+  };
+
+  const moveTaskColumn = async (taskId: string, newStatus: Status) => {
+    const t = allTasks.find((x) => x.id === taskId);
     if (!t || t.status === newStatus) return;
     const completed = newStatus === "done";
-    setTasks(prev => prev.map(x => x.id === taskId ? { ...x, status: newStatus, completed } : x));
-    const { error } = await supabase.from("tasks").update({
-      status: newStatus, completed,
-      completed_at: completed ? new Date().toISOString() : null,
-    } as any).eq("id", taskId);
+    setAllTasks((prev) =>
+      prev.map((x) => (x.id === taskId ? { ...x, status: newStatus, completed } : x))
+    );
+    const { error } = await supabase
+      .from("tasks")
+      .update({
+        status: newStatus,
+        completed,
+        completed_at: completed ? new Date().toISOString() : null,
+      } as any)
+      .eq("id", taskId);
     if (error) toast.error(error.message);
   };
 
@@ -94,51 +259,413 @@ export default function KanbanView() {
     if (!over) return;
     const activeIdStr = String(active.id);
     const overIdStr = String(over.id);
-    // over can be column id or another task id
     const targetCol: Status | undefined =
-      (COLUMNS.find(c => c.id === overIdStr)?.id) ||
-      tasks.find(t => t.id === overIdStr)?.status;
+      COLUMNS.find((c) => c.id === overIdStr)?.id ||
+      allTasks.find((t) => t.id === overIdStr)?.status;
     if (!targetCol) return;
-    moveTask(activeIdStr, targetCol);
+    moveTaskColumn(activeIdStr, targetCol);
   };
 
-  const activeTask = activeId ? tasks.find(t => t.id === activeId) : null;
+  // Goal management
+  const handleSaveGoal = (goalData: Partial<GoalKanban>) => {
+    let nextGoals: GoalKanban[];
+    if (goalData.id) {
+      // Edit existing
+      nextGoals = goals.map((g) =>
+        g.id === goalData.id
+          ? ({ ...g, ...goalData, updatedAt: new Date().toISOString() } as GoalKanban)
+          : g
+      );
+      toast.success("کانبان با موفقیت بروزرسانی شد");
+    } else {
+      // Add new
+      const newG: GoalKanban = {
+        id: `goal-${Date.now()}`,
+        title: goalData.title || "هدف جدید",
+        description: goalData.description,
+        parentId: goalData.parentId || null,
+        timeHorizon: goalData.timeHorizon || "monthly",
+        priority: goalData.priority || "medium",
+        color: goalData.color || "#3b82f6",
+        icon: goalData.icon || "🎯",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      nextGoals = [...goals, newG];
+      if (!newG.parentId) {
+        setSelectedTier1Id(newG.id);
+      } else {
+        setSelectedTier2Id(newG.id);
+      }
+      toast.success("کانبان جدید ایجاد شد");
+    }
+    setGoals(nextGoals);
+    saveKanbanGoals(nextGoals, user?.id);
+  };
+
+  const handleDeleteGoal = (goalId: string) => {
+    const next = goals.filter((g) => g.id !== goalId && g.parentId !== goalId);
+    setGoals(next);
+    saveKanbanGoals(next, user?.id);
+    if (selectedTier1Id === goalId) setSelectedTier1Id(next[0]?.id || null);
+    if (selectedTier2Id === goalId) setSelectedTier2Id(null);
+    if (selectedTier3Id === goalId) setSelectedTier3Id(null);
+    toast.success("هدف با موفقیت حذف شد");
+  };
+
+  const openEditForGoal = (g: GoalKanban) => {
+    setEditingGoal(g);
+    setNewGoalParentId(null);
+    setEditorOpen(true);
+  };
+
+  const openAddNewGoal = (parentId: string | null = null) => {
+    setEditingGoal(null);
+    setNewGoalParentId(parentId);
+    setEditorOpen(true);
+  };
+
+  const activeTaskObj = activeId ? allTasks.find((t) => t.id === activeId) : null;
 
   return (
-    <div dir="rtl" className="p-4 md:p-6">
-      <h1 className="text-2xl font-bold mb-4">Kanban</h1>
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCorners}
-        onDragStart={(e: DragStartEvent) => setActiveId(String(e.active.id))}
-        onDragEnd={onDragEnd}
-        onDragCancel={() => setActiveId(null)}
-      >
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {COLUMNS.map(col => (
-            <KanbanColumn
-              key={col.id}
-              column={col}
-              tasks={grouped[col.id]}
-              newValue={newTitle[col.id]}
-              setNewValue={(v) => setNewTitle(s => ({ ...s, [col.id]: v }))}
-              onAdd={() => addCard(col.id)}
-              onMove={moveTask}
-            />
-          ))}
+    <div dir="rtl" className="max-w-5xl mx-auto p-3 md:p-6 space-y-4 pb-24 animate-fade-in relative min-h-screen">
+      {/* 1. TOP HEADER (Title matching screenshot & controls) */}
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-2.5">
+          <button
+            type="button"
+            onDoubleClick={() => activeGoal && openEditForGoal(activeGoal)}
+            className="flex items-center gap-2 text-xl md:text-2xl font-black text-foreground hover:text-primary transition-colors text-start"
+            title="دوبار کلیک یا تاچ برای ویرایش این هدف"
+          >
+            <span>{activeGoal?.icon || "🎯"}</span>
+            <span>{activeGoal?.title || "آموزش و خودآگاهی"}</span>
+          </button>
+
+          {activeGoal && (
+            <Badge variant="outline" className="text-[11px] font-mono gap-1 border-primary/30 text-primary">
+              <span>{TIME_HORIZONS.find((th) => th.id === activeGoal.timeHorizon)?.labelFa || "ماهانه"}</span>
+            </Badge>
+          )}
         </div>
-        <DragOverlay>
-          {activeTask ? <TaskCard task={activeTask} dragging /> : null}
-        </DragOverlay>
-      </DndContext>
+
+        {/* Action controls & View mode dropdown */}
+        <div className="flex items-center gap-1.5">
+          {/* Layout Mode Toggle (Stream vs Classic Kanban) */}
+          <div className="flex rounded-xl bg-muted/60 p-0.5 border">
+            <button
+              type="button"
+              onClick={() => setLayoutMode("stream")}
+              className={`p-1.5 rounded-lg text-xs transition ${
+                layoutMode === "stream" ? "bg-background shadow-xs text-primary font-bold" : "text-muted-foreground"
+              }`}
+              title="نمای استریم تمام‌صفحه"
+            >
+              <List className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setLayoutMode("columns")}
+              className={`p-1.5 rounded-lg text-xs transition ${
+                layoutMode === "columns" ? "bg-background shadow-xs text-primary font-bold" : "text-muted-foreground"
+              }`}
+              title="ستون‌های کلاسیک کانبان"
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Grouping / Filter Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-8 text-xs rounded-xl gap-1.5 bg-card/60">
+                <SlidersHorizontal className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">
+                  {viewMode === "hierarchy" ? "ساختار درختی" : viewMode === "time" ? "بر اساس زمان" : "بر اساس اهمیت"}
+                </span>
+                <ChevronDown className="w-3 h-3 text-muted-foreground" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="text-xs w-48" dir="rtl">
+              <DropdownMenuLabel className="text-[11px] text-muted-foreground">حالت نمایش کانبان</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => setViewMode("hierarchy")} className="gap-2 font-medium">
+                <FolderTree className="w-3.5 h-3.5 text-primary" /> ساختار درختی و چندسطحی
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setViewMode("time")} className="gap-2 font-medium">
+                <Calendar className="w-3.5 h-3.5 text-amber-500" /> مرتب‌سازی بر اساس زمان (افق)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setViewMode("priority")} className="gap-2 font-medium">
+                <Flag className="w-3.5 h-3.5 text-rose-500" /> مرتب‌سازی بر اساس اهمیت
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => activeGoal && openEditForGoal(activeGoal)} className="gap-2">
+                <Edit2 className="w-3.5 h-3.5 text-muted-foreground" /> ویرایش هدف فعلی
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => openAddNewGoal(null)} className="gap-2">
+                <Plus className="w-3.5 h-3.5 text-emerald-500" /> ایجاد هدف اصلی جدید
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* 3-dots Menu */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
+                <MoreVertical className="w-4 h-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="text-xs w-44" dir="rtl">
+              {activeGoal && (
+                <>
+                  <DropdownMenuItem onClick={() => openEditForGoal(activeGoal)} className="gap-2">
+                    <Edit2 className="w-3.5 h-3.5" /> ویرایش تنظیمات این کانبان
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => openAddNewGoal(activeGoal.id)} className="gap-2">
+                    <Plus className="w-3.5 h-3.5 text-primary" /> افزودن زیرمجموعه به این هدف
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => handleDeleteGoal(activeGoal.id)}
+                    className="gap-2 text-destructive focus:bg-destructive/10"
+                  >
+                    حذف این کانبان
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+
+      {/* 2. MULTI-TIER HORIZONTAL TABS (Tier 1 & Tier 2 beneath each other) */}
+      <Card className="p-3 rounded-2xl bg-card/60 border border-border/70 backdrop-blur shadow-xs">
+        <MultiTierTabs
+          goals={goals}
+          selectedTier1Id={selectedTier1Id}
+          selectedTier2Id={selectedTier2Id}
+          selectedTier3Id={selectedTier3Id}
+          viewMode={viewMode}
+          selectedTimeFilter={timeFilter}
+          selectedPriorityFilter={priorityFilter}
+          onSelectTier1={(id) => setSelectedTier1Id(id)}
+          onSelectTier2={(id) => setSelectedTier2Id(id)}
+          onSelectTier3={(id) => setSelectedTier3Id(id)}
+          onSelectTimeFilter={(h) => setTimeFilter(h)}
+          onSelectPriorityFilter={(p) => setPriorityFilter(p)}
+          onDoubleTapGoal={openEditForGoal}
+          onAddNewGoal={openAddNewGoal}
+          taskCountsByGoal={taskCountsByGoal}
+        />
+      </Card>
+
+      {/* 3. MAIN CONTENT: STREAM VIEW (MATCHING USER SCREENSHOT) OR CLASSIC COLUMNS */}
+      {layoutMode === "stream" ? (
+        <div className="space-y-4">
+          {/* Quick Input Bar at Top */}
+          <div className="flex gap-2">
+            <Input
+              value={quickTitle}
+              onChange={(e) => setQuickTitle(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && addQuickTask(quickTitle)}
+              placeholder={`+ افزودن تسک جدید به «${activeGoal?.title || "این کانبان"}»...`}
+              className="bg-card/70 border-border/70 text-sm h-11 rounded-2xl shadow-xs"
+            />
+            <Button
+              onClick={() => addQuickTask(quickTitle)}
+              disabled={!quickTitle.trim()}
+              className="h-11 px-4 rounded-2xl bg-primary text-primary-foreground font-bold shadow-xs shrink-0"
+            >
+              <Plus className="w-4 h-4" />
+            </Button>
+          </div>
+
+          {/* Incomplete Tasks Cards (Full Screen style like screenshot) */}
+          <div className="space-y-3">
+            {incompleteTasks.map((t) => {
+              const taskSubs = subtasks.filter((s) => s.parent_id === t.id);
+              const pm = PRIORITY_META[t.priority] || PRIORITY_META.none;
+              return (
+                <Card
+                  key={t.id}
+                  className="p-4 rounded-2xl bg-card border border-border/80 shadow-xs hover:border-primary/40 transition-all space-y-3"
+                >
+                  <div className="flex items-start gap-3">
+                    <button
+                      type="button"
+                      onClick={() => toggleTask(t)}
+                      className="mt-0.5 w-5 h-5 rounded-md border-2 border-rose-500/80 hover:bg-rose-500/10 flex items-center justify-center transition shrink-0"
+                    >
+                      {t.completed && <Check className="w-3.5 h-3.5 text-rose-500" />}
+                    </button>
+
+                    <div
+                      onClick={() => navigate(`/app/tasks/${t.id}`)}
+                      className="flex-1 min-w-0 cursor-pointer text-start"
+                    >
+                      <h4 className="text-[15px] font-bold text-foreground hover:text-primary transition-colors leading-snug">
+                        {t.title}
+                      </h4>
+
+                      <div className="flex flex-wrap items-center gap-2 mt-1.5">
+                        {t.priority !== "none" && (
+                          <Badge variant="outline" className={`text-[10px] gap-1 ${pm.bgClass} ${pm.textClass}`}>
+                            <Flag className="w-2.5 h-2.5" /> {T(pm.label, pm.labelEn)}
+                          </Badge>
+                        )}
+                        {t.due_date && (
+                          <span className="text-[11px] text-muted-foreground font-mono flex items-center gap-1">
+                            <Calendar className="w-3 h-3" /> {format(new Date(t.due_date), "MMM d")}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Subtasks checklist inside card (matching screenshot) */}
+                  {taskSubs.length > 0 && (
+                    <div className="pe-2 ps-6 space-y-2 border-t border-border/40 pt-2.5">
+                      {taskSubs.map((st) => (
+                        <div key={st.id} className="flex items-center gap-2.5 text-xs text-foreground/90">
+                          <Checkbox
+                            checked={st.completed}
+                            onCheckedChange={() => toggleTask(st)}
+                            className="w-4 h-4 rounded"
+                          />
+                          <span
+                            onClick={() => navigate(`/app/tasks/${st.id}`)}
+                            className={`cursor-pointer hover:underline ${
+                              st.completed ? "line-through text-muted-foreground" : ""
+                            }`}
+                          >
+                            {st.title}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </Card>
+              );
+            })}
+
+            {incompleteTasks.length === 0 && (
+              <div className="text-center py-12 border border-dashed rounded-3xl bg-muted/20 space-y-2">
+                <div className="text-3xl">✨</div>
+                <h4 className="text-sm font-bold text-foreground">همه کارهای این هدف انجام شده‌اند!</h4>
+                <p className="text-xs text-muted-foreground">می‌توانید تسک جدیدی برای ادامه مسیر اضافه کنید.</p>
+              </div>
+            )}
+          </div>
+
+          {/* Completed Section (Collapsible like in screenshot) */}
+          {completedTasks.length > 0 && (
+            <div className="pt-3 space-y-2">
+              <button
+                type="button"
+                onClick={() => setCompletedOpen((prev) => !prev)}
+                className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-foreground transition-colors px-1"
+              >
+                <span>Completed</span>
+                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 rounded-full">
+                  {completedTasks.length}
+                </Badge>
+                {completedOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+              </button>
+
+              {completedOpen && (
+                <div className="space-y-2 animate-fade-in">
+                  {completedTasks.map((ct) => (
+                    <Card
+                      key={ct.id}
+                      className="p-3.5 rounded-2xl bg-card/40 border border-border/50 opacity-70 hover:opacity-100 transition-opacity flex items-center justify-between gap-3"
+                    >
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <Checkbox checked={true} onCheckedChange={() => toggleTask(ct)} className="rounded" />
+                        <span
+                          onClick={() => navigate(`/app/tasks/${ct.id}`)}
+                          className="text-xs line-through text-muted-foreground truncate cursor-pointer hover:underline"
+                        >
+                          {ct.title}
+                        </span>
+                      </div>
+                      {ct.due_date && (
+                        <span className="text-[10px] text-muted-foreground font-mono shrink-0">
+                          {format(new Date(ct.due_date), "d MMM")}
+                        </span>
+                      )}
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      ) : (
+        /* Classic 3-Column Kanban Board */
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCorners}
+          onDragStart={(e: DragStartEvent) => setActiveId(String(e.active.id))}
+          onDragEnd={onDragEnd}
+          onDragCancel={() => setActiveId(null)}
+        >
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {COLUMNS.map((col) => {
+              const colTasks = currentGoalTasks.filter((t) => t.status === col.id);
+              return (
+                <KanbanColumn
+                  key={col.id}
+                  column={col}
+                  tasks={colTasks}
+                  newValue={quickColumnTitle[col.id]}
+                  setNewValue={(v) => setQuickColumnTitle((s) => ({ ...s, [col.id]: v }))}
+                  onAdd={() => {
+                    addQuickTask(quickColumnTitle[col.id], col.id);
+                    setQuickColumnTitle((s) => ({ ...s, [col.id]: "" }));
+                  }}
+                  onMove={moveTaskColumn}
+                />
+              );
+            })}
+          </div>
+          <DragOverlay>
+            {activeTaskObj ? <TaskCard task={activeTaskObj} dragging /> : null}
+          </DragOverlay>
+        </DndContext>
+      )}
+
+      {/* Floating Action Button (+) matching screenshot bottom right */}
+      <button
+        type="button"
+        onClick={() => addQuickTask(quickTitle || "تسک جدید")}
+        className="fixed bottom-6 start-6 md:bottom-8 md:start-8 w-14 h-14 rounded-full bg-blue-600 hover:bg-blue-700 active:scale-95 text-white flex items-center justify-center shadow-xl shadow-blue-500/30 transition-transform z-30"
+        title="افزودن تسک سریع"
+      >
+        <Plus className="w-7 h-7 stroke-[2.5]" />
+      </button>
+
+      {/* Goal Editor & Settings Modal */}
+      <GoalEditorModal
+        open={editorOpen}
+        onOpenChange={setEditorOpen}
+        goal={editingGoal}
+        allGoals={goals}
+        defaultParentId={newGoalParentId}
+        onSave={handleSaveGoal}
+        onDelete={handleDeleteGoal}
+      />
     </div>
   );
 }
 
 function KanbanColumn({
-  column, tasks, newValue, setNewValue, onAdd, onMove,
+  column,
+  tasks,
+  newValue,
+  setNewValue,
+  onAdd,
+  onMove,
 }: {
-  column: typeof COLUMNS[number];
+  column: (typeof COLUMNS)[number];
   tasks: Task[];
   newValue: string;
   setNewValue: (v: string) => void;
@@ -153,16 +680,21 @@ function KanbanColumn({
   const colIdx = COL_ORDER.indexOf(column.id);
   const prevCol = COL_ORDER[colIdx - 1];
   const nextCol = COL_ORDER[colIdx + 1];
+
   return (
     <div
       ref={setNodeRef}
-      className={`bg-muted/30 rounded-xl border-t-4 ${column.accent} p-3 min-h-[400px] transition ${isOver ? "bg-primary/5 ring-2 ring-primary/30" : ""}`}
+      className={`bg-muted/30 rounded-2xl border-t-4 ${column.accent} p-3 min-h-[400px] transition ${
+        isOver ? "bg-primary/5 ring-2 ring-primary/30" : ""
+      }`}
     >
       <div className="flex items-center justify-between mb-3 px-1">
         <div className="flex items-center gap-2">
           <Icon className={`w-4 h-4 ${column.id === "in_progress" ? "animate-spin" : ""}`} />
-          <h2 className="font-semibold">{T(column.labelFa, column.labelEn)}</h2>
-          <Badge variant="secondary" className="text-xs">{tasks.length}</Badge>
+          <h2 className="font-semibold text-sm">{T(column.labelFa, column.labelEn)}</h2>
+          <Badge variant="secondary" className="text-xs font-mono">
+            {tasks.length}
+          </Badge>
         </div>
       </div>
 
@@ -172,16 +704,16 @@ function KanbanColumn({
           onChange={(e) => setNewValue(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && onAdd()}
           placeholder={T("+ کارت جدید", "+ New card")}
-          className="h-8 text-sm bg-background"
+          className="h-8 text-xs bg-background rounded-xl"
         />
-        <Button size="icon" variant="ghost" onClick={onAdd} className="h-8 w-8">
+        <Button size="icon" variant="ghost" onClick={onAdd} className="h-8 w-8 rounded-xl">
           <Plus className="w-4 h-4" />
         </Button>
       </div>
 
-      <SortableContext items={tasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
+      <SortableContext items={tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
         <div className="space-y-2">
-          {tasks.map(t => (
+          {tasks.map((t) => (
             <SortableTaskCard
               key={t.id}
               task={t}
@@ -191,7 +723,7 @@ function KanbanColumn({
             />
           ))}
           {tasks.length === 0 && (
-            <div className="text-xs text-muted-foreground text-center py-6 border border-dashed rounded-lg">
+            <div className="text-xs text-muted-foreground text-center py-8 border border-dashed rounded-xl">
               {T("اینجا رها کن", "Drop here")}
             </div>
           )}
@@ -201,96 +733,59 @@ function KanbanColumn({
   );
 }
 
-function SortableTaskCard({ task, prevCol, nextCol, onMove }: {
-  task: Task; prevCol?: Status; nextCol?: Status; onMove: (taskId: string, newStatus: Status) => void;
+function SortableTaskCard({
+  task,
+  prevCol,
+  nextCol,
+  onMove,
+}: {
+  task: Task;
+  prevCol?: Status;
+  nextCol?: Status;
+  onMove: (taskId: string, newStatus: Status) => void;
 }) {
   const { i18n } = useTranslation();
   const isEn = (i18n.language || "fa").startsWith("en");
   const T = (fa: string, en: string) => (isEn ? en : fa);
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: task.id,
+  });
   const navigate = useNavigate();
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.4 : 1,
   };
-  // Horizontal swipe: in RTL the visual "next column" is to the LEFT.
-  const startX = useRef(0);
-  const startY = useRef(0);
-  const dxRef = useRef(0);
-  const tracking = useRef(false);
-  const [dx, setDx] = useState(0);
-  const THRESHOLD = 70;
-
-  const onTouchStart = (e: React.TouchEvent) => {
-    if (e.touches.length !== 1) return;
-    const t = e.touches[0];
-    startX.current = t.clientX;
-    startY.current = t.clientY;
-    dxRef.current = 0;
-    tracking.current = true;
-  };
-  const onTouchMove = (e: React.TouchEvent) => {
-    if (!tracking.current) return;
-    const t = e.touches[0];
-    const dxNow = t.clientX - startX.current;
-    const dyNow = Math.abs(t.clientY - startY.current);
-    if (dyNow > 24 && Math.abs(dxNow) < 24) { tracking.current = false; setDx(0); return; }
-    dxRef.current = dxNow;
-    setDx(Math.max(-120, Math.min(120, dxNow)));
-  };
-  const onTouchEnd = () => {
-    if (!tracking.current) { setDx(0); return; }
-    tracking.current = false;
-    const d = dxRef.current;
-    setDx(0);
-    if (Math.abs(d) < THRESHOLD) return;
-    // RTL: dx<0 (swipe left) → next column; dx>0 (swipe right) → prev column
-    if (d < 0 && nextCol) { haptic("success"); onMove(task.id, nextCol); }
-    else if (d > 0 && prevCol) { haptic("success"); onMove(task.id, prevCol); }
-  };
-
-  const showNext = dx < -10 && nextCol;
-  const showPrev = dx > 10 && prevCol;
-  const reachedThreshold = Math.abs(dx) >= THRESHOLD;
 
   return (
-    <div ref={setNodeRef} style={style} className="relative">
-      {/* Underlay hint */}
-      {(showNext || showPrev) && (
-        <div className={`absolute inset-0 rounded-lg flex items-center px-3 text-[11px] font-medium pointer-events-none ${
-          reachedThreshold ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"
-        } ${showNext ? "justify-start" : "justify-end"}`}>
-          {showNext ? (() => { const c = COLUMNS.find(c => c.id === nextCol); return <><ArrowLeft className="w-3.5 h-3.5 me-1" />{c ? T(c.labelFa, c.labelEn) : ""}</>; })()
-                    : (() => { const c = COLUMNS.find(c => c.id === prevCol); return <>{c ? T(c.labelFa, c.labelEn) : ""}<ArrowRight className="w-3.5 h-3.5 ms-1" /></>; })()}
-        </div>
-      )}
-      <div
-        style={{ transform: `translateX(${dx}px)`, transition: tracking.current ? "none" : "transform 180ms" }}
-        onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
-        onTouchEnd={onTouchEnd}
-        onTouchCancel={() => { tracking.current = false; setDx(0); }}
-      >
-        <TaskCard
-          task={task}
-          dragHandleProps={{ ...attributes, ...listeners }}
-          onOpen={() => navigate(`/app/tasks/${task.id}`)}
-        />
-      </div>
+    <div ref={setNodeRef} style={style}>
+      <TaskCard
+        task={task}
+        dragHandleProps={{ ...attributes, ...listeners }}
+        onOpen={() => navigate(`/app/tasks/${task.id}`)}
+      />
     </div>
   );
 }
 
-function TaskCard({ task, dragging, dragHandleProps, onOpen }: {
-  task: Task; dragging?: boolean; dragHandleProps?: any; onOpen?: () => void;
+function TaskCard({
+  task,
+  dragging,
+  dragHandleProps,
+  onOpen,
+}: {
+  task: Task;
+  dragging?: boolean;
+  dragHandleProps?: any;
+  onOpen?: () => void;
 }) {
   const { i18n } = useTranslation();
   const isEn = (i18n.language || "fa").startsWith("en");
   const T = (fa: string, en: string) => (isEn ? en : fa);
   const pm = PRIORITY_META[task.priority] || PRIORITY_META.none;
+
   return (
-    <Card className={`p-3 border-s-4 ${pm.borderClass} ${dragging ? "shadow-lg" : "hover:shadow-soft"}`}>
+    <Card className={`p-3 border-s-4 ${pm.borderClass} ${dragging ? "shadow-lg" : "hover:shadow-xs"}`}>
       <div className="flex items-start gap-1.5">
         <button
           {...(dragHandleProps || {})}
@@ -300,8 +795,14 @@ function TaskCard({ task, dragging, dragHandleProps, onOpen }: {
         >
           ⋮⋮
         </button>
-        <button type="button" onClick={onOpen} className="flex-1 min-w-0 text-end">
-          <p className={`text-sm font-medium hover:underline ${task.completed ? "line-through text-muted-foreground" : ""}`}>{task.title}</p>
+        <button type="button" onClick={onOpen} className="flex-1 min-w-0 text-start">
+          <p
+            className={`text-sm font-medium hover:underline ${
+              task.completed ? "line-through text-muted-foreground" : ""
+            }`}
+          >
+            {task.title}
+          </p>
           <div className="flex flex-wrap items-center gap-1 mt-2">
             {task.priority !== "none" && (
               <Badge variant="outline" className={`text-[10px] gap-1 ${pm.bgClass} ${pm.textClass}`}>
@@ -309,7 +810,7 @@ function TaskCard({ task, dragging, dragHandleProps, onOpen }: {
               </Badge>
             )}
             {task.due_date && (
-              <Badge variant="secondary" className="text-[10px] gap-1">
+              <Badge variant="secondary" className="text-[10px] gap-1 font-mono">
                 <Calendar className="w-2.5 h-2.5" />
                 {format(new Date(task.due_date), "MMM d")}
               </Badge>
