@@ -95,13 +95,43 @@ export const INITIAL_GOALS: GoalKanban[] = [
   },
 ];
 
-export function getKanbanGoals(userId?: string): GoalKanban[] {
-  const key = userId ? `${GOALS_STORAGE_KEY}_${userId}` : GOALS_STORAGE_KEY;
+export function getKanbanGoals(folderId?: string | null, userId?: string): GoalKanban[] {
+  const baseKey = folderId ? `${GOALS_STORAGE_KEY}_folder_${folderId}` : GOALS_STORAGE_KEY;
+  const key = userId ? `${baseKey}_${userId}` : baseKey;
   try {
     const raw = localStorage.getItem(key);
     if (!raw) {
-      localStorage.setItem(key, JSON.stringify(INITIAL_GOALS));
-      return INITIAL_GOALS;
+      // Create folder-specific default goals if inside folder
+      const defaults: GoalKanban[] = folderId
+        ? [
+            {
+              id: `goal-${folderId}-main`,
+              title: "هدف اصلی این فولدر",
+              description: "هدف کلی و مسیر پیشرفت این بخش",
+              parentId: null,
+              timeHorizon: "monthly",
+              priority: "high",
+              color: "#3b82f6",
+              icon: "🎯",
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            },
+            {
+              id: `goal-${folderId}-sub1`,
+              title: "گام‌های اول و یادگیری",
+              description: "فعالیت‌های پایه و اقدامات هفتگی",
+              parentId: `goal-${folderId}-main`,
+              timeHorizon: "weekly",
+              priority: "urgent",
+              color: "#06b6d4",
+              icon: "🚀",
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            },
+          ]
+        : INITIAL_GOALS;
+      localStorage.setItem(key, JSON.stringify(defaults));
+      return defaults;
     }
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) && parsed.length > 0 ? parsed : INITIAL_GOALS;
@@ -110,11 +140,12 @@ export function getKanbanGoals(userId?: string): GoalKanban[] {
   }
 }
 
-export function saveKanbanGoals(goals: GoalKanban[], userId?: string) {
-  const key = userId ? `${GOALS_STORAGE_KEY}_${userId}` : GOALS_STORAGE_KEY;
+export function saveKanbanGoals(goals: GoalKanban[], folderId?: string | null, userId?: string) {
+  const baseKey = folderId ? `${GOALS_STORAGE_KEY}_folder_${folderId}` : GOALS_STORAGE_KEY;
+  const key = userId ? `${baseKey}_${userId}` : baseKey;
   try {
     localStorage.setItem(key, JSON.stringify(goals));
-    window.dispatchEvent(new CustomEvent("arshnaz-goals-updated", { detail: goals }));
+    window.dispatchEvent(new CustomEvent("arshnaz-goals-updated", { detail: { folderId, goals } }));
   } catch (e) {
     console.error("Failed to save kanban goals:", e);
   }
