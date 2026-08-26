@@ -12,6 +12,8 @@ import { getCalendarSystem, formatDate, jalaliDayOfWeek, WEEKDAY_SHORT_FA, type 
 import { toast } from "sonner";
 import { useTapGestures } from "@/lib/useTapGestures";
 import { haptic } from "@/lib/haptics";
+import { awardWaterDrops } from "@/lib/garden";
+import MiniGardenCard from "@/components/garden/MiniGardenCard";
 
 type Habit = {
   id: string;
@@ -64,6 +66,7 @@ export default function HabitsView() {
       await supabase.from("habit_logs").delete().eq("habit_id", habit_id).eq("log_date", d);
     } else {
       await supabase.from("habit_logs").insert({ habit_id, user_id: user.id, log_date: d });
+      awardWaterDrops(15, "ثبت موفق عادت روزانه");
     }
     load();
   };
@@ -187,6 +190,9 @@ export default function HabitsView() {
           >ماه</button>
         </div>
       </div>
+
+      {/* Mind Garden Mini Widget */}
+      <MiniGardenCard />
       <Card className="p-4 space-y-3 bg-card/60 border-border/60">
         <Input placeholder="عادت جدید..." value={name} onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && add()} className="bg-background/50" />

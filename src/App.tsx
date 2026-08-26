@@ -45,6 +45,7 @@ const NotFound = lazy(() => import("./pages/NotFound.tsx"));
 const TasksView = lazy(() => import("./pages/TasksView"));
 const NotesView = lazy(() => import("./pages/NotesView"));
 const HabitsView = lazy(() => import("./pages/HabitsView"));
+const GardenView = lazy(() => import("./pages/GardenView"));
 const PomodoroView = lazy(() => import("./pages/PomodoroView"));
 const CalendarView = lazy(() => import("./pages/CalendarView"));
 const StatsView = lazy(() => import("./pages/StatsView"));
@@ -119,6 +120,7 @@ const App = () => {
                 <Route path="tag/:id" element={<TasksView scope="tag" />} />
                 <Route path="notes" element={<NotesView />} />
                 <Route path="habits" element={<HabitsView />} />
+                <Route path="garden" element={<GardenView />} />
                 <Route path="pomodoro" element={<PomodoroView />} />
                 <Route path="calendar" element={<CalendarView />} />
                 <Route path="stats" element={<StatsView />} />
