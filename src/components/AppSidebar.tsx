@@ -102,6 +102,7 @@ const SECTIONS: Section[] = [
     id: "do", title: "انجام دادن", icon: ListTodo, defaultOpen: true,
     items: [
       { url: "/app/today", icon: CalIcon, label: "امروز" },
+      { url: "/app/kanban", icon: LayoutGrid, label: "کانبان اهداف" },
       { url: "/app/inbox", icon: Inbox, label: "صندوق ورودی" },
       { url: "/app/tomorrow", icon: Sun, label: "فردا" },
       { url: "/app/next7", icon: CalendarDays, label: "۷ روز آینده" },
