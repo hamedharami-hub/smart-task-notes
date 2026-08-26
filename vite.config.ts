@@ -95,7 +95,7 @@ export default defineConfig(({ mode }) => {
     mode === "development" && componentTagger(),
     versionJsonPlugin(),
     VitePWA({
-      registerType: "prompt",
+      registerType: "autoUpdate",
       devOptions: { enabled: false },
       includeAssets: ["favicon.ico", "robots.txt", "pwa-512x512.png"],
       manifest: {
@@ -158,19 +158,19 @@ export default defineConfig(({ mode }) => {
       },
       workbox: {
         navigateFallback: "/index.html",
-        navigateFallbackDenylist: [/^\/~oauth/, /^\/api/],
+        navigateFallbackDenylist: [/^\/~oauth/, /^\/api/, /^\/version\.json/],
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
-        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+        maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
         clientsClaim: true,
-        skipWaiting: false,
+        skipWaiting: true,
         cleanupOutdatedCaches: true,
         runtimeCaching: [
           {
             urlPattern: ({ url }) => url.pathname.startsWith("/assets/"),
-            handler: "CacheFirst",
+            handler: "StaleWhileRevalidate",
             options: {
               cacheName: "static-assets",
-              expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 30 },
+              expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 7 },
             },
           },
           {
