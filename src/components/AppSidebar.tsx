@@ -4,7 +4,7 @@ import {
   Target, Timer, Calendar, Plus, ChevronRight, ChevronDown, LogOut, Sparkles, Settings, LayoutGrid,
   Brain, TrendingUp, Moon, HeartPulse, Activity, MessageCircleQuestion, Zap, Clock4, Heart, ShieldAlert, BookOpen, Sun,
   ListTodo, BrainCircuit, Wrench, GripVertical, RotateCcw, User, Trash2, Shield, Users, Flame,
-  BarChart3, Sprout,
+  BarChart3, Sprout, Wind,
 } from "lucide-react";
 import { StreakCard } from "@/components/StreakCard";
 import {
