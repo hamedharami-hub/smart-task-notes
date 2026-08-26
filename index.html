@@ -54,6 +54,21 @@
     <div id="root">
       <div class="app-boot" aria-hidden="true"><div class="app-boot__spinner"></div></div>
     </div>
+    <script>
+      // Automatically remove any Lovable badge or floating edit button
+      (function() {
+        function removeLovableElements() {
+          var badges = document.querySelectorAll(
+            '#lovable-badge, lovable-badge, [id*="lovable-badge"], [class*="lovable-badge"], [data-lovable-badge], #lovable-tagger, #lovable-tagger-badge, a[href*="lovable.dev"], a[href*="lovable.app"]'
+          );
+          badges.forEach(function(el) { el.remove(); });
+        }
+        removeLovableElements();
+        document.addEventListener('DOMContentLoaded', removeLovableElements);
+        var obs = new MutationObserver(removeLovableElements);
+        obs.observe(document.documentElement, { childList: true, subtree: true });
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

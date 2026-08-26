@@ -128,14 +128,14 @@ const SECTIONS: Section[] = [
       { url: "/app/thoughts", icon: BookOpen, label: "ثبت افکار (CBT)" },
       { url: "/app/abc", icon: Zap, label: "مدل ABC" },
       { url: "/app/socratic", icon: MessageCircleQuestion, label: "چت سقراطی" },
-      { url: "/app/breathing", icon: HeartPulse, label: "تمرین تنفس ۳بعدی" },
+      { url: "/app/breathing", icon: Wind, label: "تمرین تنفس ۳بعدی" },
     ],
   },
   {
     id: "me", title: "خودِ من", icon: User, defaultOpen: false,
     items: [
       { url: "/app/about-me", icon: User, label: "درباره من" },
-      { url: "/app/self", icon: HeartPulse, label: "خودشناسی" },
+      { url: "/app/self", icon: Sparkles, label: "خودشناسی" },
       { url: "/app/shared", icon: Users, label: "اشتراک‌ها" },
     ],
   },
@@ -212,7 +212,6 @@ function FolderRow({ folder: f, depth, hasChildren, open, collapsed, onToggle, o
             onClick={(e) => { if (lp.didFire()) { e.preventDefault(); return; } onNav(); }}
             className="flex items-center gap-2 flex-1 truncate"
             activeClassName="text-primary font-medium">
-            <FolderTree className="w-4 h-4" style={{ color: f.color }} />
             {!collapsed && <span className="truncate">{f.name}</span>}
           </NavLink>
           {!collapsed && (

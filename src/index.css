@@ -479,3 +479,22 @@ button, [role="button"], a { touch-action: manipulation; }
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* Hide Lovable watermark / Edit with Lovable popup badge */
+#lovable-badge,
+lovable-badge,
+[id*="lovable-badge"],
+[class*="lovable-badge"],
+[data-lovable-badge],
+#lovable-tagger,
+#lovable-tagger-badge,
+a[href*="lovable.dev"],
+a[href*="lovable.app"],
+button[aria-label*="Lovable" i],
+[id^="__lovable"],
+[class^="__lovable"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
