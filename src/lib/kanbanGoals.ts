@@ -134,7 +134,15 @@ export function getKanbanGoals(folderId?: string | null, userId?: string): GoalK
   const baseKey = folderId ? `${GOALS_STORAGE_KEY}_folder_${folderId}` : GOALS_STORAGE_KEY;
   const key = userId ? `${baseKey}_${userId}` : baseKey;
   try {
-    const raw = localStorage.getItem(key);
+    let raw = localStorage.getItem(key);
+    if (!raw && !folderId && userId) {
+      const legacyKey = `${GOALS_STORAGE_KEY}_folder_${userId}`;
+      const legacyRaw = localStorage.getItem(legacyKey);
+      if (legacyRaw) {
+        localStorage.setItem(key, legacyRaw);
+        raw = legacyRaw;
+      }
+    }
     if (!raw) {
       const rootId = generateUUID();
       const sub1Id = generateUUID();

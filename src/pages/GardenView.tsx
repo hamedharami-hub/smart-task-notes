@@ -85,12 +85,14 @@ export default function GardenView() {
 
     const res = waterActivePlant(amount);
     if (res.success) {
+      const updatedGarden = getGardenState();
       if (res.bloomed) {
         toast.success(`🎉 تبریک! «${plant.name}» به شکوفایی کامل رسید!`, {
           description: "گیاه به کلکسیون افتخارات باغ شما اضافه شد.",
         });
       } else if (res.stageUp) {
-        toast.success(`🌱 گیاه وارد مرحله ${plant.stage + 1} رشد شد!`);
+        const nextStage = updatedGarden.activePlant?.stage ?? plant.stage + 1;
+        toast.success(`🌱 گیاه وارد مرحله ${nextStage} رشد شد!`);
       }
     }
     setTimeout(() => setWatering(false), 1000);

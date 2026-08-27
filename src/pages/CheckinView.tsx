@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
 import ProfileMicroPrompt from "@/components/ProfileMicroPrompt";
+import { awardWaterDrops } from "@/lib/garden";
 
 function Slider10({ label, value, onChange }: { label: string; value: number | null; onChange: (v: number) => void }) {
   return (
@@ -80,7 +81,12 @@ export default function CheckinView() {
     };
     const { error } = await supabase.from("daily_checkins").upsert(payload, { onConflict: "user_id,checkin_date" });
     if (error) toast.error(error.message);
-    else { toast.success("ثبت شد ✨"); setSavedTick(Date.now()); load(); }
+    else {
+      awardWaterDrops(20, "ثبت چک‌این روزانه");
+      toast.success("ثبت شد ✨");
+      setSavedTick(Date.now());
+      load();
+    }
   }
 
   if (loading) return <div className="p-8 text-center text-muted-foreground">…</div>;
