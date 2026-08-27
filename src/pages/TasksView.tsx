@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { startOfDay, endOfDay, addDays, format } from "date-fns";
-import { Plus, Calendar, Trash2, ChevronRight, ChevronDown, Flag, GripVertical, CornerDownRight, Ban, Pin, Clock, FolderInput, Check, X, GitBranch } from "lucide-react";
+import { Plus, Calendar, Trash2, ChevronRight, ChevronDown, Flag, GripVertical, CornerDownRight, Ban, Pin, Clock, FolderInput, Check, X, GitBranch, MoreVertical } from "lucide-react";
 import { MoveToDialog } from "@/components/MoveToDialog";
 import { FolderDeleteDialog } from "@/components/FolderDeleteDialog";
 import { useNavigate } from "react-router-dom";
@@ -22,7 +22,19 @@ import { pushUndo } from "@/lib/undoStack";
 import { pushDeleted } from "@/lib/recentlyDeleted";
 import { enqueueOp, cacheGet, cacheSet, getPendingOps, type QueuedOp } from "@/lib/offlineQueue";
 import { logTaskActivity } from "@/lib/taskActivity";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { describeRule, nextOccurrence } from "@/lib/recurrence";
 import {
   DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor, TouchSensor,
@@ -51,10 +63,27 @@ import { PRIORITY_SELECTABLE, type Priority } from "@/lib/priority";
 import { Repeat } from "lucide-react";
 import type { RecurrenceRule } from "@/lib/recurrence";
 import { awardWaterDrops } from "@/lib/garden";
+import { DEFAULT_FOLDER_PREFS, getFolderPrefs, saveFolderPrefs, type FolderPrefs } from "@/lib/folderPrefs";
 
 // Module-level cache shared across mounts: instantly hydrate from last fetch.
 const tasksCache = new Map<string, Task[]>();
 const TASKS_CACHE_KEY = (userId: string) => `tasks:all:${userId}`;
+const FOLDER_BG_COLORS = [
+  { label: "رز", value: "hsl(350 80% 96%)" },
+  { label: "کهربایی", value: "hsl(42 90% 94%)" },
+  { label: "زمردی", value: "hsl(150 55% 94%)" },
+  { label: "آسمانی", value: "hsl(200 80% 94%)" },
+  { label: "بنفش", value: "hsl(265 65% 95%)" },
+  { label: "صورتی", value: "hsl(325 75% 95%)" },
+  { label: "خاکستری", value: "hsl(220 15% 93%)" },
+];
+const FOLDER_BG_IMAGES = [
+  { label: "مه صبحگاهی", value: "linear-gradient(135deg, hsl(210 40% 96%), hsl(190 35% 90%))" },
+  { label: "غروب آرام", value: "linear-gradient(135deg, hsl(20 70% 95%), hsl(280 50% 94%))" },
+  { label: "باغ سبز", value: "linear-gradient(135deg, hsl(145 45% 94%), hsl(190 55% 93%))" },
+  { label: "شب بنفش", value: "linear-gradient(135deg, hsl(250 35% 18%), hsl(285 30% 28%))" },
+  { label: "نقطه‌ای", value: "radial-gradient(hsl(var(--muted-foreground) / 0.15) 1px, transparent 1px)" },
+];
 
 function outcomeMeta(
   task: Task,
@@ -117,6 +146,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   // selected task removed — clicks navigate to /app/tasks/:id
   const [folderName, setFolderName] = useState("");
+  const [folderPrefs, setFolderPrefs] = useState<FolderPrefs>(DEFAULT_FOLDER_PREFS);
   const [tagName, setTagName] = useState("");
   const [confirm, setConfirm] = useState<ConfirmState>(null);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
@@ -132,6 +162,22 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
   const [outcomeById, setOutcomeById] = useState<Record<string, { label: string; color?: string | null; icon?: string | null }>>({});
   const [outcomeByTaskId, setOutcomeByTaskId] = useState<Record<string, string>>({});
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!params.id) {
+      setFolderPrefs({ ...DEFAULT_FOLDER_PREFS });
+      return;
+    }
+    setFolderPrefs(getFolderPrefs(params.id, user?.id));
+    const onPrefsUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<{ folderId?: string; userId?: string; prefs?: FolderPrefs }>).detail;
+      if (detail?.folderId === params.id && detail.userId === user?.id) {
+        setFolderPrefs(detail.prefs || getFolderPrefs(params.id, user?.id));
+      }
+    };
+    window.addEventListener("arshnaz-folder-prefs-updated", onPrefsUpdated);
+    return () => window.removeEventListener("arshnaz-folder-prefs-updated", onPrefsUpdated);
+  }, [params.id, user?.id]);
 
   // Patch a task field optimistically + persist
   const patchTask = async (id: string, patch: Partial<Task>) => {
@@ -431,6 +477,22 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     });
     return list;
   }, [effectiveAllTasks, scope, params.id, filters, taskTagsMap, graceMap]);
+
+  const isFolder = scope === "folder" && !!params.id;
+  const folderTopLevel = useMemo(() => {
+    if (!isFolder || folderPrefs.sortOrder === "manual") return topLevel;
+    return [...topLevel].sort((a, b) => {
+      if (folderPrefs.sortOrder === "priority") {
+        return (PRIORITY_META[a.priority]?.rank ?? 3) - (PRIORITY_META[b.priority]?.rank ?? 3);
+      }
+      if (folderPrefs.sortOrder === "due_date") {
+        const aDue = a.due_date ? new Date(a.due_date).getTime() : Infinity;
+        const bDue = b.due_date ? new Date(b.due_date).getTime() : Infinity;
+        return aDue - bDue;
+      }
+      return a.title.localeCompare(b.title, "fa");
+    });
+  }, [folderPrefs.sortOrder, isFolder, topLevel]);
 
   const taskMap = useMemo(() => new Map(effectiveAllTasks.map(t => [t.id, t])), [effectiveAllTasks]);
 
@@ -1091,8 +1153,6 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     );
   };
 
-  const isFolder = scope === "folder" && !!params.id;
-
   const listView = (
     <PullToRefresh onRefresh={load}>
       <div className="mb-3">
@@ -1113,10 +1173,10 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
 
 
       {(() => {
-        const isEmpty = groupedTasks ? groupedTasks.length === 0 : topLevel.length === 0;
+        const isEmpty = groupedTasks ? groupedTasks.length === 0 : folderTopLevel.length === 0;
         const sortableItems = groupedTasks
           ? groupedTasks.flatMap(g => g.tasks.map(t => t.id))
-          : topLevel.map(t => t.id);
+          : folderTopLevel.map(t => t.id);
         return (
           <DndContext
             sensors={sensors}
@@ -1146,7 +1206,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
                   </div>
                 ) : (
                   <VirtualTaskList
-                    itemIds={topLevel.map(t => t.id)}
+                    itemIds={folderTopLevel.map(t => t.id)}
                     renderItem={(id) => {
                       const t = taskMap.get(id);
                       if (!t) return null;
@@ -1171,33 +1231,135 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     </PullToRefresh>
   );
 
+  const updateFolderPrefs = (patch: Partial<FolderPrefs>) => {
+    if (!params.id) return;
+    const next = { ...folderPrefs, ...patch };
+    setFolderPrefs(next);
+    saveFolderPrefs(params.id, next, user?.id);
+  };
+
   return (
-    <div className="p-2 sm:p-3 md:p-4 lg:py-6 w-full max-w-5xl lg:max-w-none mx-auto">
-      <HeaderTitlePortal title={title} />
-      <div className="flex items-center justify-end mb-3 gap-2 flex-wrap">
-        {isFolder && (
-          <Button size="sm" variant="outline" onClick={() => setDelFolderOpen(true)} className="text-destructive">
-            <Trash2 className="w-3.5 h-3.5 ms-1" /> {T("حذف فولدر", "Delete folder")}
-          </Button>
-        )}
-      </div>
-
-      
-
-      {isFolder ? (
-        <Tabs defaultValue="list">
-          <TabsList>
-            <TabsTrigger value="list">📋 {T("لیست", "List")}</TabsTrigger>
-            <TabsTrigger value="kanban">🗂 Kanban</TabsTrigger>
-          </TabsList>
-          <TabsContent value="list" className="mt-4">{listView}</TabsContent>
-          <TabsContent value="kanban" className="mt-4">
-            <FolderKanban folderId={params.id!} onOpenTask={(id) => navigate(`/app/tasks/${id}`)} />
-          </TabsContent>
-        </Tabs>
-      ) : (
-        listView
+    <div
+      className={`p-2 sm:p-3 md:p-4 lg:py-6 w-full max-w-5xl lg:max-w-none mx-auto relative${isFolder ? " min-h-screen" : ""}`}
+      style={isFolder ? {
+        backgroundColor: folderPrefs.bgColor ?? undefined,
+        backgroundImage: folderPrefs.bgImage ?? undefined,
+        backgroundSize: folderPrefs.bgImage ? "cover" : undefined,
+        backgroundAttachment: folderPrefs.bgImage ? "fixed" : undefined,
+      } : undefined}
+    >
+      {isFolder && folderPrefs.bgImage && (
+        <div className="absolute inset-0 bg-background/70 backdrop-blur-[2px] pointer-events-none" />
       )}
+      <div className="relative z-10">
+        <HeaderTitlePortal title={title} />
+        {isFolder && (
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <h1 className="text-lg md:text-xl font-black text-foreground">{folderName || title}</h1>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full" aria-label={T("تنظیمات فولدر", "Folder settings")}>
+                  <MoreVertical className="w-4 h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-64 text-xs">
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>نمای فولدر</DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent className="w-48 text-xs">
+                    <DropdownMenuRadioGroup
+                      value={folderPrefs.view}
+                      onValueChange={(value) => updateFolderPrefs({ view: value as FolderPrefs["view"] })}
+                    >
+                      <DropdownMenuRadioItem value="list">📋 لیست</DropdownMenuRadioItem>
+                      <DropdownMenuRadioItem value="kanban-stream">🗂 کانبان (استریم)</DropdownMenuRadioItem>
+                      <DropdownMenuRadioItem value="kanban-columns">🧱 کانبان (ستونی)</DropdownMenuRadioItem>
+                    </DropdownMenuRadioGroup>
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel className="text-[11px] text-muted-foreground">ترتیب نمایش</DropdownMenuLabel>
+                <DropdownMenuRadioGroup
+                  value={folderPrefs.sortOrder}
+                  onValueChange={(value) => updateFolderPrefs({ sortOrder: value as FolderPrefs["sortOrder"] })}
+                >
+                  <DropdownMenuRadioItem value="manual">دستی</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="priority">بر اساس اولویت</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="due_date">بر اساس سررسید</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="alphabetical">الفبایی</DropdownMenuRadioItem>
+                </DropdownMenuRadioGroup>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel className="text-[11px] text-muted-foreground">رنگ پس‌زمینه</DropdownMenuLabel>
+                <div className="flex flex-wrap gap-1.5 px-2 pb-2">
+                  {FOLDER_BG_COLORS.map((color) => (
+                    <button
+                      key={color.value}
+                      type="button"
+                      title={color.label}
+                      aria-label={color.label}
+                      onClick={() => updateFolderPrefs({ bgColor: color.value })}
+                      className={`h-6 w-6 rounded-full border border-border/60 transition-transform hover:scale-110 ${
+                        folderPrefs.bgColor === color.value ? "ring-2 ring-primary ring-offset-1" : ""
+                      }`}
+                      style={{ backgroundColor: color.value }}
+                    />
+                  ))}
+                  <button
+                    type="button"
+                    title="بدون رنگ"
+                    aria-label="بدون رنگ"
+                    onClick={() => updateFolderPrefs({ bgColor: null })}
+                    className={`h-6 w-6 rounded-full border border-border/60 bg-background text-[10px] ${
+                      folderPrefs.bgColor === null ? "ring-2 ring-primary ring-offset-1" : ""
+                    }`}
+                  >
+                    ×
+                  </button>
+                </div>
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>تصویر پس‌زمینه</DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent className="w-48 text-xs">
+                    <DropdownMenuItem onSelect={() => updateFolderPrefs({ bgImage: null })}>بدون تصویر</DropdownMenuItem>
+                    {FOLDER_BG_IMAGES.map((image) => (
+                      <DropdownMenuItem
+                        key={image.value}
+                        onSelect={() => updateFolderPrefs({ bgImage: image.value })}
+                      >
+                        {image.label}
+                      </DropdownMenuItem>
+                    ))}
+                    <DropdownMenuItem
+                      onSelect={() => {
+                        const url = window.prompt("آدرس تصویر پس‌زمینه");
+                        if (url?.trim()) updateFolderPrefs({ bgImage: `url("${url.trim()}")` });
+                      }}
+                    >
+                      آدرس تصویر دلخواه…
+                    </DropdownMenuItem>
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={() => setDelFolderOpen(true)} className="text-destructive focus:bg-destructive/10">
+                  <Trash2 className="w-3.5 h-3.5 ms-1" /> حذف فولدر
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        )}
+
+        {isFolder ? (
+          folderPrefs.view === "list" ? (
+            listView
+          ) : (
+            <FolderKanban
+              folderId={params.id!}
+              layout={folderPrefs.view === "kanban-columns" ? "columns" : "stream"}
+              sortOrder={folderPrefs.sortOrder}
+              onOpenTask={(id) => navigate(`/app/tasks/${id}`)}
+            />
+          )
+        ) : (
+          listView
+        )}
 
       <AlertDialog open={!!confirm} onOpenChange={(v) => !v && setConfirm(null)}>
         <AlertDialogContent>
@@ -1304,6 +1466,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
           }
         }}
       />
+      </div>
     </div>
   );
 }

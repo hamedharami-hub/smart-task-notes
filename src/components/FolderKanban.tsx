@@ -15,11 +15,8 @@ import {
   Loader2,
   CheckCircle2,
   MoreVertical,
-  SlidersHorizontal,
   ChevronDown,
   ChevronUp,
-  LayoutGrid,
-  List,
   Edit2,
   FolderTree,
   Check,
@@ -48,6 +45,7 @@ import {
   isValidUUID,
   TIME_HORIZONS,
 } from "@/lib/kanbanGoals";
+import type { FolderPrefs } from "@/lib/folderPrefs";
 import MultiTierTabs from "@/components/kanban/MultiTierTabs";
 import GoalEditorModal from "@/components/kanban/GoalEditorModal";
 import {
@@ -84,12 +82,31 @@ const COLUMNS: { id: Status; labelFa: string; labelEn: string; icon: any; accent
 ];
 const COL_ORDER: Status[] = ["todo", "in_progress", "done"];
 
+function sortFolderTasks(tasks: Task[], sortOrder: FolderPrefs["sortOrder"]) {
+  if (sortOrder === "manual") return tasks;
+  return [...tasks].sort((a, b) => {
+    if (sortOrder === "priority") {
+      return (PRIORITY_META[a.priority]?.rank ?? 3) - (PRIORITY_META[b.priority]?.rank ?? 3);
+    }
+    if (sortOrder === "due_date") {
+      const aDue = a.due_date ? new Date(a.due_date).getTime() : Infinity;
+      const bDue = b.due_date ? new Date(b.due_date).getTime() : Infinity;
+      return aDue - bDue;
+    }
+    return a.title.localeCompare(b.title, "fa");
+  });
+}
+
 export function FolderKanban({
   folderId,
   onOpenTask,
+  layout,
+  sortOrder,
 }: {
   folderId: string;
   onOpenTask?: (taskId: string) => void;
+  layout: "stream" | "columns";
+  sortOrder: FolderPrefs["sortOrder"];
 }) {
   const { user } = useAuth();
   const { i18n } = useTranslation();
@@ -104,7 +121,6 @@ export function FolderKanban({
 
   // Mode and Layout
   const [viewMode, setViewMode] = useState<"hierarchy" | "time" | "priority">("hierarchy");
-  const [layoutMode, setLayoutMode] = useState<"stream" | "columns">("stream");
   const [timeFilter, setTimeFilter] = useState<TimeHorizon | "all">("all");
   const [priorityFilter, setPriorityFilter] = useState<GoalPriority | "all">("all");
 
@@ -191,8 +207,14 @@ export function FolderKanban({
     return direct;
   }, [allTasks, activeGoalId, selectedTier2Id]);
 
-  const incompleteTasks = useMemo(() => currentGoalTasks.filter((t) => !t.completed), [currentGoalTasks]);
-  const completedTasks = useMemo(() => currentGoalTasks.filter((t) => t.completed), [currentGoalTasks]);
+  const incompleteTasks = useMemo(
+    () => sortFolderTasks(currentGoalTasks.filter((t) => !t.completed), sortOrder),
+    [currentGoalTasks, sortOrder],
+  );
+  const completedTasks = useMemo(
+    () => sortFolderTasks(currentGoalTasks.filter((t) => t.completed), sortOrder),
+    [currentGoalTasks, sortOrder],
+  );
 
   // Task mutations
   const toggleTask = async (task: Task) => {
@@ -342,9 +364,9 @@ export function FolderKanban({
   const activeTaskObj = activeId ? allTasks.find((t) => t.id === activeId) : null;
 
   return (
-    <div dir="rtl" className="space-y-4 pb-20 animate-fade-in relative">
+    <div dir="rtl" className="space-y-3 pb-20 animate-fade-in relative">
       {/* 1. TOP HEADER & CONTROLS */}
-      <div className="flex items-center justify-between gap-2 flex-wrap bg-card/60 border border-border/70 p-3 rounded-2xl backdrop-blur">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-2.5">
           <button
             type="button"
@@ -363,74 +385,28 @@ export function FolderKanban({
           )}
         </div>
 
-        {/* Actions & Sorting */}
+        {/* Goal actions and view mode */}
         <div className="flex items-center gap-1.5">
-          {/* Layout Mode Toggle */}
-          <div className="flex rounded-xl bg-muted/60 p-0.5 border">
-            <button
-              type="button"
-              onClick={() => setLayoutMode("stream")}
-              className={`p-1.5 rounded-lg text-xs transition ${
-                layoutMode === "stream" ? "bg-background shadow-xs text-primary font-bold" : "text-muted-foreground"
-              }`}
-              title="نمای استریم تمام‌صفحه"
-            >
-              <List className="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setLayoutMode("columns")}
-              className={`p-1.5 rounded-lg text-xs transition ${
-                layoutMode === "columns" ? "bg-background shadow-xs text-primary font-bold" : "text-muted-foreground"
-              }`}
-              title="ستون‌های کلاسیک کانبان"
-            >
-              <LayoutGrid className="w-4 h-4" />
-            </button>
-          </div>
-
-          {/* Grouping / Filter Mode */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-8 text-xs rounded-xl gap-1.5 bg-card/60">
-                <SlidersHorizontal className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">
-                  {viewMode === "hierarchy" ? "ساختار درختی" : viewMode === "time" ? "بر اساس زمان" : "بر اساس اهمیت"}
-                </span>
-                <ChevronDown className="w-3 h-3 text-muted-foreground" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="text-xs w-48">
-              <DropdownMenuLabel className="text-[11px] text-muted-foreground">حالت نمایش کانبان این فولدر</DropdownMenuLabel>
-              <DropdownMenuItem onClick={() => setViewMode("hierarchy")} className="gap-2 font-medium">
-                <FolderTree className="w-3.5 h-3.5 text-primary" /> ساختار درختی و چندسطحی
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setViewMode("time")} className="gap-2 font-medium">
-                <Calendar className="w-3.5 h-3.5 text-amber-500" /> مرتب‌سازی بر اساس زمان (افق)
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setViewMode("priority")} className="gap-2 font-medium">
-                <Flag className="w-3.5 h-3.5 text-rose-500" /> مرتب‌سازی بر اساس اهمیت
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => activeGoal && openEditForGoal(activeGoal)} className="gap-2">
-                <Edit2 className="w-3.5 h-3.5 text-muted-foreground" /> ویرایش هدف فعلی
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => openAddNewGoal(null)} className="gap-2">
-                <Plus className="w-3.5 h-3.5 text-emerald-500" /> ایجاد هدف جدید در این فولدر
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {/* More options */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
                 <MoreVertical className="w-4 h-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="text-xs w-44">
+            <DropdownMenuContent align="end" className="text-xs w-52">
               {activeGoal && (
                 <>
+                  <DropdownMenuLabel className="text-[11px] text-muted-foreground">حالت نمایش کانبان</DropdownMenuLabel>
+                  <DropdownMenuItem onClick={() => setViewMode("hierarchy")} className="gap-2 font-medium">
+                    <FolderTree className="w-3.5 h-3.5 text-primary" /> ساختار درختی و چندسطحی
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setViewMode("time")} className="gap-2 font-medium">
+                    <Calendar className="w-3.5 h-3.5 text-amber-500" /> مرتب‌سازی بر اساس زمان (افق)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setViewMode("priority")} className="gap-2 font-medium">
+                    <Flag className="w-3.5 h-3.5 text-rose-500" /> مرتب‌سازی بر اساس اهمیت
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => openEditForGoal(activeGoal)} className="gap-2">
                     <Edit2 className="w-3.5 h-3.5" /> ویرایش تنظیمات این هدف
                   </DropdownMenuItem>
@@ -452,7 +428,7 @@ export function FolderKanban({
       </div>
 
       {/* 2. MULTI-TIER HORIZONTAL TABS */}
-      <Card className="p-3 rounded-2xl bg-card/60 border border-border/70 backdrop-blur shadow-xs">
+      <div className="overflow-x-auto no-scrollbar">
         <MultiTierTabs
           goals={goals}
           selectedTier1Id={selectedTier1Id}
@@ -470,10 +446,10 @@ export function FolderKanban({
           onAddNewGoal={openAddNewGoal}
           taskCountsByGoal={taskCountsByGoal}
         />
-      </Card>
+      </div>
 
       {/* 3. MAIN CONTENT: STREAM VIEW OR CLASSIC KANBAN */}
-      {layoutMode === "stream" ? (
+      {layout === "stream" ? (
         <div className="space-y-4">
           {/* Quick Input Bar */}
           <div className="flex gap-2">
@@ -625,7 +601,7 @@ export function FolderKanban({
         >
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {COLUMNS.map((col) => {
-              const colTasks = currentGoalTasks.filter((t) => t.status === col.id);
+              const colTasks = sortFolderTasks(currentGoalTasks.filter((t) => t.status === col.id), sortOrder);
               return (
                 <KanbanColumn
                   key={col.id}
