@@ -8,6 +8,7 @@ import PomodoroTimer from "@/components/PomodoroTimer";
 import { subDays, startOfDay, format, isSameDay } from "date-fns";
 import { getCalendarSystem, jalaliDayOfWeek, WEEKDAY_SHORT_FA, formatDate } from "@/lib/jalali";
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { awardWaterDrops } from "@/lib/garden";
 
 type SessionRow = { duration_minutes: number; task_id: string | null; ended_at: string | null; tasks?: { title: string } | null };
 type WeekRow = { duration_minutes: number; started_at: string };
@@ -105,7 +106,13 @@ export default function PomodoroView() {
             </p>
           )}
         </div>
-        <PomodoroTimer taskId={selectedTaskId} onSessionComplete={() => setRefreshTick(t => t + 1)} />
+        <PomodoroTimer
+          taskId={selectedTaskId}
+          onSessionComplete={() => {
+            awardWaterDrops(25, "تکمیل جلسه پومودورو");
+            setRefreshTick((t) => t + 1);
+          }}
+        />
       </Card>
 
       <Card>

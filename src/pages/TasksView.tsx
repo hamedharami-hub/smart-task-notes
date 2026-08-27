@@ -50,6 +50,7 @@ import { MakeChildDialog } from "@/components/MakeChildDialog";
 import { PRIORITY_SELECTABLE, type Priority } from "@/lib/priority";
 import { Repeat } from "lucide-react";
 import type { RecurrenceRule } from "@/lib/recurrence";
+import { awardWaterDrops } from "@/lib/garden";
 
 // Module-level cache shared across mounts: instantly hydrate from last fetch.
 const tasksCache = new Map<string, Task[]>();
@@ -64,6 +65,7 @@ function outcomeMeta(
   if (!oid) return null;
   return byId[oid] || null;
 }
+
 
 function groupedChildren(
   subs: Task[],
@@ -487,6 +489,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
   const completeTaskCore = async (t: Task, outcome: TaskOutcome | null, isOwner: boolean) => {
     const patch = { completed: true, status: "done" as const, completed_at: new Date().toISOString() };
     if (isOwner) setAllTasks(prev => prev.map(x => x.id === t.id ? { ...x, ...patch } as Task : x));
+    if (!t.completed) awardWaterDrops(10, "تکمیل تسک");
 
     // Keep the completed task visible (with strikethrough) for a few seconds
     const until = Date.now() + GRACE_MS;
@@ -1304,4 +1307,3 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     </div>
   );
 }
-

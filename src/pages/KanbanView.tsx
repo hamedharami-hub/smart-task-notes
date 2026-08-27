@@ -40,6 +40,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { PRIORITY_META, type Priority } from "@/lib/priority";
 import { haptic } from "@/lib/haptics";
+import { awardWaterDrops } from "@/lib/garden";
 import {
   type GoalKanban,
   type TimeHorizon,
@@ -97,7 +98,7 @@ export default function KanbanView() {
   const T = (fa: string, en: string) => (isEn ? en : fa);
 
   // --- GOAL STATE ---
-  const [goals, setGoals] = useState<GoalKanban[]>(() => getKanbanGoals(user?.id));
+  const [goals, setGoals] = useState<GoalKanban[]>(() => getKanbanGoals(null, user?.id));
   const [selectedTier1Id, setSelectedTier1Id] = useState<string | null>(() => goals[0]?.id || null);
   const [selectedTier2Id, setSelectedTier2Id] = useState<string | null>(null);
   const [selectedTier3Id, setSelectedTier3Id] = useState<string | null>(null);
@@ -119,6 +120,7 @@ export default function KanbanView() {
   const [completedOpen, setCompletedOpen] = useState(true);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [quickTitle, setQuickTitle] = useState("");
+  const quickInputRef = useRef<HTMLInputElement>(null);
   const [quickColumnTitle, setQuickColumnTitle] = useState<Record<Status, string>>({
     todo: "",
     in_progress: "",
@@ -129,7 +131,7 @@ export default function KanbanView() {
 
   // Synchronize goals
   useEffect(() => {
-    const list = getKanbanGoals(user?.id);
+    const list = getKanbanGoals(null, user?.id);
     setGoals(list);
     if (!selectedTier1Id && list.length > 0) {
       setSelectedTier1Id(list[0].id);
@@ -198,12 +200,13 @@ export default function KanbanView() {
 
   // Task mutation helpers
   const toggleTask = async (task: Task) => {
-    haptic("selection");
+    haptic("light");
     const newCompleted = !task.completed;
     const newStatus: Status = newCompleted ? "done" : "todo";
     setAllTasks((prev) =>
       prev.map((t) => (t.id === task.id ? { ...t, completed: newCompleted, status: newStatus } : t))
     );
+    if (newCompleted) awardWaterDrops(10, "تکمیل تسک");
     const { error } = await supabase
       .from("tasks")
       .update({
@@ -244,6 +247,7 @@ export default function KanbanView() {
     setAllTasks((prev) =>
       prev.map((x) => (x.id === taskId ? { ...x, status: newStatus, completed } : x))
     );
+    if (newStatus === "done" && t.status !== "done") awardWaterDrops(10, "تکمیل تسک");
     const { error } = await supabase
       .from("tasks")
       .update({
@@ -302,16 +306,29 @@ export default function KanbanView() {
       toast.success("کانبان جدید ایجاد شد");
     }
     setGoals(nextGoals);
-    saveKanbanGoals(nextGoals, user?.id);
+    saveKanbanGoals(nextGoals, null, user?.id);
   };
 
   const handleDeleteGoal = (goalId: string) => {
-    const next = goals.filter((g) => g.id !== goalId && g.parentId !== goalId);
+    const deletedIds = new Set([goalId]);
+    let changed = true;
+    while (changed) {
+      changed = false;
+      goals.forEach((g) => {
+        if (g.parentId && deletedIds.has(g.parentId) && !deletedIds.has(g.id)) {
+          deletedIds.add(g.id);
+          changed = true;
+        }
+      });
+    }
+    const next = goals.filter((g) => !deletedIds.has(g.id));
     setGoals(next);
-    saveKanbanGoals(next, user?.id);
-    if (selectedTier1Id === goalId) setSelectedTier1Id(next[0]?.id || null);
-    if (selectedTier2Id === goalId) setSelectedTier2Id(null);
-    if (selectedTier3Id === goalId) setSelectedTier3Id(null);
+    saveKanbanGoals(next, null, user?.id);
+    if (selectedTier1Id && deletedIds.has(selectedTier1Id)) {
+      setSelectedTier1Id(next.find((g) => g.parentId === null)?.id || null);
+    }
+    if (selectedTier2Id && deletedIds.has(selectedTier2Id)) setSelectedTier2Id(null);
+    if (selectedTier3Id && deletedIds.has(selectedTier3Id)) setSelectedTier3Id(null);
     toast.success("هدف با موفقیت حذف شد");
   };
 
@@ -388,7 +405,7 @@ export default function KanbanView() {
                 <ChevronDown className="w-3 h-3 text-muted-foreground" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="text-xs w-48" dir="rtl">
+            <DropdownMenuContent align="end" className="text-xs w-48">
               <DropdownMenuLabel className="text-[11px] text-muted-foreground">حالت نمایش کانبان</DropdownMenuLabel>
               <DropdownMenuItem onClick={() => setViewMode("hierarchy")} className="gap-2 font-medium">
                 <FolderTree className="w-3.5 h-3.5 text-primary" /> ساختار درختی و چندسطحی
@@ -416,7 +433,7 @@ export default function KanbanView() {
                 <MoreVertical className="w-4 h-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="text-xs w-44" dir="rtl">
+            <DropdownMenuContent align="end" className="text-xs w-44">
               {activeGoal && (
                 <>
                   <DropdownMenuItem onClick={() => openEditForGoal(activeGoal)} className="gap-2">
@@ -466,6 +483,7 @@ export default function KanbanView() {
           {/* Quick Input Bar at Top */}
           <div className="flex gap-2">
             <Input
+              ref={quickInputRef}
               value={quickTitle}
               onChange={(e) => setQuickTitle(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && addQuickTask(quickTitle)}
@@ -638,7 +656,10 @@ export default function KanbanView() {
       {/* Floating Action Button (+) matching screenshot bottom right */}
       <button
         type="button"
-        onClick={() => addQuickTask(quickTitle || "تسک جدید")}
+        onClick={() => {
+          if (quickTitle.trim()) addQuickTask(quickTitle);
+          else quickInputRef.current?.focus();
+        }}
         className="fixed bottom-6 start-6 md:bottom-8 md:start-8 w-14 h-14 rounded-full bg-blue-600 hover:bg-blue-700 active:scale-95 text-white flex items-center justify-center shadow-xl shadow-blue-500/30 transition-transform z-30"
         title="افزودن تسک سریع"
       >
