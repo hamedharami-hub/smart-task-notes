@@ -457,7 +457,7 @@ export default function KanbanView() {
       </div>
 
       {/* 2. MULTI-TIER HORIZONTAL TABS (Tier 1 & Tier 2 beneath each other) */}
-      <Card className="p-3 rounded-2xl bg-card/60 border border-border/70 backdrop-blur shadow-xs">
+      <div className="overflow-x-auto no-scrollbar">
         <MultiTierTabs
           goals={goals}
           selectedTier1Id={selectedTier1Id}
@@ -475,7 +475,7 @@ export default function KanbanView() {
           onAddNewGoal={openAddNewGoal}
           taskCountsByGoal={taskCountsByGoal}
         />
-      </Card>
+      </div>
 
       {/* 3. MAIN CONTENT: STREAM VIEW (MATCHING USER SCREENSHOT) OR CLASSIC COLUMNS */}
       {layoutMode === "stream" ? (
