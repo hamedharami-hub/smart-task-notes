@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { setGardenUser } from "@/lib/garden";
 
 function getPersistedAuth(): { session: Session | null; user: User | null } {
   if (typeof window === "undefined") return { session: null, user: null };
@@ -74,6 +75,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setGardenUser(user?.id ?? null);
+  }, [user?.id]);
 
   useEffect(() => {
     let resolved = false;

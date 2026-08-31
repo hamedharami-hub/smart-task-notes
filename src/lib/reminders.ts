@@ -1,6 +1,6 @@
 // Reminders engine — Web Notifications + auto daily task creation
 import { supabase } from "@/integrations/supabase/client";
-import { cacheGet, cacheSet } from "@/lib/offlineQueue";
+import { cacheGet, cacheSet, enqueueOp } from "@/lib/offlineQueue";
 
 export type TaskDefaults = {
   default_date?: "none" | "today" | "tomorrow" | "next7" | null;
@@ -32,7 +32,8 @@ const LAST_NOTIFY_KEY = "reminder_last_fired_v1"; // {sleep:"YYYY-MM-DD", checki
 const LAST_TASK_KEY = "reminder_last_task_v1"; // "YYYY-MM-DD"
 
 function todayKey(): string {
-  return new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 }
 
 function parseHM(t: string): { h: number; m: number } {
@@ -231,7 +232,15 @@ export async function saveSettings(userId: string, patch: Partial<UserSettings>)
   const next = { ...current, ...patch, user_id: userId };
   await cacheSet(SETTINGS_CACHE_KEY(userId), next);
 
-  if (typeof navigator !== "undefined" && !navigator.onLine) return;
+  if (typeof navigator !== "undefined" && !navigator.onLine) {
+    await enqueueOp({
+      table: "user_settings",
+      op: "upsert",
+      payload: { user_id: userId, ...patch },
+      upsertOptions: { onConflict: "user_id" },
+    });
+    return;
+  }
   const { error } = await supabase
     .from("user_settings")
     .upsert({ user_id: userId, ...patch } as never, { onConflict: "user_id" });

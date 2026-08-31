@@ -3,6 +3,7 @@
 
 import { openDB, type IDBPDatabase } from "idb";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 export type QueuedOp = {
   id?: number;
@@ -10,6 +11,7 @@ export type QueuedOp = {
   op: "insert" | "update" | "delete" | "upsert";
   payload?: unknown;
   match?: Record<string, unknown>;
+  upsertOptions?: { onConflict?: string };
   createdAt: number;
   attempts: number;
   nextRetryAt?: number;
@@ -88,6 +90,7 @@ export async function flushQueue(): Promise<{ ok: number; failed: number }> {
   syncing = true;
   let ok = 0;
   let failed = 0;
+  let notifiedDrop = false;
   try {
     const db = await getDB();
     const items = await db.getAll(STORE);
@@ -100,7 +103,7 @@ export async function flushQueue(): Promise<{ ok: number; failed: number }> {
         if (item.op === "insert") {
           res = await q.insert(item.payload as Record<string, unknown>);
         } else if (item.op === "upsert") {
-          res = await q.upsert(item.payload as Record<string, unknown>);
+          res = await q.upsert(item.payload as Record<string, unknown>, item.upsertOptions);
         } else if (item.op === "update") {
           let b = q.update(item.payload as Record<string, unknown>);
           for (const [k, v] of Object.entries(item.match || {})) b = b.eq(k, v);
@@ -116,11 +119,16 @@ export async function flushQueue(): Promise<{ ok: number; failed: number }> {
       } catch (e) {
         failed++;
         item.attempts++;
-        const backoff = Math.min(2 ** item.attempts * 1000, 30000);
+        const backoff = Math.min(2 ** item.attempts * 1000, 300_000);
         item.nextRetryAt = Date.now() + backoff;
-        if (item.attempts >= 5) {
-          // give up after 5 attempts to avoid infinite retry
+        if (item.attempts >= 10) {
           await db.delete(STORE, item.id!);
+          if (!notifiedDrop) {
+            toast.error("برخی تغییرات آفلاین سینک نشدند", {
+              description: `تغییر روی «${item.table}» پس از چند تلاش ذخیره نشد.`,
+            });
+            notifiedDrop = true;
+          }
         } else {
           await db.put(STORE, item);
         }

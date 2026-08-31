@@ -178,13 +178,10 @@ export function getKanbanGoals(folderId?: string | null, userId?: string): GoalK
       return defaults;
     }
     const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed) && parsed.length > 0) {
-      const sanitized = sanitizeGoalsUUIDs(parsed);
-      return sanitized;
-    }
-    return INITIAL_GOALS;
+    if (Array.isArray(parsed)) return sanitizeGoalsUUIDs(parsed);
+    return folderId ? [] : INITIAL_GOALS;
   } catch {
-    return INITIAL_GOALS;
+    return folderId ? [] : INITIAL_GOALS;
   }
 }
 

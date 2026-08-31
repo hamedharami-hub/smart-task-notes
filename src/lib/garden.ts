@@ -118,6 +118,14 @@ export const PLANT_SPECIES: Record<PlantType, PlantMetadata> = {
 };
 
 const GARDEN_STORAGE_KEY = "arshnaz_mind_garden_v1";
+const GARDEN_USER_KEY = "arshnaz_garden_user";
+let currentGardenUserId: string | null = (() => {
+  try {
+    return localStorage.getItem(GARDEN_USER_KEY);
+  } catch {
+    return null;
+  }
+})();
 
 const DEFAULT_STATE: GardenState = {
   waterDrops: 30,
@@ -140,20 +148,55 @@ const DEFAULT_STATE: GardenState = {
   },
 };
 
+function gardenKey() {
+  return currentGardenUserId ? `${GARDEN_STORAGE_KEY}_${currentGardenUserId}` : GARDEN_STORAGE_KEY;
+}
+
+function defaultGardenState(): GardenState {
+  return {
+    ...DEFAULT_STATE,
+    herbarium: [...DEFAULT_STATE.herbarium],
+    activePlant: DEFAULT_STATE.activePlant
+      ? {
+          ...DEFAULT_STATE.activePlant,
+          contributions: [...DEFAULT_STATE.activePlant.contributions],
+        }
+      : null,
+  };
+}
+
+export function setGardenUser(userId: string | null) {
+  currentGardenUserId = userId;
+  try {
+    if (userId) localStorage.setItem(GARDEN_USER_KEY, userId);
+    else localStorage.removeItem(GARDEN_USER_KEY);
+  } catch { /* ignore */ }
+  window.dispatchEvent(new CustomEvent("arshnaz-garden-updated", { detail: getGardenState() }));
+}
+
 export function getGardenState(): GardenState {
   try {
-    const raw = localStorage.getItem(GARDEN_STORAGE_KEY);
-    if (!raw) return DEFAULT_STATE;
+    const key = gardenKey();
+    let raw = localStorage.getItem(key);
+    if (!raw && currentGardenUserId) {
+      const legacyRaw = localStorage.getItem(GARDEN_STORAGE_KEY);
+      if (legacyRaw) {
+        localStorage.setItem(key, legacyRaw);
+        raw = legacyRaw;
+      }
+    }
+    if (!raw) return defaultGardenState();
     const parsed = JSON.parse(raw);
-    return { ...DEFAULT_STATE, ...parsed };
+    const defaults = defaultGardenState();
+    return { ...defaults, ...parsed };
   } catch {
-    return DEFAULT_STATE;
+    return defaultGardenState();
   }
 }
 
 export function saveGardenState(state: GardenState) {
   try {
-    localStorage.setItem(GARDEN_STORAGE_KEY, JSON.stringify(state));
+    localStorage.setItem(gardenKey(), JSON.stringify(state));
     window.dispatchEvent(new CustomEvent("arshnaz-garden-updated", { detail: state }));
   } catch (e) {
     console.error("Failed to save garden state:", e);
