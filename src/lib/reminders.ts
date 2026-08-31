@@ -1,6 +1,8 @@
 // Reminders engine — Web Notifications + auto daily task creation
 import { supabase } from "@/integrations/supabase/client";
 import { cacheGet, cacheSet, enqueueOp } from "@/lib/offlineQueue";
+import { fireNotification, hasNotificationPermission } from "@/lib/notify";
+export { ensureNotificationPermission } from "@/lib/notify";
 
 export type TaskDefaults = {
   default_date?: "none" | "today" | "tomorrow" | "next7" | null;
@@ -41,23 +43,6 @@ function parseHM(t: string): { h: number; m: number } {
   return { h, m: m || 0 };
 }
 
-export async function ensureNotificationPermission(): Promise<boolean> {
-  if (!("Notification" in window)) return false;
-  if (Notification.permission === "granted") return true;
-  if (Notification.permission === "denied") return false;
-  const res = await Notification.requestPermission();
-  return res === "granted";
-}
-
-function fire(title: string, body: string, tag: string) {
-  if (!("Notification" in window) || Notification.permission !== "granted") return;
-  try {
-    new Notification(title, { body, tag, icon: "/icon-192.png" });
-  } catch {
-    /* ignore */
-  }
-}
-
 const FIRED_TASKS_KEY = "reminder_fired_tasks_v1";
 
 function playBeep() {
@@ -79,7 +64,7 @@ function playBeep() {
 
 export async function checkTaskReminders(userId: string, s: UserSettings) {
   if (!s.notifications_enabled) return;
-  if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
+  if (!(await hasNotificationPermission())) return;
   const nowIso = new Date().toISOString();
   const { data } = await supabase
     .from("tasks")
@@ -95,7 +80,7 @@ export async function checkTaskReminders(userId: string, s: UserSettings) {
   for (const t of data as any[]) {
     const key = `${t.id}:${t.reminder_at}`;
     if (fired[key]) continue;
-    fire("⏰ یادآور تسک", t.title, key);
+    fireNotification("⏰ یادآور تسک", t.title, key);
     if (!played) { playBeep(); played = true; }
     fired[key] = nowIso;
   }
@@ -108,8 +93,9 @@ export async function checkTaskReminders(userId: string, s: UserSettings) {
 }
 
 
-export function checkAndFireReminders(s: UserSettings) {
+export async function checkAndFireReminders(s: UserSettings) {
   if (!s.notifications_enabled) return;
+  if (!(await hasNotificationPermission())) return;
   const now = new Date();
   const today = todayKey();
   const stored = JSON.parse(localStorage.getItem(LAST_NOTIFY_KEY) || "{}");
@@ -119,7 +105,7 @@ export function checkAndFireReminders(s: UserSettings) {
     if (stored[kind] === today) return;
     const { h, m } = parseHM(time);
     if (now.getHours() > h || (now.getHours() === h && now.getMinutes() >= m)) {
-      fire(title, body, `${kind}-${today}`);
+      fireNotification(title, body, `${kind}-${today}`);
       stored[kind] = today;
     }
   };

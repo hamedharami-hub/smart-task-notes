@@ -24,7 +24,7 @@ export default function RemindersRunner() {
       if ((s as any).font_size) applyFontSize((s as any).font_size as FontSize);
       if ((s as any).ui_scale) applyUIScale((s as any).ui_scale);
       await ensureDailyTasks(user.id, s);
-      checkAndFireReminders(s);
+      await checkAndFireReminders(s);
       await checkTaskReminders(user.id, s);
     };
 
