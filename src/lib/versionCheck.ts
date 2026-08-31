@@ -57,9 +57,10 @@ export function startVersionWatcher(): () => void {
       checkForAppUpdates();
     }
   };
+  const onFocus = () => checkForAppUpdates();
 
-  window.addEventListener("visibilitychange", onVisibilityChange);
-  window.addEventListener("focus", () => checkForAppUpdates());
+  document.addEventListener("visibilitychange", onVisibilityChange);
+  window.addEventListener("focus", onFocus);
 
   const interval = setInterval(() => {
     checkForAppUpdates();
@@ -68,7 +69,8 @@ export function startVersionWatcher(): () => void {
   setTimeout(() => checkForAppUpdates(), 3000);
 
   return () => {
-    window.removeEventListener("visibilitychange", onVisibilityChange);
+    document.removeEventListener("visibilitychange", onVisibilityChange);
+    window.removeEventListener("focus", onFocus);
     clearInterval(interval);
   };
 }
