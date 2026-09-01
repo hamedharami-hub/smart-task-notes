@@ -18,8 +18,9 @@ import {
   Folder as FolderIcon, Tag as TagIcon, Check, Calendar as CalendarIcon,
   Flag, Repeat, ListTree, Paperclip, X, Image as ImageIcon, Music, Link as LinkIcon,
   CheckSquare, ListChecks, CalendarDays, Mic, MicOff, Pin, PinOff, Maximize2, Minimize2,
-  GitBranch,
+  GitBranch, Zap,
 } from "lucide-react";
+import ProcrastinationBusterModal from "@/components/ProcrastinationBusterModal";
 import { VoiceInput } from "@/lib/voiceInput";
 import { PRIORITY_META, PRIORITY_ORDER, type Priority } from "@/lib/priority";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -66,6 +67,7 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
   const [taskNotes, setTaskNotes] = useState<TaskNote[]>([]);
   const [activeNote, setActiveNote] = useState<TaskNote | null>(null);
   const [aiOpen, setAiOpen] = useState(false);
+  const [busterOpen, setBusterOpen] = useState(false);
   const [snap, setSnap] = useState<number | string>(0.5);
   const [folders, setFolders] = useState<{ id: string; name: string; parent_id: string | null; color: string | null }[]>([]);
   const [tags, setTags] = useState<{ id: string; name: string; color: string | null }[]>([]);
@@ -1104,6 +1106,15 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
                   </PopoverContent>
                 </Popover>
 
+                {/* Procrastination Buster */}
+                <RailButton
+                  icon={Zap}
+                  label={T("ضد اهمال‌کاری", "Buster")}
+                  onClick={() => setBusterOpen(true)}
+                  disabled={!canEdit}
+                  className="text-amber-600 dark:text-amber-400 hover:bg-amber-500/10"
+                />
+
                 {/* AI */}
                 <RailButton
                   icon={Sparkles}
@@ -1290,6 +1301,13 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
         open={outcomeOpen}
         onOpenChange={(open) => { setOutcomeOpen(open); if (!open) { refreshTask(); refreshOutcomeCount(); } }}
         folders={folders.map((f) => ({ id: f.id, name: f.name }))}
+      />
+
+      <ProcrastinationBusterModal
+        task={t}
+        open={busterOpen}
+        onOpenChange={setBusterOpen}
+        onSuccess={refreshTask}
       />
     </>
   );

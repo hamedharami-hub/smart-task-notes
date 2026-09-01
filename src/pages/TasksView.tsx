@@ -2,9 +2,10 @@ import { useEffect, useState, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { startOfDay, endOfDay, addDays, format } from "date-fns";
-import { Plus, Calendar, Trash2, ChevronRight, ChevronDown, Flag, GripVertical, CornerDownRight, Ban, Pin, Clock, FolderInput, Check, X, GitBranch, MoreVertical } from "lucide-react";
+import { Plus, Calendar, Trash2, ChevronRight, ChevronDown, Flag, GripVertical, CornerDownRight, Ban, Pin, Clock, FolderInput, Check, X, GitBranch, MoreVertical, Zap } from "lucide-react";
 import { MoveToDialog } from "@/components/MoveToDialog";
 import { FolderDeleteDialog } from "@/components/FolderDeleteDialog";
+import ProcrastinationBusterModal from "@/components/ProcrastinationBusterModal";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -161,6 +162,8 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
   const [outcomeOpen, setOutcomeOpen] = useState(false);
   const [outcomeById, setOutcomeById] = useState<Record<string, { label: string; color?: string | null; icon?: string | null }>>({});
   const [outcomeByTaskId, setOutcomeByTaskId] = useState<Record<string, string>>({});
+  const [busterTask, setBusterTask] = useState<Task | null>(null);
+  const [busterOpen, setBusterOpen] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -1122,6 +1125,20 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
                     </span>
                   );
                 })()}
+                {!t.completed && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setBusterTask(t);
+                      setBusterOpen(true);
+                    }}
+                    className="text-[9px] gap-1 px-2 py-0 h-[18px] inline-flex items-center rounded-full border bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 hover:bg-amber-500/20 transition-colors shadow-2xs font-semibold"
+                    title={T("کپسول ضد اهمال‌کاری (تقسیم به ۳ قدم ۲ دقیقه‌ای با هوش مصنوعی)", "Procrastination Buster (Break into 3 two-minute steps with AI)")}
+                  >
+                    <Zap className="w-2.5 h-2.5 fill-amber-500 text-amber-500" />
+                    <span>{T("ضد اهمال‌کاری", "Buster")}</span>
+                  </button>
+                )}
               </div>
             </Card>
             </SwipeableRow>
@@ -1464,6 +1481,17 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
             if (outcome) completeTask(outcomeTask, outcome);
             else completeTask(outcomeTask);
           }
+        }}
+      />
+
+      <ProcrastinationBusterModal
+        task={busterTask}
+        open={busterOpen}
+        onOpenChange={setBusterOpen}
+        onSuccess={load}
+        onStartFocus={(taskId, min) => {
+          const t = allTasks.find(x => x.id === taskId) || null;
+          setPomoTask(t);
         }}
       />
       </div>

@@ -1,18 +1,28 @@
 import React, { useState, useEffect } from "react";
-import { Sparkles, Droplets } from "lucide-react";
-import { type ActivePlant, PLANT_SPECIES } from "@/lib/garden";
+import { Sparkles, Droplets, Sun, Moon, Cloud, Flame } from "lucide-react";
+import { type ActivePlant, PLANT_SPECIES, type TimeOfDay, getCurrentTimeOfDay } from "@/lib/garden";
 
 interface PlantCanvasProps {
   plant: ActivePlant;
   isWatering?: boolean;
   onTap?: () => void;
   size?: "sm" | "md" | "lg";
+  timeOfDay?: TimeOfDay;
+  focusBlossoms?: number;
 }
 
-export default function PlantCanvas({ plant, isWatering = false, onTap, size = "lg" }: PlantCanvasProps) {
+export default function PlantCanvas({
+  plant,
+  isWatering = false,
+  onTap,
+  size = "lg",
+  timeOfDay,
+  focusBlossoms = 0,
+}: PlantCanvasProps) {
   const meta = PLANT_SPECIES[plant.type] || PLANT_SPECIES.rose;
   const stage = plant.stage;
   const [sway, setSway] = useState(false);
+  const effectiveTime = timeOfDay || getCurrentTimeOfDay();
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -22,24 +32,128 @@ export default function PlantCanvas({ plant, isWatering = false, onTap, size = "
   }, []);
 
   const dimensions = {
-    sm: { width: 140, height: 160 },
-    md: { width: 220, height: 260 },
-    lg: { width: 300, height: 360 },
+    sm: { width: 150, height: 175 },
+    md: { width: 240, height: 280 },
+    lg: { width: 320, height: 380 },
   }[size];
 
   const potId = "pot-grad-" + plant.id;
   const stemId = "stem-grad-" + plant.id;
   const bloomGlowId = "bloom-glow-" + plant.id;
 
+  // Atmosphere background styles
+  const atmosphereStyles: Record<TimeOfDay, { bg: string; border: string; glow: string; text: string }> = {
+    morning: {
+      bg: "bg-gradient-to-b from-amber-500/20 via-rose-500/10 to-transparent",
+      border: "border-amber-500/30",
+      glow: "rgba(251, 146, 60, 0.25)",
+      text: "صبح زرین 🌅",
+    },
+    day: {
+      bg: "bg-gradient-to-b from-sky-500/20 via-emerald-500/10 to-transparent",
+      border: "border-sky-500/30",
+      glow: "rgba(56, 189, 248, 0.25)",
+      text: "روز پرانرژی ☀️",
+    },
+    sunset: {
+      bg: "bg-gradient-to-b from-orange-600/25 via-purple-600/20 to-transparent",
+      border: "border-orange-500/30",
+      glow: "rgba(249, 115, 22, 0.3)",
+      text: "غروب آرامش 🌇",
+    },
+    night: {
+      bg: "bg-gradient-to-b from-indigo-950/40 via-purple-950/30 to-transparent",
+      border: "border-indigo-500/30",
+      glow: "rgba(99, 102, 241, 0.3)",
+      text: "شب پرستاره 🌙",
+    },
+  };
+
+  const currentAtmo = atmosphereStyles[effectiveTime];
+
   return (
     <div
       onClick={onTap}
-      className={`relative flex flex-col items-center justify-center select-none ${
+      className={`relative flex flex-col items-center justify-center select-none rounded-3xl p-3 transition-colors duration-1000 overflow-hidden ${currentAtmo.bg} ${
         onTap ? "cursor-pointer active:scale-95 transition-transform" : ""
       }`}
       style={{ width: dimensions.width, height: dimensions.height }}
     >
-      {/* Zen Ambient Aura */}
+      {/* 1. ATMOSPHERIC CELESTIAL BACKGROUND & STARS/SUN */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        {/* Night Stars */}
+        {effectiveTime === "night" && (
+          <div className="absolute inset-0">
+            <div className="absolute top-4 left-6 w-1 h-1 bg-white rounded-full animate-ping opacity-75" />
+            <div className="absolute top-10 right-8 w-1.5 h-1.5 bg-yellow-200 rounded-full animate-pulse opacity-90" />
+            <div className="absolute top-16 left-1/3 w-1 h-1 bg-sky-200 rounded-full animate-pulse opacity-60" />
+            <div className="absolute top-8 right-1/4 w-1 h-1 bg-white rounded-full animate-ping opacity-80" />
+            <div className="absolute top-3 right-6 text-base opacity-80 animate-pulse">🌙</div>
+          </div>
+        )}
+
+        {/* Morning / Day Sun */}
+        {(effectiveTime === "day" || effectiveTime === "morning") && (
+          <div className="absolute top-3 right-5 text-xl opacity-90 animate-spin-slow">
+            {effectiveTime === "morning" ? "🌅" : "☀️"}
+          </div>
+        )}
+
+        {/* Sunset Horizon */}
+        {effectiveTime === "sunset" && (
+          <div className="absolute top-3 right-5 text-xl opacity-90 animate-pulse">
+            🌇
+          </div>
+        )}
+      </div>
+
+      {/* 2. LIVING BUTTERFLIES IN DAY/MORNING */}
+      {(effectiveTime === "day" || effectiveTime === "morning") && stage >= 2 && (
+        <div className="absolute inset-0 pointer-events-none z-10 overflow-hidden">
+          <div
+            className="absolute text-sm animate-bounce opacity-85 transition-all"
+            style={{
+              top: "22%",
+              left: sway ? "22%" : "30%",
+              transitionDuration: "2.8s",
+            }}
+          >
+            🦋
+          </div>
+          {stage >= 4 && (
+            <div
+              className="absolute text-xs opacity-75 transition-all"
+              style={{
+                top: "35%",
+                right: sway ? "18%" : "26%",
+                transitionDuration: "2.5s",
+              }}
+            >
+              🌸
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 3. GLOWING FIREFLIES IN NIGHT/SUNSET */}
+      {(effectiveTime === "night" || effectiveTime === "sunset") && (
+        <div className="absolute inset-0 pointer-events-none z-10 overflow-hidden">
+          <div
+            className="absolute w-2 h-2 rounded-full bg-amber-300 blur-[1px] animate-ping opacity-80"
+            style={{ top: "25%", left: "20%", animationDuration: "2.5s" }}
+          />
+          <div
+            className="absolute w-1.5 h-1.5 rounded-full bg-emerald-300 blur-[1px] animate-pulse opacity-90"
+            style={{ top: "40%", right: "22%", animationDuration: "2s" }}
+          />
+          <div
+            className="absolute w-2 h-2 rounded-full bg-yellow-200 blur-[1px] animate-ping opacity-70"
+            style={{ top: "60%", left: "28%", animationDuration: "3s" }}
+          />
+        </div>
+      )}
+
+      {/* 4. ZEN AMBIENT AURA */}
       <div
         className="absolute inset-0 rounded-full blur-3xl opacity-30 transition-all duration-1000 pointer-events-none"
         style={{
@@ -48,52 +162,33 @@ export default function PlantCanvas({ plant, isWatering = false, onTap, size = "
         }}
       />
 
-      {/* Floating Particles for Stage 4 & 5 */}
-      {stage >= 4 && (
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          <div
-            className="absolute w-2 h-2 rounded-full animate-ping opacity-60"
-            style={{
-              background: meta.color,
-              top: "20%",
-              left: "25%",
-              animationDuration: "3s",
-            }}
-          />
-          <div
-            className="absolute w-1.5 h-1.5 rounded-full animate-pulse opacity-75"
-            style={{
-              background: "#38bdf8",
-              top: "35%",
-              right: "20%",
-              animationDuration: "2s",
-            }}
-          />
-          {stage === 5 && (
-            <div
-              className="absolute w-2.5 h-2.5 rounded-full animate-bounce opacity-80"
-              style={{
-                background: "#fbbf24",
-                top: "15%",
-                right: "30%",
-                animationDuration: "4s",
-              }}
-            />
-          )}
+      {/* 5. FOCUS BLOSSOMS BADGE (Pomodoro Achievements) */}
+      {focusBlossoms > 0 && (
+        <div
+          className="absolute top-2 start-2 z-20 flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 backdrop-blur shadow-xs animate-fade-in"
+          title={`${focusBlossoms} شکوفه پومودورو کسب‌شده با تمرکز عمیق`}
+        >
+          <span>🌸</span>
+          <span>{focusBlossoms} شکوفه تمرکز</span>
         </div>
       )}
 
-      {/* Water Drops Animation when watering */}
+      {/* 6. WATERING ANIMATION */}
       {isWatering && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20 animate-fade-in">
-          <Droplets className="w-8 h-8 text-sky-400 animate-bounce" />
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30 animate-fade-in">
+          <div className="flex flex-col items-center gap-1">
+            <Droplets className="w-9 h-9 text-sky-400 animate-bounce" />
+            <span className="text-xs font-bold text-sky-300 bg-background/80 px-2 py-0.5 rounded-full border border-sky-400/40">
+              شادابی و رشد 🌱
+            </span>
+          </div>
         </div>
       )}
 
-      {/* SVG Living Plant Illustration */}
+      {/* 7. SVG LIVING PLANT ILLUSTRATION */}
       <svg
         viewBox="0 0 200 240"
-        className="w-full h-full drop-shadow-md transition-all duration-700"
+        className="w-full h-full drop-shadow-md transition-all duration-700 z-10"
         style={{
           transform: sway ? "rotate(0.8deg)" : "rotate(-0.8deg)",
           transformOrigin: "bottom center",
@@ -209,11 +304,12 @@ export default function PlantCanvas({ plant, isWatering = false, onTap, size = "
       </svg>
 
       {/* Stage Badge & Name */}
-      <div className="mt-2 text-center">
-        <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-background/80 backdrop-blur border shadow-sm">
+      <div className="mt-2 text-center z-10">
+        <div className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-background/85 backdrop-blur border shadow-xs">
           <span>{meta.badge}</span>
           <span className="text-foreground">{plant.name}</span>
-          {stage === 5 && <Sparkles className="w-3 h-3 text-amber-400 animate-spin" />}
+          <span className="text-[10px] text-muted-foreground font-mono">({stage}/5)</span>
+          {stage === 5 && <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-spin" />}
         </div>
       </div>
     </div>

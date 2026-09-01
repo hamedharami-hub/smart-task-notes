@@ -12,8 +12,7 @@ import { AMBIENT_SOUNDS, SOUND_CATEGORY_META, type SoundCategory } from "@/lib/a
 import { startSynth, stopSynth, setSynthVolume } from "@/lib/pomodoroSynth";
 import { END_BELLS, playEndBell, type EndBellId } from "@/lib/pomodoroSounds";
 import { useTapGestures } from "@/lib/useTapGestures";
-import { haptic } from "@/lib/haptics";
-import { toPersianDigits } from "@/lib/persianDigits";
+import { recordPomodoroFocusSession } from "@/lib/garden";
 
 type Props = {
   taskId?: string | null;
@@ -98,6 +97,7 @@ export default function PomodoroTimer({ taskId = null, defaultMinutes, compact =
           ended_at: new Date().toISOString(),
         });
       }
+      recordPomodoroFocusSession(dur);
       toast.success(T(`${dur} دقیقه تمرکز ثبت شد ✅ — ۵ دقیقه استراحت`, `${dur} min focus logged ✅ — 5 min break`));
       onSessionComplete?.();
       setMode("break");

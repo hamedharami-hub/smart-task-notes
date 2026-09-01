@@ -18,15 +18,21 @@ import {
   VolumeX,
   History,
   CheckCircle2,
+  Moon,
+  Sunset,
+  Sunrise,
 } from "lucide-react";
 import {
   getGardenState,
   saveGardenState,
   waterActivePlant,
   plantNewSeed,
+  setTimeOfDayMode,
+  getCurrentTimeOfDay,
   PLANT_SPECIES,
   type GardenState,
   type PlantType,
+  type TimeOfDay,
 } from "@/lib/garden";
 import PlantCanvas from "@/components/garden/PlantCanvas";
 import PlantPickerModal from "@/components/garden/PlantPickerModal";
@@ -78,6 +84,11 @@ export default function GardenView() {
     ? Math.min(100, Math.round((plant.currentPoints / meta.pointsToBloom) * 100))
     : 0;
 
+  const effectiveTimeOfDay: TimeOfDay =
+    garden.timeOfDayMode === "auto" || !garden.timeOfDayMode
+      ? getCurrentTimeOfDay()
+      : garden.timeOfDayMode;
+
   const handleWater = (amount = 15) => {
     if (!plant) return;
     setWatering(true);
@@ -106,6 +117,11 @@ export default function GardenView() {
     const next = { ...garden, soundEnabled: !garden.soundEnabled };
     saveGardenState(next);
     setGarden(next);
+  };
+
+  const handleSetTimeMode = (mode: "auto" | TimeOfDay) => {
+    setTimeOfDayMode(mode);
+    setGarden(getGardenState());
   };
 
   return (
@@ -141,6 +157,11 @@ export default function GardenView() {
             <span>{garden.sunEnergy} نور خورشید</span>
           </div>
 
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-pink-500/10 text-pink-600 dark:text-pink-400 border border-pink-500/20 text-xs font-bold font-mono">
+            <span>🌸</span>
+            <span>{garden.focusBlossoms || 0} شکوفه پومودورو</span>
+          </div>
+
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 text-primary border border-primary/20 text-xs font-bold font-mono">
             <Trophy className="w-4 h-4" />
             <span>{garden.totalHarvests} شکوفایی</span>
@@ -154,6 +175,56 @@ export default function GardenView() {
             title={garden.soundEnabled ? "صدا فعال است" : "صدا خاموش است"}
           >
             {garden.soundEnabled ? <Volume2 className="w-4 h-4 text-emerald-500" /> : <VolumeX className="w-4 h-4" />}
+          </Button>
+        </div>
+      </div>
+
+      {/* Atmosphere Quick Filter / Time-of-Day Bar */}
+      <div className="flex items-center justify-between p-3 rounded-2xl bg-card/40 border border-border/60 backdrop-blur-sm text-xs">
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <Sparkles className="w-4 h-4 text-amber-400" />
+          <span className="font-semibold">اتمسفر باغچه:</span>
+        </div>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <Button
+            variant={garden.timeOfDayMode === "auto" || !garden.timeOfDayMode ? "secondary" : "ghost"}
+            size="sm"
+            onClick={() => handleSetTimeMode("auto")}
+            className="h-7 text-[11px] rounded-lg px-2.5"
+          >
+            ⏰ ساعت واقعی
+          </Button>
+          <Button
+            variant={garden.timeOfDayMode === "morning" ? "secondary" : "ghost"}
+            size="sm"
+            onClick={() => handleSetTimeMode("morning")}
+            className="h-7 text-[11px] rounded-lg px-2.5"
+          >
+            🌅 صبح
+          </Button>
+          <Button
+            variant={garden.timeOfDayMode === "day" ? "secondary" : "ghost"}
+            size="sm"
+            onClick={() => handleSetTimeMode("day")}
+            className="h-7 text-[11px] rounded-lg px-2.5"
+          >
+            ☀️ روز
+          </Button>
+          <Button
+            variant={garden.timeOfDayMode === "sunset" ? "secondary" : "ghost"}
+            size="sm"
+            onClick={() => handleSetTimeMode("sunset")}
+            className="h-7 text-[11px] rounded-lg px-2.5"
+          >
+            🌇 غروب
+          </Button>
+          <Button
+            variant={garden.timeOfDayMode === "night" ? "secondary" : "ghost"}
+            size="sm"
+            onClick={() => handleSetTimeMode("night")}
+            className="h-7 text-[11px] rounded-lg px-2.5"
+          >
+            🌙 شب
           </Button>
         </div>
       </div>
@@ -203,6 +274,8 @@ export default function GardenView() {
                       isWatering={watering}
                       onTap={() => handleWater(15)}
                       size="lg"
+                      timeOfDay={effectiveTimeOfDay}
+                      focusBlossoms={garden.focusBlossoms || 0}
                     />
                   </div>
 

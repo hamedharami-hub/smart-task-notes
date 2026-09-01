@@ -1,6 +1,6 @@
 ﻿{
-  "version": "2.4.2",
-  "buildId": "build-2026-08-27-0428",
-  "timestamp": 1787769000000,
-  "commit": "fix-uuid-syntax-error"
+  "version": "2.5.0",
+  "buildId": "build-2026-09-01-1930",
+  "timestamp": 1788255000000,
+  "commit": "feat-living-garden-and-procrastination-buster"
 }

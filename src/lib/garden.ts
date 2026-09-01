@@ -38,14 +38,26 @@ export interface GardenHerbariumItem {
   contributionsCount: number;
 }
 
+export type TimeOfDay = "morning" | "day" | "sunset" | "night";
+
+export function getCurrentTimeOfDay(): TimeOfDay {
+  const hour = new Date().getHours();
+  if (hour >= 5 && hour < 9) return "morning";
+  if (hour >= 9 && hour < 17) return "day";
+  if (hour >= 17 && hour < 20) return "sunset";
+  return "night";
+}
+
 export interface GardenState {
   waterDrops: number;
   sunEnergy: number;
   totalHarvests: number;
+  focusBlossoms: number;
   activePlant: ActivePlant | null;
   herbarium: GardenHerbariumItem[];
   gardenLevel: number;
   soundEnabled: boolean;
+  timeOfDayMode: "auto" | TimeOfDay;
 }
 
 export const PLANT_SPECIES: Record<PlantType, PlantMetadata> = {
@@ -131,8 +143,10 @@ const DEFAULT_STATE: GardenState = {
   waterDrops: 30,
   sunEnergy: 10,
   totalHarvests: 0,
+  focusBlossoms: 0,
   gardenLevel: 1,
   soundEnabled: true,
+  timeOfDayMode: "auto",
   herbarium: [],
   activePlant: {
     id: "plant-default-1",
@@ -147,6 +161,47 @@ const DEFAULT_STATE: GardenState = {
     ],
   },
 };
+
+export function setTimeOfDayMode(mode: "auto" | TimeOfDay) {
+  const current = getGardenState();
+  const next = { ...current, timeOfDayMode: mode };
+  saveGardenState(next);
+}
+
+export function recordPomodoroFocusSession(minutes: number): { dropsAwarded: number; newBlossoms: number } {
+  const current = getGardenState();
+  const dropsAwarded = Math.max(10, Math.floor(minutes * 0.8));
+  const newBlossoms = (current.focusBlossoms || 0) + 1;
+  const newSun = current.sunEnergy + Math.ceil(minutes / 2);
+  const newDrops = current.waterDrops + dropsAwarded;
+
+  let updatedPlant = current.activePlant;
+  if (updatedPlant) {
+    updatedPlant = {
+      ...updatedPlant,
+      contributions: [
+        { reason: `جلسه تمرکز عمیق (${minutes} دقیقه)`, points: dropsAwarded, date: new Date().toISOString() },
+        ...updatedPlant.contributions.slice(0, 19),
+      ],
+    };
+  }
+
+  const nextState: GardenState = {
+    ...current,
+    waterDrops: newDrops,
+    sunEnergy: newSun,
+    focusBlossoms: newBlossoms,
+    activePlant: updatedPlant,
+  };
+
+  saveGardenState(nextState);
+  toast.success(`🌸 شکوفه تمرکز جدید باز شد! (+${dropsAwarded} قطره آب)`, {
+    description: `${minutes} دقیقه کار عمیق و تمرکز ارزشمند با پومودورو`,
+    duration: 4000,
+  });
+
+  return { dropsAwarded, newBlossoms };
+}
 
 function gardenKey() {
   return currentGardenUserId ? `${GARDEN_STORAGE_KEY}_${currentGardenUserId}` : GARDEN_STORAGE_KEY;
