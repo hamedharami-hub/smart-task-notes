@@ -5,20 +5,20 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:background="@drawable/widget_background"
-    android:padding="16dp"
+    android:padding="12dp"
     android:gravity="center">
 
-    <!-- Header -->
+    <!-- Header with App Logo, Title and Date -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:paddingBottom="12dp">
+        android:paddingBottom="8dp">
 
         <ImageView
-            android:layout_width="32dp"
-            android:layout_height="32dp"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
             android:src="@mipmap/ic_launcher"
             android:contentDescription="ARSHNAZ" />
 
@@ -26,9 +26,9 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:layout_marginStart="12dp"
+            android:layout_marginStart="8dp"
             android:text="ارشناز"
-            android:textSize="18sp"
+            android:textSize="16sp"
             android:textStyle="bold"
             android:textColor="#ec4899" />
 
@@ -36,47 +36,111 @@
             android:id="@+id/widget_date"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="شنبه ۱۴ تیر"
-            android:textSize="12sp"
+            android:text="امروز"
+            android:textSize="11sp"
             android:textColor="#94a3b8" />
     </LinearLayout>
 
-    <!-- Task Count -->
+    <!-- Central Status Card -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:gravity="center"
-        android:padding="16dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:padding="10dp"
         android:background="@drawable/widget_card_background"
-        android:layout_marginBottom="12dp">
+        android:layout_marginBottom="8dp">
 
-        <TextView
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:text="تسک‌های امروز"
-            android:textSize="14sp"
-            android:textColor="#94a3b8" />
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center">
 
-        <TextView
-            android:id="@+id/widget_task_count"
-            android:layout_width="wrap_content"
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="تسک‌های امروز"
+                android:textSize="11sp"
+                android:textColor="#94a3b8" />
+
+            <TextView
+                android:id="@+id/widget_task_count"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="وظایف فعال"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="#f8fafc"
+                android:layout_marginTop="2dp" />
+        </LinearLayout>
+
+        <View
+            android:layout_width="1dp"
+            android:layout_height="28dp"
+            android:background="#334155" />
+
+        <LinearLayout
+            android:id="@+id/widget_garden_btn"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:text="۵ تسک"
-            android:textSize="28sp"
-            android:textStyle="bold"
-            android:textColor="#e2e8f0"
-            android:layout_marginTop="4dp" />
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="باغچه رشد 🌱"
+                android:textSize="11sp"
+                android:textColor="#38bdf8" />
+
+            <TextView
+                android:id="@+id/widget_garden_status"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="شاداب و سبز"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:textColor="#a7f3d0"
+                android:layout_marginTop="2dp" />
+        </LinearLayout>
     </LinearLayout>
 
-    <!-- Add Task Button -->
-    <Button
-        android:id="@+id/widget_add_task"
+    <!-- Quick Action Buttons Row -->
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="48dp"
-        android:text="+ تسک جدید"
-        android:textSize="14sp"
-        android:textColor="#ffffff"
-        android:background="@drawable/widget_button_background"
-        android:stateListAnimator="@null" />
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center">
+
+        <!-- Add Task Button -->
+        <Button
+            android:id="@+id/widget_add_task"
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:layout_weight="1"
+            android:text="+ تسک جدید"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:textColor="#ffffff"
+            android:background="@drawable/widget_button_background"
+            android:stateListAnimator="@null"
+            android:layout_marginEnd="4dp" />
+
+        <!-- Checkin Button -->
+        <Button
+            android:id="@+id/widget_checkin"
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:layout_weight="1"
+            android:text="چک‌این ✨"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:textColor="#e2e8f0"
+            android:background="@drawable/widget_card_background"
+            android:stateListAnimator="@null"
+            android:layout_marginStart="4dp" />
+    </LinearLayout>
 </LinearLayout>

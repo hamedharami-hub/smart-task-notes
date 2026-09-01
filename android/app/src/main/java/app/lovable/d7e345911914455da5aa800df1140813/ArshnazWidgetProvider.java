@@ -14,36 +14,49 @@ public class ArshnazWidgetProvider extends AppWidgetProvider {
         for (int appWidgetId : appWidgetIds) {
             RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.widget_arshnaz);
             
-            // Set task count (placeholder - in real app, fetch from Supabase)
-            views.setTextViewText(R.id.widget_task_count, "۵ تسک امروز");
-            
-            // Set date
+            // Set Persian Date
             java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("EEEE dd MMMM", new java.util.Locale("fa"));
             String dateStr = sdf.format(new java.util.Date());
             views.setTextViewText(R.id.widget_date, dateStr);
             
-            // Create intent for add task
-            Intent addTaskIntent = new Intent(context, MainActivity.class);
-            addTaskIntent.setAction("android.intent.action.MAIN");
-            addTaskIntent.addCategory("android.intent.category.LAUNCHER");
-            addTaskIntent.putExtra("widget_action", "add_task");
-            addTaskIntent.setData(Uri.parse("arshnaz://add_task"));
-            PendingIntent addTaskPendingIntent = PendingIntent.getActivity(
-                context, 0, addTaskIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
-            );
-            views.setOnClickPendingIntent(R.id.widget_add_task, addTaskPendingIntent);
-            
-            // Create intent for open app
+            // 1. Container click -> Open Today View
             Intent openAppIntent = new Intent(context, MainActivity.class);
-            openAppIntent.setAction("android.intent.action.MAIN");
-            openAppIntent.addCategory("android.intent.category.LAUNCHER");
+            openAppIntent.setAction(Intent.ACTION_VIEW);
             openAppIntent.setData(Uri.parse("arshnaz://today"));
             PendingIntent openAppPendingIntent = PendingIntent.getActivity(
-                context, 0, openAppIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+                context, 101, openAppIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
             );
             views.setOnClickPendingIntent(R.id.widget_container, openAppPendingIntent);
-            
+
+            // 2. Add Task button -> Open Quick Add Task
+            Intent addTaskIntent = new Intent(context, MainActivity.class);
+            addTaskIntent.setAction(Intent.ACTION_VIEW);
+            addTaskIntent.setData(Uri.parse("arshnaz://add_task"));
+            PendingIntent addTaskPendingIntent = PendingIntent.getActivity(
+                context, 102, addTaskIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+            );
+            views.setOnClickPendingIntent(R.id.widget_add_task, addTaskPendingIntent);
+
+            // 3. Checkin button -> Open Daily Checkin
+            Intent checkinIntent = new Intent(context, MainActivity.class);
+            checkinIntent.setAction(Intent.ACTION_VIEW);
+            checkinIntent.setData(Uri.parse("arshnaz://checkin"));
+            PendingIntent checkinPendingIntent = PendingIntent.getActivity(
+                context, 103, checkinIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+            );
+            views.setOnClickPendingIntent(R.id.widget_checkin, checkinPendingIntent);
+
+            // 4. Garden button -> Open Mind Garden
+            Intent gardenIntent = new Intent(context, MainActivity.class);
+            gardenIntent.setAction(Intent.ACTION_VIEW);
+            gardenIntent.setData(Uri.parse("arshnaz://garden"));
+            PendingIntent gardenPendingIntent = PendingIntent.getActivity(
+                context, 104, gardenIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+            );
+            views.setOnClickPendingIntent(R.id.widget_garden_btn, gardenPendingIntent);
+
             appWidgetManager.updateAppWidget(appWidgetId, views);
         }
     }
 }
+

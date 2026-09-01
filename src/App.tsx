@@ -91,6 +91,39 @@ const RouteFallback = () => (
   <div className="flex min-h-screen items-center justify-center bg-background" />
 );
 
+import { App as CapApp } from "@capacitor/app";
+
+function CapacitorUrlHandler() {
+  const navigate = useNavigate();
+  useEffect(() => {
+    let handle: any = null;
+    try {
+      CapApp.addListener("appUrlOpen", (event) => {
+        const url = event.url || "";
+        if (url.includes("add_task") || url.includes("new-task")) {
+          navigate("/app/new-task");
+        } else if (url.includes("today")) {
+          navigate("/app/today");
+        } else if (url.includes("checkin")) {
+          navigate("/app/checkin");
+        } else if (url.includes("garden")) {
+          navigate("/app/garden");
+        } else if (url.includes("pomodoro")) {
+          navigate("/app/pomodoro");
+        }
+      }).then((h) => {
+        handle = h;
+      });
+    } catch (e) {
+      console.warn("Capacitor appUrlOpen error:", e);
+    }
+    return () => {
+      handle?.remove?.();
+    };
+  }, [navigate]);
+  return null;
+}
+
 const App = () => {
   useEffect(() => installUndoShortcuts(), []);
   usePwaUpdateToast();
@@ -101,6 +134,7 @@ const App = () => {
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <CapacitorUrlHandler />
           <AuthProvider>
             <Suspense fallback={<RouteFallback />}>
               <Routes>
