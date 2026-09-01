@@ -13,6 +13,8 @@ import { startSynth, stopSynth, setSynthVolume } from "@/lib/pomodoroSynth";
 import { END_BELLS, playEndBell, type EndBellId } from "@/lib/pomodoroSounds";
 import { useTapGestures } from "@/lib/useTapGestures";
 import { recordPomodoroFocusSession } from "@/lib/garden";
+import { haptic } from "@/lib/haptics";
+import { toPersianDigits } from "@/lib/persianDigits";
 
 type Props = {
   taskId?: string | null;
