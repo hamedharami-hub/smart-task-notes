@@ -102,11 +102,13 @@ export function FolderKanban({
   onOpenTask,
   layout,
   sortOrder,
+  goalMode = "hierarchy",
 }: {
   folderId: string;
   onOpenTask?: (taskId: string) => void;
   layout: "stream" | "columns";
   sortOrder: FolderPrefs["sortOrder"];
+  goalMode?: "hierarchy" | "time" | "priority";
 }) {
   const { user } = useAuth();
   const { i18n } = useTranslation();
@@ -119,8 +121,8 @@ export function FolderKanban({
   const [selectedTier2Id, setSelectedTier2Id] = useState<string | null>(null);
   const [selectedTier3Id, setSelectedTier3Id] = useState<string | null>(null);
 
-  // Mode and Layout
-  const [viewMode, setViewMode] = useState<"hierarchy" | "time" | "priority">("hierarchy");
+  // Mode (controlled by the folder settings menu) and layout
+  const viewMode = goalMode;
   const [timeFilter, setTimeFilter] = useState<TimeHorizon | "all">("all");
   const [priorityFilter, setPriorityFilter] = useState<GoalPriority | "all">("all");
 
