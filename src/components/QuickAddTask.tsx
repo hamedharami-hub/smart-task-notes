@@ -371,6 +371,8 @@ export function QuickAddTask({
     return d.toLocaleDateString(isEn ? "en-US" : "fa-IR", { month: "short", day: "numeric" });
   };
 
+  const selectedFolder = folders.find(f => f.id === finalFolderId);
+  const selectedTag = finalTagIds.length === 1 ? tags.find(t => t.id === finalTagIds[0]) : null;
   const [focused, setFocused] = useState(false);
   const showOptions = focused || title.trim().length > 0 || !!finalDue || finalPriority !== "none" || !!finalFolderId || finalTagIds.length > 0;
 
