@@ -1172,7 +1172,8 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
 
   const listView = (
     <PullToRefresh onRefresh={load}>
-      <div className="mb-3">
+      {/* On desktop: clean inline quick add task */}
+      <div className="mb-4 hidden md:block">
         <QuickAddTask
           defaults={{
             folder_id: scope === "folder" ? params.id || null : null,
@@ -1186,6 +1187,16 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
           chipsTrailing={<TaskFilterSheet filters={filters} onChange={setFilters} />}
           onCreated={() => load()}
         />
+      </div>
+
+      {/* On mobile: clean minimal bar with filter button */}
+      <div className="flex items-center justify-between mb-2 md:hidden">
+        <span className="text-xs font-medium text-muted-foreground">
+          {folderTopLevel.length > 0 ? `${folderTopLevel.length} ${T("تسک", "tasks")}` : ""}
+        </span>
+        <div className="ms-auto">
+          <TaskFilterSheet filters={filters} onChange={setFilters} />
+        </div>
       </div>
 
 

@@ -66,6 +66,28 @@ export default function QuickCaptureDialog() {
       setFolderId(null);
       return;
     }
+
+    // Auto-detect current page context (e.g. Today, Tomorrow, Folder)
+    const path = window.location.pathname;
+    let initialDue: string | null = null;
+    let initialFolderId: string | null = null;
+
+    if (path === "/app/today" || path === "/app" || path === "/") {
+      initialDue = new Date().toISOString();
+    } else if (path === "/app/tomorrow") {
+      const tom = new Date();
+      tom.setDate(tom.getDate() + 1);
+      initialDue = tom.toISOString();
+    } else if (path.startsWith("/app/folder/")) {
+      const fid = path.replace("/app/folder/", "").split("/")[0]?.split("?")[0];
+      if (fid) initialFolderId = fid;
+    } else if (path.startsWith("/app/notes")) {
+      setTab("note");
+    }
+
+    setDue(initialDue);
+    setFolderId(initialFolderId);
+
     if (!user) return;
     supabase.from("folders").select("id,name,color").eq("user_id", user.id).order("name").then(({ data }) => {
       setFolders((data || []) as { id: string; name: string; color: string | null }[]);
