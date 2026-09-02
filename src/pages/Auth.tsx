@@ -41,7 +41,7 @@ export default function Auth() {
   // MCP consent flow returns here to the exact request instead of the app root.
   const rawNext = params.get("next") || "";
   const safeNext = rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "";
-  const returnTo = safeNext || "/app";
+  const returnTo = safeNext || "/app/today";
   const absoluteReturnTo = `${window.location.origin}${returnTo}`;
 
   useEffect(() => {

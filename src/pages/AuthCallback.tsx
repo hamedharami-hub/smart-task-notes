@@ -5,7 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 const OAUTH_RETURN_KEY = "oauth_return_to";
 
 function safeReturnPath(value: string | null) {
-  if (!value || !value.startsWith("/") || value.startsWith("//")) return "/app";
+  if (!value || !value.startsWith("/") || value.startsWith("//")) return "/app/today";
   return value;
 }
 
