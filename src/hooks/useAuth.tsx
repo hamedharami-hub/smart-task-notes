@@ -81,40 +81,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user?.id]);
 
   useEffect(() => {
-    let resolved = false;
-    const resolve = (u: User | null, s: Session | null) => {
-      if (resolved) return;
-      resolved = true;
-      setSession(s);
-      setUser(u);
-      setLoading(false);
-    };
-
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, sess) => {
       if (event === "SIGNED_OUT") {
         // If offline, keep the persisted session so the app stays usable.
         if (typeof navigator !== "undefined" && !navigator.onLine) {
           const persisted = getPersistedAuth();
-          resolve(persisted.user, persisted.session);
+          setUser(persisted.user);
+          setSession(persisted.session);
+          setLoading(false);
           return;
         }
-        resolve(null, null);
+        setUser(null);
+        setSession(null);
+        setLoading(false);
         return;
       }
-      resolve(sess?.user ?? null, sess ?? null);
+
+      setUser(sess?.user ?? null);
+      setSession(sess ?? null);
+      setLoading(false);
     });
 
     (async () => {
       const oauthSession = await hydrateOAuthSessionFromUrl();
       if (oauthSession) {
-        resolve(oauthSession.user, oauthSession);
+        setUser(oauthSession.user);
+        setSession(oauthSession);
+        setLoading(false);
         return;
       }
 
       try {
         const { data: { session: sess } } = await withTimeout(supabase.auth.getSession(), 2500);
         if (sess?.user) {
-          resolve(sess.user, sess);
+          setUser(sess.user);
+          setSession(sess);
+          setLoading(false);
           return;
         }
       } catch {
@@ -123,7 +125,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Offline or session refresh failed: use the locally stored token
       const persisted = getPersistedAuth();
-      resolve(persisted.user, persisted.session);
+      setUser(persisted.user);
+      setSession(persisted.session);
+      setLoading(false);
     })();
 
     return () => subscription.unsubscribe();
