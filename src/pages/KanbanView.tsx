@@ -456,23 +456,23 @@ export default function KanbanView() {
         </div>
       </div>
 
-      {/* 2. MULTI-TIER HORIZONTAL TABS (Tier 1 & Tier 2 beneath each other) */}
+      {/* 2. SINGLE-TIER GOAL TABS */}
       <div className="overflow-x-auto no-scrollbar">
         <MultiTierTabs
           goals={goals}
-          selectedTier1Id={selectedTier1Id}
-          selectedTier2Id={selectedTier2Id}
-          selectedTier3Id={selectedTier3Id}
+          selectedGoalId={selectedTier1Id}
           viewMode={viewMode}
           selectedTimeFilter={timeFilter}
           selectedPriorityFilter={priorityFilter}
-          onSelectTier1={(id) => setSelectedTier1Id(id)}
-          onSelectTier2={(id) => setSelectedTier2Id(id)}
-          onSelectTier3={(id) => setSelectedTier3Id(id)}
+          onSelectGoal={(id) => {
+            setSelectedTier1Id(id);
+            setSelectedTier2Id(null);
+            setSelectedTier3Id(null);
+          }}
           onSelectTimeFilter={(h) => setTimeFilter(h)}
           onSelectPriorityFilter={(p) => setPriorityFilter(p)}
           onDoubleTapGoal={openEditForGoal}
-          onAddNewGoal={openAddNewGoal}
+          onAddNewGoal={() => openAddNewGoal(null)}
           taskCountsByGoal={taskCountsByGoal}
         />
       </div>

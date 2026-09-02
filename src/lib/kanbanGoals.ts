@@ -145,7 +145,6 @@ export function getKanbanGoals(folderId?: string | null, userId?: string): GoalK
     }
     if (!raw) {
       const rootId = generateUUID();
-      const sub1Id = generateUUID();
       const defaults: GoalKanban[] = folderId
         ? [
             {
@@ -160,28 +159,17 @@ export function getKanbanGoals(folderId?: string | null, userId?: string): GoalK
               createdAt: new Date().toISOString(),
               updatedAt: new Date().toISOString(),
             },
-            {
-              id: sub1Id,
-              title: "گام‌های اول و یادگیری",
-              description: "فعالیت‌های پایه و اقدامات هفتگی",
-              parentId: rootId,
-              timeHorizon: "weekly",
-              priority: "urgent",
-              color: "#06b6d4",
-              icon: "🚀",
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-            },
           ]
-        : INITIAL_GOALS;
+        : INITIAL_GOALS.filter((g) => g.parentId === null);
       localStorage.setItem(key, JSON.stringify(defaults));
       return defaults;
     }
     const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) return sanitizeGoalsUUIDs(parsed);
-    return folderId ? [] : INITIAL_GOALS;
+    // Single-tier model: every goal is a top-level goal (no nesting).
+    if (Array.isArray(parsed)) return sanitizeGoalsUUIDs(parsed).map((g) => ({ ...g, parentId: null }));
+    return folderId ? [] : INITIAL_GOALS.filter((g) => g.parentId === null);
   } catch {
-    return folderId ? [] : INITIAL_GOALS;
+    return folderId ? [] : INITIAL_GOALS.filter((g) => g.parentId === null);
   }
 }
 
