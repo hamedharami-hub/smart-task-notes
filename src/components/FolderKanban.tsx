@@ -365,85 +365,23 @@ export function FolderKanban({
 
   return (
     <div dir="rtl" className="space-y-3 pb-20 animate-fade-in relative">
-      {/* 1. TOP HEADER & CONTROLS */}
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <div className="flex items-center gap-2.5">
-          <button
-            type="button"
-            onDoubleClick={() => activeGoal && openEditForGoal(activeGoal)}
-            className="flex items-center gap-2 text-lg md:text-xl font-black text-foreground hover:text-primary transition-colors text-start"
-            title="دوبار کلیک یا تاچ برای ویرایش این هدف"
-          >
-            <span>{activeGoal?.icon || "🎯"}</span>
-            <span>{activeGoal?.title || "هدف انتخابی"}</span>
-          </button>
-
-          {activeGoal && (
-            <Badge variant="outline" className="text-[11px] font-mono gap-1 border-primary/30 text-primary">
-              <span>{TIME_HORIZONS.find((th) => th.id === activeGoal.timeHorizon)?.labelFa || "ماهانه"}</span>
-            </Badge>
-          )}
-        </div>
-
-        {/* Goal actions and view mode */}
-        <div className="flex items-center gap-1.5">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
-                <MoreVertical className="w-4 h-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="text-xs w-52">
-              {activeGoal && (
-                <>
-                  <DropdownMenuLabel className="text-[11px] text-muted-foreground">حالت نمایش کانبان</DropdownMenuLabel>
-                  <DropdownMenuItem onClick={() => setViewMode("hierarchy")} className="gap-2 font-medium">
-                    <FolderTree className="w-3.5 h-3.5 text-primary" /> ساختار درختی و چندسطحی
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setViewMode("time")} className="gap-2 font-medium">
-                    <Calendar className="w-3.5 h-3.5 text-amber-500" /> مرتب‌سازی بر اساس زمان (افق)
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setViewMode("priority")} className="gap-2 font-medium">
-                    <Flag className="w-3.5 h-3.5 text-rose-500" /> مرتب‌سازی بر اساس اهمیت
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => openEditForGoal(activeGoal)} className="gap-2">
-                    <Edit2 className="w-3.5 h-3.5" /> ویرایش تنظیمات این هدف
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => openAddNewGoal(activeGoal.id)} className="gap-2">
-                    <Plus className="w-3.5 h-3.5 text-primary" /> افزودن زیرمجموعه
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={() => handleDeleteGoal(activeGoal.id)}
-                    className="gap-2 text-destructive focus:bg-destructive/10"
-                  >
-                    حذف این هدف
-                  </DropdownMenuItem>
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
-
-      {/* 2. MULTI-TIER HORIZONTAL TABS */}
+      {/* SINGLE-TIER GOAL TABS (no page-level goal title — the tab itself is the title) */}
       <div className="overflow-x-auto no-scrollbar">
         <MultiTierTabs
           goals={goals}
-          selectedTier1Id={selectedTier1Id}
-          selectedTier2Id={selectedTier2Id}
-          selectedTier3Id={selectedTier3Id}
+          selectedGoalId={selectedTier1Id}
           viewMode={viewMode}
           selectedTimeFilter={timeFilter}
           selectedPriorityFilter={priorityFilter}
-          onSelectTier1={(id) => setSelectedTier1Id(id)}
-          onSelectTier2={(id) => setSelectedTier2Id(id)}
-          onSelectTier3={(id) => setSelectedTier3Id(id)}
+          onSelectGoal={(id) => {
+            setSelectedTier1Id(id);
+            setSelectedTier2Id(null);
+            setSelectedTier3Id(null);
+          }}
           onSelectTimeFilter={(h) => setTimeFilter(h)}
           onSelectPriorityFilter={(p) => setPriorityFilter(p)}
           onDoubleTapGoal={openEditForGoal}
-          onAddNewGoal={openAddNewGoal}
+          onAddNewGoal={() => openAddNewGoal(null)}
           taskCountsByGoal={taskCountsByGoal}
         />
       </div>
