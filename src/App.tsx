@@ -138,56 +138,73 @@ const App = () => {
           <AuthProvider>
             <Suspense fallback={<RouteFallback />}>
               <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/auth/callback" element={<AuthCallback />} />
-              <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
-              <Route path="/app" element={<ProtectedRoute><ErrorBoundary><AppLayout /></ErrorBoundary></ProtectedRoute>}>
-                <Route index element={<Navigate to="today" replace />} />
-                
-                <Route path="inbox" element={<TasksView scope="inbox" />} />
-                <Route path="today" element={<TasksView scope="today" />} />
-                <Route path="tomorrow" element={<TasksView scope="tomorrow" />} />
-                <Route path="next7" element={<TasksView scope="next7" />} />
-                <Route path="smart" element={<TasksView scope="smart" />} />
-                <Route path="folder/:id" element={<TasksView scope="folder" />} />
-                <Route path="tag/:id" element={<TasksView scope="tag" />} />
-                <Route path="notes" element={<NotesView />} />
-                <Route path="habits" element={<HabitsView />} />
-                <Route path="garden" element={<GardenView />} />
-                <Route path="pomodoro" element={<PomodoroView />} />
-                <Route path="calendar" element={<CalendarView />} />
-                <Route path="stats" element={<StatsView />} />
-                <Route path="kanban" element={<KanbanView />} />
-                <Route path="buckets" element={<BucketsView />} />
-                
-                <Route path="mind" element={<MindView />} />
-                <Route path="self" element={<SelfKnowledgeView />} />
-                <Route path="self/test/:type" element={<AssessmentRunner />} />
-                <Route path="self/result/:type" element={<AssessmentResult />} />
-                <Route path="checkin" element={<CheckinView />} />
-                <Route path="thoughts" element={<ThoughtRecordsView />} />
-                <Route path="abc" element={<ABCView />} />
-                <Route path="socratic" element={<SocraticView />} />
-                <Route path="breathing" element={<BreathingView />} />
-                <Route path="screener/:type" element={<ScreenerView />} />
-                <Route path="values" element={<ValuesGoalsView />} />
-                <Route path="worry" element={<WorryView />} />
-                <Route path="cycle" element={<CycleView />} />
-                <Route path="about-me" element={<AboutMeView />} />
-                <Route path="settings" element={<SettingsView />} />
-                <Route path="admin" element={<AdminView />} />
-                <Route path="shared" element={<SharedWithMeView />} />
-                <Route path="new/task" element={<NewTaskView />} />
-                <Route path="new/note" element={<NewNoteView />} />
-                <Route path="share-target" element={<ShareTargetView />} />
-                <Route path="rewrite-article" element={<ArticleRewriteView />} />
-                <Route path="tasks/:id" element={<TaskDetailView />} />
-                <Route path="widgets" element={<Navigate to="/app/today" replace />} />
-                <Route path="widget/:id" element={<Navigate to="/app/today" replace />} />
-              </Route>
-              <Route path="*" element={<NotFound />} />
-            </Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/index.html" element={<Index />} />
+                <Route path="/auth" element={<Auth />} />
+                <Route path="/auth/callback" element={<AuthCallback />} />
+                <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
+
+                {/* Root shortcut aliases */}
+                <Route path="/today" element={<Navigate to="/app/today" replace />} />
+                <Route path="/inbox" element={<Navigate to="/app/inbox" replace />} />
+                <Route path="/garden" element={<Navigate to="/app/garden" replace />} />
+                <Route path="/pomodoro" element={<Navigate to="/app/pomodoro" replace />} />
+                <Route path="/checkin" element={<Navigate to="/app/checkin" replace />} />
+                <Route path="/notes" element={<Navigate to="/app/notes" replace />} />
+                <Route path="/habits" element={<Navigate to="/app/habits" replace />} />
+                <Route path="/calendar" element={<Navigate to="/app/calendar" replace />} />
+                <Route path="/settings" element={<Navigate to="/app/settings" replace />} />
+                <Route path="/new-task" element={<Navigate to="/app/new/task" replace />} />
+                <Route path="/new/task" element={<Navigate to="/app/new/task" replace />} />
+
+                <Route path="/app" element={<ProtectedRoute><ErrorBoundary><AppLayout /></ErrorBoundary></ProtectedRoute>}>
+                  <Route index element={<Navigate to="today" replace />} />
+                  
+                  <Route path="inbox" element={<TasksView scope="inbox" />} />
+                  <Route path="today" element={<TasksView scope="today" />} />
+                  <Route path="tomorrow" element={<TasksView scope="tomorrow" />} />
+                  <Route path="next7" element={<TasksView scope="next7" />} />
+                  <Route path="smart" element={<TasksView scope="smart" />} />
+                  <Route path="folder/:id" element={<TasksView scope="folder" />} />
+                  <Route path="tag/:id" element={<TasksView scope="tag" />} />
+                  <Route path="notes" element={<NotesView />} />
+                  <Route path="habits" element={<HabitsView />} />
+                  <Route path="garden" element={<GardenView />} />
+                  <Route path="pomodoro" element={<PomodoroView />} />
+                  <Route path="calendar" element={<CalendarView />} />
+                  <Route path="stats" element={<StatsView />} />
+                  <Route path="kanban" element={<KanbanView />} />
+                  <Route path="buckets" element={<BucketsView />} />
+                  
+                  <Route path="mind" element={<MindView />} />
+                  <Route path="self" element={<SelfKnowledgeView />} />
+                  <Route path="self/test/:type" element={<AssessmentRunner />} />
+                  <Route path="self/result/:type" element={<AssessmentResult />} />
+                  <Route path="checkin" element={<CheckinView />} />
+                  <Route path="thoughts" element={<ThoughtRecordsView />} />
+                  <Route path="abc" element={<ABCView />} />
+                  <Route path="socratic" element={<SocraticView />} />
+                  <Route path="breathing" element={<BreathingView />} />
+                  <Route path="screener/:type" element={<ScreenerView />} />
+                  <Route path="values" element={<ValuesGoalsView />} />
+                  <Route path="worry" element={<WorryView />} />
+                  <Route path="cycle" element={<CycleView />} />
+                  <Route path="about-me" element={<AboutMeView />} />
+                  <Route path="settings" element={<SettingsView />} />
+                  <Route path="admin" element={<AdminView />} />
+                  <Route path="shared" element={<SharedWithMeView />} />
+                  <Route path="new/task" element={<NewTaskView />} />
+                  <Route path="new-task" element={<Navigate to="/app/new/task" replace />} />
+                  <Route path="new/note" element={<NewNoteView />} />
+                  <Route path="new-note" element={<Navigate to="/app/new/note" replace />} />
+                  <Route path="share-target" element={<ShareTargetView />} />
+                  <Route path="rewrite-article" element={<ArticleRewriteView />} />
+                  <Route path="tasks/:id" element={<TaskDetailView />} />
+                  <Route path="widgets" element={<Navigate to="/app/today" replace />} />
+                  <Route path="widget/:id" element={<Navigate to="/app/today" replace />} />
+                </Route>
+                <Route path="*" element={<NotFound />} />
+              </Routes>
           </Suspense>
         </AuthProvider>
       </BrowserRouter>
