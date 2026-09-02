@@ -105,8 +105,10 @@ export function QuickAddTask({
       }
       if (token.startsWith("!")) {
         const key = token.slice(1).trim().toLowerCase();
-        if (priorityKeywords[key]) matchedPriority = priorityKeywords[key];
-        continue;
+        if (priorityKeywords[key]) {
+          matchedPriority = priorityKeywords[key];
+          continue;
+        }
       }
       kept.push(token);
     }
@@ -114,7 +116,7 @@ export function QuickAddTask({
     const tokenClean = kept.join(" ");
     const dateParsed = parseNaturalDate(tokenClean);
     return {
-      title: dateParsed.cleanedTitle.trim() || title.trim(),
+      title: dateParsed.cleanedTitle.trim() || tokenClean.trim(),
       dueDate: dateParsed.dueDate,
       tagIds: matchedTagIds,
       folderId: matchedFolderId,
@@ -137,7 +139,12 @@ export function QuickAddTask({
   };
 
   const submit = async () => {
-    if (!user || !title.trim()) return;
+    if (!user) return;
+    const taskTitle = (finalTitle || "").trim();
+    if (!taskTitle) {
+      toast.error(T("لطفاً عنوان تسک را وارد کنید", "Please enter a task title"));
+      return;
+    }
     setBusy(true);
 
     const tempId = generateId();

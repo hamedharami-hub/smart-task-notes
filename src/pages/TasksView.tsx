@@ -1271,95 +1271,98 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       <div className="relative z-10">
         <HeaderTitlePortal title={title} />
         {isFolder && (
-          <div className="flex items-center justify-between gap-2 mb-3">
-            <h1 className="text-lg md:text-xl font-black text-foreground">{folderName || title}</h1>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full" aria-label={T("تنظیمات فولدر", "Folder settings")}>
-                  <MoreVertical className="w-4 h-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-64 text-xs">
-                <DropdownMenuSub>
-                  <DropdownMenuSubTrigger>نمای فولدر</DropdownMenuSubTrigger>
-                  <DropdownMenuSubContent className="w-48 text-xs">
-                    <DropdownMenuRadioGroup
-                      value={folderPrefs.view}
-                      onValueChange={(value) => updateFolderPrefs({ view: value as FolderPrefs["view"] })}
-                    >
-                      <DropdownMenuRadioItem value="list">📋 لیست</DropdownMenuRadioItem>
-                      <DropdownMenuRadioItem value="kanban-stream">🗂 کانبان (استریم)</DropdownMenuRadioItem>
-                      <DropdownMenuRadioItem value="kanban-columns">🧱 کانبان (ستونی)</DropdownMenuRadioItem>
-                    </DropdownMenuRadioGroup>
-                  </DropdownMenuSubContent>
-                </DropdownMenuSub>
-                <DropdownMenuSeparator />
-                <DropdownMenuLabel className="text-[11px] text-muted-foreground">ترتیب نمایش</DropdownMenuLabel>
-                <DropdownMenuRadioGroup
-                  value={folderPrefs.sortOrder}
-                  onValueChange={(value) => updateFolderPrefs({ sortOrder: value as FolderPrefs["sortOrder"] })}
-                >
-                  <DropdownMenuRadioItem value="manual">دستی</DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="priority">بر اساس اولویت</DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="due_date">بر اساس سررسید</DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="alphabetical">الفبایی</DropdownMenuRadioItem>
-                </DropdownMenuRadioGroup>
-                <DropdownMenuSeparator />
-                <DropdownMenuLabel className="text-[11px] text-muted-foreground">رنگ پس‌زمینه</DropdownMenuLabel>
-                <div className="flex flex-wrap gap-1.5 px-2 pb-2">
-                  {FOLDER_BG_COLORS.map((color) => (
-                    <button
-                      key={color.value}
-                      type="button"
-                      title={color.label}
-                      aria-label={color.label}
-                      onClick={() => updateFolderPrefs({ bgColor: color.value })}
-                      className={`h-6 w-6 rounded-full border border-border/60 transition-transform hover:scale-110 ${
-                        folderPrefs.bgColor === color.value ? "ring-2 ring-primary ring-offset-1" : ""
-                      }`}
-                      style={{ backgroundColor: color.value }}
-                    />
-                  ))}
-                  <button
-                    type="button"
-                    title="بدون رنگ"
-                    aria-label="بدون رنگ"
-                    onClick={() => updateFolderPrefs({ bgColor: null })}
-                    className={`h-6 w-6 rounded-full border border-border/60 bg-background text-[10px] ${
-                      folderPrefs.bgColor === null ? "ring-2 ring-primary ring-offset-1" : ""
-                    }`}
+          <div className="space-y-3 mb-4">
+            <div className="flex items-center justify-between gap-2">
+              <h1 className="text-lg md:text-xl font-black text-foreground truncate">{folderName || title}</h1>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full" aria-label={T("تنظیمات فولدر", "Folder settings")}>
+                    <MoreVertical className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56 text-xs">
+                  <DropdownMenuLabel className="text-[11px] text-muted-foreground">ترتیب نمایش تسک‌ها</DropdownMenuLabel>
+                  <DropdownMenuRadioGroup
+                    value={folderPrefs.sortOrder}
+                    onValueChange={(value) => updateFolderPrefs({ sortOrder: value as FolderPrefs["sortOrder"] })}
                   >
-                    ×
-                  </button>
-                </div>
-                <DropdownMenuSub>
-                  <DropdownMenuSubTrigger>تصویر پس‌زمینه</DropdownMenuSubTrigger>
-                  <DropdownMenuSubContent className="w-48 text-xs">
-                    <DropdownMenuItem onSelect={() => updateFolderPrefs({ bgImage: null })}>بدون تصویر</DropdownMenuItem>
-                    {FOLDER_BG_IMAGES.map((image) => (
-                      <DropdownMenuItem
-                        key={image.value}
-                        onSelect={() => updateFolderPrefs({ bgImage: image.value })}
-                      >
-                        {image.label}
-                      </DropdownMenuItem>
+                    <DropdownMenuRadioItem value="manual">دستی</DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="priority">بر اساس اولویت</DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="due_date">بر اساس سررسید</DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="alphabetical">الفبایی</DropdownMenuRadioItem>
+                  </DropdownMenuRadioGroup>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel className="text-[11px] text-muted-foreground">رنگ پس‌زمینه</DropdownMenuLabel>
+                  <div className="flex flex-wrap gap-1.5 px-2 pb-2">
+                    {FOLDER_BG_COLORS.map((color) => (
+                      <button
+                        key={color.value}
+                        type="button"
+                        title={color.label}
+                        aria-label={color.label}
+                        onClick={() => updateFolderPrefs({ bgColor: color.value })}
+                        className={`h-6 w-6 rounded-full border border-border/60 transition-transform hover:scale-110 ${
+                          folderPrefs.bgColor === color.value ? "ring-2 ring-primary ring-offset-1" : ""
+                        }`}
+                        style={{ backgroundColor: color.value }}
+                      />
                     ))}
-                    <DropdownMenuItem
-                      onSelect={() => {
-                        const url = window.prompt("آدرس تصویر پس‌زمینه");
-                        if (url?.trim()) updateFolderPrefs({ bgImage: `url("${url.trim()}")` });
-                      }}
+                    <button
+                      type="button"
+                      title="بدون رنگ"
+                      aria-label="بدون رنگ"
+                      onClick={() => updateFolderPrefs({ bgColor: null })}
+                      className={`h-6 w-6 rounded-full border border-border/60 bg-background text-[10px] ${
+                        folderPrefs.bgColor === null ? "ring-2 ring-primary ring-offset-1" : ""
+                      }`}
                     >
-                      آدرس تصویر دلخواه…
-                    </DropdownMenuItem>
-                  </DropdownMenuSubContent>
-                </DropdownMenuSub>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onSelect={() => setDelFolderOpen(true)} className="text-destructive focus:bg-destructive/10">
-                  <Trash2 className="w-3.5 h-3.5 ms-1" /> حذف فولدر
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                      ×
+                    </button>
+                  </div>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onSelect={() => setDelFolderOpen(true)} className="text-destructive focus:bg-destructive/10">
+                    <Trash2 className="w-3.5 h-3.5 ms-1" /> حذف فولدر
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+
+            {/* Prominent Tab Switcher between List, Kanban Stream and Kanban Columns */}
+            <div className="flex items-center gap-1 p-1 bg-muted/70 backdrop-blur rounded-2xl w-full sm:w-fit border border-border/50 shadow-sm">
+              <button
+                type="button"
+                onClick={() => updateFolderPrefs({ view: "list" })}
+                className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition ${
+                  folderPrefs.view === "list"
+                    ? "bg-card text-foreground shadow-sm ring-1 ring-border/50"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <span>📋 {T("لیست تسک‌ها", "Task List")}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => updateFolderPrefs({ view: "kanban-stream" })}
+                className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition ${
+                  folderPrefs.view === "kanban-stream"
+                    ? "bg-card text-foreground shadow-sm ring-1 ring-border/50"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <span>🎯 {T("اهداف و کانبان", "Goals & Kanban")}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => updateFolderPrefs({ view: "kanban-columns" })}
+                className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition ${
+                  folderPrefs.view === "kanban-columns"
+                    ? "bg-card text-foreground shadow-sm ring-1 ring-border/50"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <span>🧱 {T("برد ستونی", "Columns Board")}</span>
+              </button>
+            </div>
           </div>
         )}
 
