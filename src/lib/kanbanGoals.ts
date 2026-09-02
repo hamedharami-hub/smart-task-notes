@@ -145,7 +145,6 @@ export function getKanbanGoals(folderId?: string | null, userId?: string): GoalK
     }
     if (!raw) {
       const rootId = generateUUID();
-      const sub1Id = generateUUID();
       const defaults: GoalKanban[] = folderId
         ? [
             {
@@ -160,20 +159,8 @@ export function getKanbanGoals(folderId?: string | null, userId?: string): GoalK
               createdAt: new Date().toISOString(),
               updatedAt: new Date().toISOString(),
             },
-            {
-              id: sub1Id,
-              title: "گام‌های اول و یادگیری",
-              description: "فعالیت‌های پایه و اقدامات هفتگی",
-              parentId: rootId,
-              timeHorizon: "weekly",
-              priority: "urgent",
-              color: "#06b6d4",
-              icon: "🚀",
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-            },
           ]
-        : INITIAL_GOALS;
+        : INITIAL_GOALS.filter((g) => g.parentId === null);
       localStorage.setItem(key, JSON.stringify(defaults));
       return defaults;
     }
