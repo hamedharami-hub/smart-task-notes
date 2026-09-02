@@ -3,6 +3,10 @@ export interface FolderPrefs {
   bgColor: string | null;
   bgImage: string | null;
   sortOrder: "manual" | "priority" | "due_date" | "alphabetical";
+  /** How goals are ordered/filtered in the goals & kanban views */
+  goalMode: "hierarchy" | "time" | "priority";
+  /** Show goal groups inside the plain task list view */
+  groupByGoal: boolean;
 }
 
 export const DEFAULT_FOLDER_PREFS: FolderPrefs = {
@@ -10,6 +14,8 @@ export const DEFAULT_FOLDER_PREFS: FolderPrefs = {
   bgColor: null,
   bgImage: null,
   sortOrder: "manual",
+  goalMode: "hierarchy",
+  groupByGoal: true,
 };
 
 const storageKey = (folderId: string, userId?: string) =>
@@ -38,6 +44,11 @@ export function getFolderPrefs(folderId: string, userId?: string): FolderPrefs {
       bgColor: typeof parsed.bgColor === "string" ? parsed.bgColor : null,
       bgImage: typeof parsed.bgImage === "string" ? parsed.bgImage : null,
       sortOrder,
+      goalMode:
+        parsed.goalMode === "time" || parsed.goalMode === "priority" || parsed.goalMode === "hierarchy"
+          ? parsed.goalMode
+          : DEFAULT_FOLDER_PREFS.goalMode,
+      groupByGoal: typeof parsed.groupByGoal === "boolean" ? parsed.groupByGoal : DEFAULT_FOLDER_PREFS.groupByGoal,
     };
   } catch {
     return { ...DEFAULT_FOLDER_PREFS };
