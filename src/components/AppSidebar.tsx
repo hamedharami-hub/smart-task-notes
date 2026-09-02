@@ -4,7 +4,7 @@ import {
   Target, Timer, Calendar, Plus, ChevronRight, ChevronDown, LogOut, Sparkles, Settings, LayoutGrid,
   Brain, TrendingUp, Moon, HeartPulse, Activity, MessageCircleQuestion, Zap, Clock4, Heart, ShieldAlert, BookOpen, Sun,
   ListTodo, BrainCircuit, Wrench, GripVertical, RotateCcw, User, Trash2, Shield, Users, Flame,
-  BarChart3, Sprout, Wind,
+  BarChart3, Sprout, Wind, Folder as FolderIcon,
 } from "lucide-react";
 import { StreakCard } from "@/components/StreakCard";
 import {
@@ -176,19 +176,23 @@ function SortableBlock({ id, children }: { id: string; children: (handleProps: a
   );
 }
 
-function FolderRow({ folder: f, depth, hasChildren, open, collapsed, onToggle, onAI, onDelete, onLongPress, onNav }: {
+function FolderRow({ folder: f, depth, hasChildren, open, collapsed, onToggle, onLongPress, onNav }: {
   folder: Folder; depth: number; hasChildren: boolean; open: boolean; collapsed: boolean;
-  onToggle: () => void; onAI: () => void; onDelete: () => void; onLongPress: () => void; onNav: () => void;
+  onToggle: () => void; onLongPress: () => void; onNav: () => void;
 }) {
-  const { t } = useTranslation();
-  const lp = useLongPress({ onLongPress });
+  const lp = useLongPress({ onLongPress, delay: 420 });
   return (
     <SidebarMenuItem>
       <SidebarMenuButton asChild>
         <div
-          className="flex items-center w-full gap-1 rounded transition data-[drag-over=true]:bg-primary/15 data-[drag-over=true]:ring-1 data-[drag-over=true]:ring-primary"
+          className="flex items-center w-full gap-1.5 rounded-xl transition cursor-pointer select-none group data-[drag-over=true]:bg-primary/15 data-[drag-over=true]:ring-1 data-[drag-over=true]:ring-primary"
           style={{ paddingInlineStart: depth * 12 }}
           {...lp.handlers}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onLongPress();
+          }}
           onDragOver={(e) => {
             if (!e.dataTransfer.types.includes("application/x-taskflow-item")) return;
             e.preventDefault();
@@ -204,59 +208,71 @@ function FolderRow({ folder: f, depth, hasChildren, open, collapsed, onToggle, o
             await moveItemToFolder(payload, f.id);
           }}
         >
-          {hasChildren ? (
-            <button onClick={(e) => { e.preventDefault(); onToggle(); }} className="p-0.5 hover:bg-muted rounded">
+          {hasChildren && (
+            <button
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggle(); }}
+              className="p-0.5 hover:bg-muted rounded shrink-0"
+              title={open ? "بستن" : "باز کردن"}
+            >
               {open ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
             </button>
-          ) : <span className="w-4" />}
-          <NavLink to={`/app/folder/${f.id}`}
-            onClick={(e) => { if (lp.didFire()) { e.preventDefault(); return; } onNav(); }}
-            className="flex items-center gap-2 flex-1 truncate"
-            activeClassName="text-primary font-medium">
-            {!collapsed && <span className="truncate">{f.name}</span>}
-          </NavLink>
-          {!collapsed && (
-            <>
-              <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); onAI(); }}
-                className="p-1 hover:bg-muted rounded opacity-60 hover:opacity-100 transition" title={t("folders.aiChat")}>
-                <Sparkles className="w-3 h-3 text-primary" />
-              </button>
-              <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(); }}
-                className="p-1 hover:bg-destructive/10 rounded opacity-40 hover:opacity-100 transition" title={t("folders.deleteFolder")}>
-                <Trash2 className="w-3 h-3 text-destructive" />
-              </button>
-            </>
           )}
+          <NavLink
+            to={`/app/folder/${f.id}`}
+            onClick={(e) => {
+              if (lp.didFire()) {
+                e.preventDefault();
+                return;
+              }
+              onNav();
+            }}
+            className="flex items-center justify-center gap-1.5 flex-1 w-full truncate"
+            activeClassName="text-primary font-bold"
+          >
+            <FolderIcon
+              className="w-4 h-4 shrink-0 transition-transform group-hover:scale-110"
+              style={{ color: f.color || "hsl(var(--primary))" }}
+            />
+            {!collapsed && <span className="truncate text-xs">{f.name}</span>}
+          </NavLink>
         </div>
       </SidebarMenuButton>
     </SidebarMenuItem>
   );
 }
 
-function TagRow({ tag: tagItem, collapsed, onDelete, onLongPress, onNav }: {
-  tag: TagT; collapsed: boolean; onDelete: () => void; onLongPress: () => void; onNav: () => void;
+function TagRow({ tag: tagItem, collapsed, onLongPress, onNav }: {
+  tag: TagT; collapsed: boolean; onLongPress: () => void; onNav: () => void;
 }) {
-  const { t } = useTranslation();
-  const lp = useLongPress({ onLongPress });
+  const lp = useLongPress({ onLongPress, delay: 420 });
   return (
     <SidebarMenuItem>
-      <div className="flex items-center group" {...lp.handlers}>
+      <div
+        className="flex items-center group w-full cursor-pointer select-none"
+        {...lp.handlers}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onLongPress();
+        }}
+      >
         <SidebarMenuButton asChild className="flex-1">
-          <NavLink to={`/app/tag/${tagItem.id}`}
-            onClick={(e) => { if (lp.didFire()) { e.preventDefault(); return; } onNav(); }}
-            className="flex items-center gap-2"
-            activeClassName="bg-accent text-accent-foreground font-medium">
-            <Tag className="w-4 h-4" style={{ color: tagItem.color }} />
-            {!collapsed && <span className="truncate">{tagItem.name}</span>}
+          <NavLink
+            to={`/app/tag/${tagItem.id}`}
+            onClick={(e) => {
+              if (lp.didFire()) {
+                e.preventDefault();
+                return;
+              }
+              onNav();
+            }}
+            className="flex items-center justify-center gap-1.5 w-full truncate"
+            activeClassName="bg-accent text-accent-foreground font-bold"
+          >
+            <Tag className="w-3.5 h-3.5 shrink-0" style={{ color: tagItem.color }} />
+            {!collapsed && <span className="truncate text-xs">{tagItem.name}</span>}
           </NavLink>
         </SidebarMenuButton>
-        {!collapsed && (
-          <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(); }}
-            className="p-1 opacity-0 group-hover:opacity-100 transition text-muted-foreground hover:text-destructive"
-            title={t("tags.deleteTag")} aria-label={t("tags.deleteTag")}>
-            <Trash2 className="w-3 h-3" />
-          </button>
-        )}
       </div>
     </SidebarMenuItem>
   );
@@ -430,8 +446,6 @@ export function AppSidebar() {
             open={open}
             collapsed={collapsed}
             onToggle={() => setExpanded((s) => ({ ...s, [f.id]: !open }))}
-            onAI={() => setAiFolder(f)}
-            onDelete={() => setDelFolder(f)}
             onLongPress={() => setSheetFolder(f)}
             onNav={closeOnMobile}
           />
@@ -556,7 +570,6 @@ export function AppSidebar() {
             <SidebarMenu>
               {tags.map((t) => (
                 <TagRow key={t.id} tag={t} collapsed={collapsed}
-                  onDelete={() => setDelTag(t)}
                   onLongPress={() => setSheetTag(t)}
                   onNav={closeOnMobile} />
               ))}

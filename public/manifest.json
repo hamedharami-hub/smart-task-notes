@@ -6,6 +6,7 @@
   "id": "arshnaz.life",
   "scope": "/",
   "display": "standalone",
+  "display_override": ["fullscreen", "window-controls-overlay", "standalone", "minimal-ui"],
   "orientation": "portrait",
   "background_color": "#0F172A",
   "theme_color": "#0F172A",
