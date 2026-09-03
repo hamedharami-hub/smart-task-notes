@@ -68,12 +68,14 @@ export default function AppLayout() {
             <div className="flex items-center gap-2 flex-1 justify-end">
               <button
                 type="button"
-                onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }))}
+                onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true, ctrlKey: true }))}
                 className="hidden sm:flex items-center gap-2 h-8 px-3 rounded-md border bg-background/50 text-muted-foreground text-xs hover:bg-accent transition flex-1 max-w-xs"
               >
                 <Search className="w-3.5 h-3.5" />
                 <span className="flex-1 text-start">جستجو...</span>
-                <kbd className="text-[10px] bg-muted px-1 py-0.5 rounded ltr">⌘K</kbd>
+                <kbd className="text-[10px] bg-muted px-1.5 py-0.5 rounded font-mono ltr">
+                  {typeof navigator !== "undefined" && /Mac|iPhone|iPad|iPod/i.test(navigator.userAgent || "") ? "⌘K" : "Ctrl+K"}
+                </kbd>
               </button>
               <Button
                 variant="ghost"

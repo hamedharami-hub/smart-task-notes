@@ -1261,7 +1261,7 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
         <div className="w-full max-w-3xl mx-auto px-2 sm:px-3 md:px-4 py-2 pb-4 min-h-screen flex flex-col">
           {activeNote ? noteEditorBody : body}
         </div>
-      ) : mode === "drawer" ? (
+      ) : mode === "drawer" && isMobile ? (
         <Drawer open={true} onOpenChange={(v) => !v && onClose()} snapPoints={[0.5, 1]} activeSnapPoint={snap} setActiveSnapPoint={setSnap} shouldScaleBackground={false} dismissible>
           <DrawerContent className={`h-screen max-h-screen flex flex-col !mt-0 ${snap === 1 ? "!m-0 !rounded-none" : "min-h-[55vh]"}`} aria-describedby="task-drawer-desc">
             <DrawerHeader className="px-4 pt-4 pb-1 text-center">
@@ -1278,13 +1278,15 @@ export function TaskDetail({ task, onClose, onChanged, setConfirm, mode = "sheet
         </Drawer>
       ) : (
         <Sheet open={true} onOpenChange={(v) => !v && onClose()}>
-          <SheetContent className="w-full sm:max-w-full overflow-y-auto p-3 sm:p-4 flex flex-col">
+          <SheetContent className="w-full sm:max-w-xl md:max-w-2xl overflow-y-auto p-3 sm:p-4 flex flex-col">
             <SheetHeader className="mb-1">
               <SheetTitle className="text-base font-semibold truncate" dir="auto">
                 {activeNote ? T("ویرایش نوت", "Edit note") : (t.title || T("بدون عنوان", "Untitled"))}
               </SheetTitle>
             </SheetHeader>
-            {activeNote ? noteEditorBody : body}
+            <div className="flex-1 overflow-y-auto min-h-0">
+              {activeNote ? noteEditorBody : body}
+            </div>
           </SheetContent>
         </Sheet>
       )}

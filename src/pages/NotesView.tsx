@@ -24,6 +24,7 @@ import { pushUndo } from "@/lib/undoStack";
 import { pushDeleted } from "@/lib/recentlyDeleted";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { useShareAccess } from "@/hooks/useShareAccess";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { cacheGet, cacheSet, enqueueOp, getPendingOps } from "@/lib/offlineQueue";
 
 
@@ -33,6 +34,7 @@ type Note = { id: string; user_id?: string; title: string; content: string; pinn
 export default function NotesView() {
   const { user } = useAuth();
   const { i18n } = useTranslation();
+  const isMobile = useIsMobile();
   const isEn = (i18n.language || "fa").startsWith("en");
   const T = (fa: string, en: string) => (isEn ? en : fa);
 
@@ -425,7 +427,7 @@ export default function NotesView() {
         {selected ? editor : emptyState}
       </div>
 
-      {selected && (
+      {selected && isMobile && (
         <Drawer open={true} onOpenChange={(v) => !v && setSelected(null)} snapPoints={[0.55, 1]} activeSnapPoint={snap} setActiveSnapPoint={setSnap} shouldScaleBackground={false}>
           <DrawerContent className="max-h-[95vh] flex flex-col" aria-describedby="note-drawer-desc">
             <DrawerHeader className="sr-only">

@@ -223,7 +223,7 @@ export default function SwipeableRow({
   };
 
   return (
-    <div ref={wrapRef} className="relative overflow-hidden rounded-lg" style={{ touchAction: "pan-y" }}>
+    <div ref={wrapRef} data-no-swipe-nav className="relative overflow-hidden rounded-lg" style={{ touchAction: "pan-y" }}>
       {showRight && (
         <div className="absolute inset-y-0 start-0 flex flex-row overflow-hidden" style={{ width: pos }} aria-hidden>
           {rightActions.map((a, i) => {
@@ -265,6 +265,7 @@ export default function SwipeableRow({
         </div>
       )}
       <div
+        data-no-swipe-nav
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
