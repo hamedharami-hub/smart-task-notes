@@ -54,6 +54,7 @@ const KanbanView = lazy(() => import("./pages/KanbanView"));
 
 const SelfKnowledgeView = lazy(() => import("./pages/SelfKnowledgeView"));
 const MindView = lazy(() => import("./pages/MindView"));
+const LifeArchitectView = lazy(() => import("./pages/LifeArchitectView"));
 const AssessmentRunner = lazy(() => import("./pages/AssessmentRunner"));
 const AssessmentResult = lazy(() => import("./pages/AssessmentResult"));
 const CheckinView = lazy(() => import("./pages/CheckinView"));
@@ -154,6 +155,7 @@ const App = () => {
                 <Route path="/habits" element={<Navigate to="/app/habits" replace />} />
                 <Route path="/calendar" element={<Navigate to="/app/calendar" replace />} />
                 <Route path="/settings" element={<Navigate to="/app/settings" replace />} />
+                <Route path="/life-architect" element={<Navigate to="/app/life-architect" replace />} />
                 <Route path="/new-task" element={<Navigate to="/app/new/task" replace />} />
                 <Route path="/new/task" element={<Navigate to="/app/new/task" replace />} />
 
@@ -187,6 +189,7 @@ const App = () => {
                   <Route path="breathing" element={<BreathingView />} />
                   <Route path="screener/:type" element={<ScreenerView />} />
                   <Route path="values" element={<ValuesGoalsView />} />
+                  <Route path="life-architect" element={<LifeArchitectView />} />
                   <Route path="worry" element={<WorryView />} />
                   <Route path="cycle" element={<CycleView />} />
                   <Route path="about-me" element={<AboutMeView />} />

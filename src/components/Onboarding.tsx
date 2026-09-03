@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { ListTodo, Heart, Timer, ArrowLeft, Sparkles } from "lucide-react";
+import { ListTodo, Heart, Timer, ArrowLeft, Sparkles, Compass } from "lucide-react";
 
 const KEY = "onboarded_v1";
 
@@ -76,6 +76,17 @@ export default function Onboarding() {
               className={`h-1.5 rounded-full transition-all ${idx === i ? "w-6 bg-primary" : "w-1.5 bg-muted"}`} />
           ))}
         </div>
+        <div className="pt-2 border-t border-border/60">
+          <Button
+            variant="outline"
+            className="w-full gap-2 border-primary/40 bg-primary/5 hover:bg-primary/10 text-primary text-xs font-semibold py-2.5 rounded-xl shadow-xs"
+            onClick={() => finish("/app/life-architect")}
+          >
+            <Compass className="w-4 h-4" />
+            طراحی هوشمند سیستم زندگی با «معمار زندگی» (پیشنهادی)
+          </Button>
+        </div>
+
         <div className="flex gap-2">
           <Button variant="ghost" className="flex-1" onClick={() => finish()}>رد کن</Button>
           {!isLast ? (

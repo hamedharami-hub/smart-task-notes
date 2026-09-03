@@ -4,7 +4,7 @@ import {
   Target, Timer, Calendar, Plus, ChevronRight, ChevronDown, LogOut, Sparkles, Settings, LayoutGrid,
   Brain, TrendingUp, Moon, HeartPulse, Activity, MessageCircleQuestion, Zap, Clock4, Heart, ShieldAlert, BookOpen, Sun,
   ListTodo, BrainCircuit, Wrench, GripVertical, RotateCcw, User, Trash2, Shield, Users, Flame,
-  BarChart3, Sprout, Wind, Folder as FolderIcon,
+  BarChart3, Sprout, Wind, Folder as FolderIcon, Compass,
 } from "lucide-react";
 import { StreakCard } from "@/components/StreakCard";
 import {
@@ -74,6 +74,7 @@ const EN_LABELS: Record<string, string> = {
   "بازه‌های کلی": "Time Buckets",
   "سیکل پریود": "Period Cycle",
   "تمرین تنفس ۳بعدی": "3D Breathing",
+  "معمار زندگی": "Life Architect",
   "صندوق ورودی": "Inbox",
 };
 const FA_LABELS: Record<string, string> = {
@@ -115,6 +116,7 @@ const SECTIONS: Section[] = [
   {
     id: "grow", title: "رشد", icon: TrendingUp, defaultOpen: false,
     items: [
+      { url: "/app/life-architect", icon: Compass, label: "معمار زندگی" },
       { url: "/app/garden", icon: Sprout, label: "باغ رشد" },
       { url: "/app/habits", icon: Target, label: "عادت‌ها" },
       { url: "/app/notes", icon: FileText, label: "نوت‌ها" },
