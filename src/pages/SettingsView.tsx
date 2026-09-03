@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
-import { Sparkles, Save, Trash2, Languages, Download, ShieldOff, Settings2, Bell, Moon, Palette, Type, ZoomIn, LayoutGrid, Heart, Coffee, Star, Wand2, RotateCw, Sun, Upload, CheckCircle2, AlertCircle, Clock, Zap, Cpu, Eye, EyeOff, RefreshCw, Package, Database, Info } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Sparkles, Save, Trash2, Languages, Download, ShieldOff, Settings2, Bell, Moon, Palette, Type, ZoomIn, LayoutGrid, Heart, Coffee, Star, Wand2, RotateCw, Sun, Upload, CheckCircle2, AlertCircle, Clock, Zap, Cpu, Eye, EyeOff, RefreshCw, Package, Database, Info, Compass } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { applyFontSize, applyUIScale, type FontSize } from "@/lib/uiScale";
@@ -727,6 +728,7 @@ function AppUpdateCard({ isEn }: { isEn: boolean }) {
 
 export default function SettingsView() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { t, i18n } = useTranslation();
   const { theme, setTheme } = useTheme();
   const isEn = (i18n.language || "fa").startsWith("en");
@@ -1040,6 +1042,28 @@ export default function SettingsView() {
 
         <TabsContent value="general" className="space-y-5 mt-5">
           <LanguageSwitcher />
+
+          <SectionCard
+            icon={Compass}
+            title={isEn ? "Life Architect & System Design" : "معمار هوشمند زندگی و ساخت سیستم"}
+            description={isEn ? "Redesign your personal productivity system or audit your current tasks & folders." : "بازطراحی سیستم بهره‌وری شخصی از نقطه صفر یا عارضه‌یابی و تکمیل تسک‌ها و پوشه‌های فعلی."}
+          >
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 rounded-xl bg-primary/5 border border-primary/20">
+              <div className="space-y-1">
+                <div className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-primary" />
+                  {isEn ? "Run Life & Productivity Architect" : "اجرای دستیار معمار زندگی"}
+                </div>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  {isEn ? "Answer a few questions to generate custom folders, multi-tier goals, habits, and starter tasks." : "با پاسخ به چند سوال علمی، پوشه‌ها، اهداف چندسطحی، عادات روزمره و تسک‌های آغازین خود را بسازید یا ارتقا دهید."}
+                </p>
+              </div>
+              <Button size="sm" onClick={() => navigate("/app/life-architect")} className="gap-1.5 text-xs shrink-0 rounded-xl shadow-xs">
+                <Compass className="w-3.5 h-3.5" />
+                {isEn ? "Launch Architect" : "شروع معمار زندگی"}
+              </Button>
+            </div>
+          </SectionCard>
 
           <SectionCard
             icon={Palette}

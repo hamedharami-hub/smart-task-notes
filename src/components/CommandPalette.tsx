@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import {
   ListTodo, FileText, Calendar, Target, Heart, Brain, Sparkles,
-  Timer, Settings, BarChart3, BookOpen, Folder, Hash,
+  Timer, Settings, BarChart3, BookOpen, Folder, Hash, Compass,
 } from "lucide-react";
 
 type Hit = { kind: "task" | "note" | "folder" | "tag"; id: string; title: string };
@@ -31,6 +31,7 @@ const NAV = [
   { label: "چت سقراطی", to: "/app/socratic", icon: Brain, keywords: "socratic سقراط" },
   { label: "تمرین تنفس", to: "/app/breathing", icon: Heart, keywords: "breath breathing تنفس مدیتیشن" },
   { label: "درباره من", to: "/app/about-me", icon: Sparkles, keywords: "about me من" },
+  { label: "معمار زندگی", to: "/app/life-architect", icon: Compass, keywords: "life architect معمار زندگی برنامه ریزی هدف اهداف audit ممیزی هوش مصنوعی" },
   { label: "تنظیمات", to: "/app/settings", icon: Settings, keywords: "settings تنظیمات" },
 ];
 
