@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { CheckSquare, ShieldAlert } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -86,21 +85,15 @@ export default function Auth() {
     setLoading(true);
     try {
       sessionStorage.setItem(OAUTH_RETURN_KEY, returnTo);
-      const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: `${window.location.origin}/auth/callback`,
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
       });
-      if (result.error) {
-        const message = result.error instanceof Error ? result.error.message : String(result.error);
-        toast.error(message);
-        return;
+      if (error) {
+        toast.error(error.message);
       }
-      if (result.redirected) return;
-      const signedInUser = await getAuthenticatedUser();
-      if (!signedInUser) {
-        toast.error("ورود گوگل کامل نشد. لطفاً دوباره تلاش کن.");
-        return;
-      }
-      navigate(returnTo, { replace: true });
     } catch (err) {
       const message = err instanceof Error ? err.message : "خطا در ورود با گوگل";
       toast.error(message);

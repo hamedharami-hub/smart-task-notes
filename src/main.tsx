@@ -23,11 +23,6 @@ const isInIframe = (() => {
     return true;
   }
 })();
-const host = window.location.hostname;
-const isPreviewHost =
-  host.includes("id-preview--") ||
-  host.includes("lovableproject.com") ||
-  (host.includes("lovable.app") && host.includes("id-preview"));
 
 const capacitor =
   typeof window !== "undefined"
@@ -52,8 +47,8 @@ if (isNativeCapacitor) {
   })();
 }
 
-if (isPreviewHost || isInIframe || isNativeCapacitor) {
-  // In previews or native Capacitor APKs, disable Service Worker caching to avoid stale builds
+if (isInIframe || isNativeCapacitor) {
+  // In iframes or native Capacitor APKs, disable Service Worker caching to avoid stale builds
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.getRegistrations().then((rs) => rs.forEach((r) => r.unregister()));
   }

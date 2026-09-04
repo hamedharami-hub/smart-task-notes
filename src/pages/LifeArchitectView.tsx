@@ -502,14 +502,81 @@ export default function LifeArchitectView() {
             </Badge>
           </div>
 
-          <Card className="p-5 rounded-3xl bg-gradient-to-br from-card via-card/90 to-primary/5 border-primary/20 shadow-lg space-y-3">
-            <h2 className="text-xl sm:text-2xl font-black text-foreground">{blueprint.title}</h2>
-            <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">{blueprint.summary}</p>
-            <div className="p-3 rounded-2xl bg-primary/10 border border-primary/20 flex items-start gap-2.5 text-xs text-foreground">
-              <Brain className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-              <div className="leading-relaxed font-medium">{blueprint.scientificInsight}</div>
-            </div>
-          </Card>
+          {(() => {
+            const roleOpt = WIZARD_QUESTIONS.find((q) => q.id === "role")?.options.find((o) => o.value === answers.role);
+            const obstacleOpt = WIZARD_QUESTIONS.find((q) => q.id === "obstacle")?.options.find((o) => o.value === answers.obstacle);
+            const chronotypeOpt = WIZARD_QUESTIONS.find((q) => q.id === "chronotype")?.options.find((o) => o.value === answers.chronotype);
+            const domainOpts = WIZARD_QUESTIONS.find((q) => q.id === "domains")?.options.filter((o) => answers.domains.includes(o.value as any)) || [];
+
+            return (
+              <Card className="p-5 sm:p-6 rounded-3xl bg-gradient-to-br from-card via-card/95 to-primary/10 border-primary/25 shadow-xl space-y-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant="outline" className="border-primary/40 text-primary font-bold text-xs gap-1 py-1 px-2.5 bg-primary/5">
+                    <Compass className="w-3.5 h-3.5" />
+                    {T("طرح معماری اختصاصی", "Custom Architecture Blueprint")}
+                  </Badge>
+                  {roleOpt && (
+                    <Badge className="bg-blue-500/15 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 border border-blue-500/30 text-xs font-bold gap-1 py-1">
+                      <span>{roleOpt.icon}</span> {roleOpt.labelFa}
+                    </Badge>
+                  )}
+                </div>
+
+                <h2 className="text-xl sm:text-2xl font-black text-foreground tracking-tight">
+                  {blueprint.title}
+                </h2>
+
+                <div className="p-4 rounded-2xl bg-background/70 border border-border/60 text-xs sm:text-sm leading-8 text-foreground/90 space-y-2">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground mb-1">
+                    <Sparkles className="w-3.5 h-3.5 text-primary" />
+                    {T("ترکیب هوشمند بر اساس پاسخ‌های شما:", "Smart synthesis based on your selections:")}
+                  </div>
+                  <p className="leading-8">
+                    {T("این ساختار اختصاصی بر اساس نقش زندگی شما به عنوان ", "This custom architecture is based on your role as ")}
+                    <span className="font-bold text-blue-600 dark:text-blue-400 bg-blue-500/15 border border-blue-500/30 px-2 py-0.5 rounded-lg inline-flex items-center gap-1 mx-1 shadow-2xs">
+                      <span>{roleOpt?.icon || "🚀"}</span>
+                      {roleOpt?.labelFa.split("/")[0].trim() || answers.role}
+                    </span>
+                    {T("، با هدف غلبه بر چالش اصلی ", ", designed to overcome ")}
+                    <span className="font-bold text-amber-600 dark:text-amber-400 bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 rounded-lg inline-flex items-center gap-1 mx-1 shadow-2xs">
+                      <span>{obstacleOpt?.icon || "⏳"}</span>
+                      {obstacleOpt?.labelFa.split("(")[0].trim() || answers.obstacle}
+                    </span>
+                    {T("، با تمرکز راهبردی بر ۳ حوزه کلیدی ", ", with strategic focus on ")}
+                    {domainOpts.map((d, i) => (
+                      <span key={i} className="font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 rounded-lg inline-flex items-center gap-1 mx-1 shadow-2xs">
+                        <span>{d.icon}</span>
+                        {d.labelFa.split("،")[0].trim()}
+                      </span>
+                    ))}
+                    {T(" و هماهنگ با ساعت طلایی انرژی شما ", " and aligned with your peak energy window ")}
+                    <span className="font-bold text-purple-600 dark:text-purple-400 bg-purple-500/15 border border-purple-500/30 px-2 py-0.5 rounded-lg inline-flex items-center gap-1 mx-1 shadow-2xs">
+                      <span>{chronotypeOpt?.icon || "🌅"}</span>
+                      {chronotypeOpt?.labelFa.split("(")[0].trim() || answers.chronotype}
+                    </span>
+                    {T(" پیکربندی شده است.", ".")}
+                  </p>
+
+                  {answers.customGoals && answers.customGoals.trim() && (
+                    <div className="pt-2 mt-2 border-t border-border/40 flex items-start gap-2 text-xs">
+                      <Target className="w-4 h-4 text-pink-500 shrink-0 mt-0.5" />
+                      <div>
+                        <span className="text-muted-foreground">{T("هدف ویژه شما: ", "Your special goal: ")}</span>
+                        <span className="font-bold text-pink-600 dark:text-pink-400 bg-pink-500/15 border border-pink-500/30 px-2 py-0.5 rounded-md inline-block">
+                          {answers.customGoals.trim()}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="p-3.5 rounded-2xl bg-primary/10 border border-primary/20 flex items-start gap-2.5 text-xs text-foreground">
+                  <Brain className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                  <div className="leading-relaxed font-medium">{blueprint.scientificInsight}</div>
+                </div>
+              </Card>
+            );
+          })()}
 
           <div className="space-y-4">
             <div className="space-y-2">

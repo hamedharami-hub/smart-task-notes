@@ -1,27 +1,31 @@
-{
-  "version": 2,
+﻿{
   "framework": "vite",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "installCommand": "npm install --legacy-peer-deps",
-  "routes": [
-    {
-      "src": "^/[^.]+\\.[^.]+$",
-      "dest": "/$1"
-    },
-    {
-      "src": "^/[^.]+$",
-      "dest": "/index.html"
-    }
-  ],
   "rewrites": [
     {
-      "source": "/app/:path*",
+      "source": "/(.*)",
       "destination": "/index.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/sw.js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
+      ]
     },
     {
-      "source": "/:path*",
-      "destination": "/index.html"
+      "source": "/assets/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
     }
   ]
 }

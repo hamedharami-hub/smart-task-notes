@@ -4,9 +4,7 @@ import path from "path";
 import fs from "fs";
 import { execSync } from "child_process";
 import { fileURLToPath } from "url";
-import { componentTagger } from "lovable-tagger";
 import { VitePWA } from "vite-plugin-pwa";
-import { mcpPlugin } from "@lovable.dev/mcp-js/stacks/supabase/vite";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -91,8 +89,6 @@ export default defineConfig(({ mode }) => {
   },
   plugins: [
     react(),
-    mcpPlugin(),
-    mode === "development" && componentTagger(),
     versionJsonPlugin(),
     VitePWA({
       registerType: "autoUpdate",
