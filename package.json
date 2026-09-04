@@ -97,6 +97,11 @@
     "vite-plugin-pwa": "^1.2.0",
     "zod": "^3.25.76"
   },
+  "overrides": {
+    "react-day-picker": {
+      "date-fns": "$date-fns"
+    }
+  },
   "devDependencies": {
     "@capacitor/cli": "^8.3.1",
     "@eslint/js": "^9.32.0",
