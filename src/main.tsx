@@ -7,15 +7,7 @@ import { bootApplyUIPrefs } from "@/lib/uiScale";
 import { initStatusBarTheme } from "@/lib/statusBarTheme";
 import { startVersionWatcher, clearAllAppCaches } from "@/lib/versionCheck";
 
-type CapacitorGlobal = {
-  isNativePlatform?: () => boolean;
-  isNative?: boolean;
-};
-
-bootApplyUIPrefs();
-initStatusBarTheme();
-
-// Guard: Detect if running inside an iframe, preview host, or native Capacitor app
+// Disable the service worker cache only for embedded Lovable previews.
 const isInIframe = (() => {
   try {
     return window.self !== window.top;
@@ -29,31 +21,11 @@ const isPreviewHost =
   host.includes("lovableproject.com") ||
   (host.includes("lovable.app") && host.includes("id-preview"));
 
-const capacitor =
-  typeof window !== "undefined"
-    ? (window as Window & { Capacitor?: CapacitorGlobal }).Capacitor
-    : undefined;
-const isNativeCapacitor = Boolean(
-  typeof window !== "undefined" &&
-    (capacitor?.isNativePlatform?.() ||
-      capacitor?.isNative ||
-      window.location.protocol === "capacitor:")
-);
+bootApplyUIPrefs();
+initStatusBarTheme();
 
-if (isNativeCapacitor) {
-  void (async () => {
-    try {
-      const { StatusBar, Style } = await import("@capacitor/status-bar");
-      await StatusBar.setOverlaysWebView({ overlay: true });
-      await StatusBar.setStyle({ style: Style.Dark });
-    } catch {
-      // Status bar configuration is unavailable outside native Capacitor.
-    }
-  })();
-}
-
-if (isPreviewHost || isInIframe || isNativeCapacitor) {
-  // In previews or native Capacitor APKs, disable Service Worker caching to avoid stale builds
+if (isPreviewHost || isInIframe) {
+  // Disable Service Worker caching in embedded previews to avoid stale builds
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.getRegistrations().then((rs) => rs.forEach((r) => r.unregister()));
   }
