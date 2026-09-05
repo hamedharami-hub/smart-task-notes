@@ -30,20 +30,6 @@ export function syncStatusBarTheme() {
     document
       .querySelectorAll('meta[name="theme-color"][media]')
       .forEach((el) => el.parentElement?.removeChild(el));
-
-    // If Capacitor StatusBar plugin is available
-    const cap = (window as any).Capacitor;
-    if (cap?.isPluginAvailable?.("StatusBar")) {
-      const isDark =
-        document.documentElement.classList.contains("dark") ||
-        document.documentElement.getAttribute("data-theme")?.includes("dark") ||
-        window.matchMedia?.("(prefers-color-scheme: dark)").matches;
-      const StatusBar = cap.Plugins?.StatusBar;
-      if (StatusBar) {
-        StatusBar.setStyle({ style: isDark ? "DARK" : "LIGHT" }).catch(() => {});
-        StatusBar.setOverlaysWebView({ overlay: true }).catch(() => {});
-      }
-    }
   } catch {
     /* noop */
   }
