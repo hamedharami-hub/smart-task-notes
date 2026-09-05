@@ -282,7 +282,7 @@ export default function LifeArchitectView() {
             {currentQuestion.options.map((opt) => {
               const selectedValue = answers[currentQuestion.id];
               const isSelected = currentQuestion.isMultiSelect
-                ? Array.isArray(selectedValue) && selectedValue.includes(opt.value)
+                ? Array.isArray(selectedValue) && (selectedValue as string[]).includes(opt.value)
                 : selectedValue === opt.value;
 
               return (
