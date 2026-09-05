@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { startOfDay, endOfDay, addDays, format } from "date-fns";
@@ -295,8 +295,11 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
   // eslint-disable-next-line @typescript-eslint/no-use-before-define
   const cache = tasksCache;
 
-  const lastLoadRef = (TasksView as any)._lastLoadRef ||= { current: 0 };
-  const inflightRef = (TasksView as any)._inflightRef ||= { current: null as Promise<void> | null };
+  // These must be instance-local. Storing them on the component function made a
+  // recent request for one user suppress the initial request for another user.
+  // It also coupled two simultaneously mounted task views.
+  const lastLoadRef = useRef(0);
+  const inflightRef = useRef<Promise<void> | null>(null);
   const MIN_INTERVAL_MS = 1500; // throttle: at most one fetch per 1.5s
 
   const fetchAll = async (force = false): Promise<void> => {
@@ -684,7 +687,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     // snapshot task + descendants + tag links for undo
     const collectIds = (rid: string): string[] => {
       const out = [rid];
-      const kids = effectiveAllTasks.filter(t => t.parent_id === rid);
+      const kids = childrenMap[rid] || [];
       kids.forEach(k => out.push(...collectIds(k.id)));
       return out;
     };
@@ -740,19 +743,33 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
   };
 
   // Compute progress including nested descendants
-  const getProgress = (id: string): { done: number; total: number } => {
-    const subs = childrenMap[id] || [];
-    if (!subs.length) return { done: 0, total: 0 };
-    let done = 0, total = 0;
-    for (const s of subs) {
-      total += 1;
-      if (s.completed) done += 1;
-      const child = getProgress(s.id);
-      done += child.done;
-      total += child.total;
-    }
-    return { done, total };
-  };
+  // A recursive progress calculation for every rendered row repeatedly walked
+  // the same descendants. Calculate each subtree once so deep task trees stay
+  // linear in their number of tasks instead of becoming quadratic.
+  const progressByTaskId = useMemo(() => {
+    const progress: Record<string, { done: number; total: number }> = {};
+    const visiting = new Set<string>();
+    const calculate = (id: string): { done: number; total: number } => {
+      if (progress[id]) return progress[id];
+      // Defensive guard for malformed cyclic parent relationships.
+      if (visiting.has(id)) return { done: 0, total: 0 };
+      visiting.add(id);
+      let done = 0;
+      let total = 0;
+      for (const child of childrenMap[id] || []) {
+        total += 1;
+        if (child.completed) done += 1;
+        const childProgress = calculate(child.id);
+        done += childProgress.done;
+        total += childProgress.total;
+      }
+      visiting.delete(id);
+      return (progress[id] = { done, total });
+    };
+
+    for (const id of Object.keys(childrenMap)) calculate(id);
+    return progress;
+  }, [childrenMap]);
 
   // Drag & drop: drop a task onto another → set as child; drop in same parent zone → reorder
   const onDragEnd = async (e: DragEndEvent) => {
@@ -873,7 +890,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     const subs = childrenMap[t.id] || [];
     const open = expanded[t.id];
     const pm = PRIORITY_META[t.priority] || PRIORITY_META.none;
-    const prog = getProgress(t.id);
+    const prog = progressByTaskId[t.id] || { done: 0, total: 0 };
     const pct = prog.total > 0 ? Math.round((prog.done / prog.total) * 100) : 0;
     const parent = t.parent_id ? effectiveAllTasks.find(x => x.id === t.parent_id) : null;
     const STEP = 18; // px per nesting level
