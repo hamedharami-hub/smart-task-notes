@@ -142,7 +142,7 @@ export default function SwipeableRow({
     const ddx = t.clientX - startX.current;
     const ddy = t.clientY - startY.current;
     if (decided.current === null) {
-      if (Math.abs(ddx) < 8 && Math.abs(ddy) < 8) return;
+      if (Math.abs(ddx) < DIRECTION_THRESHOLD && Math.abs(ddy) < DIRECTION_THRESHOLD) return;
       decided.current = Math.abs(ddx) > Math.abs(ddy) ? "h" : "v";
     }
     if (decided.current !== "h") return;
