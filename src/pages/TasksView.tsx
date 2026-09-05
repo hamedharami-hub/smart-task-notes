@@ -912,24 +912,6 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
                   fullSwipe: true,
                   onActivate: () => toggleTask(t),
                 },
-                {
-                  id: "pin",
-                  label: t.pinned ? T("حذف پین", "Unpin") : T("پین", "Pin"),
-                  icon: Pin,
-                  baseClass: "bg-primary/70",
-                  activeClass: "bg-primary",
-                  textClass: "text-white",
-                  onActivate: () => patchTask(t.id, { pinned: !t.pinned }),
-                },
-                {
-                  id: "today",
-                  label: T("امروز", "Today"),
-                  icon: Calendar,
-                  baseClass: "bg-blue-500/80",
-                  activeClass: "bg-blue-700",
-                  textClass: "text-white",
-                  onActivate: () => patchTask(t.id, { due_date: startOfDay(new Date()).toISOString() }),
-                },
               ] as SwipeAction[]}
               leftActions={[
                 {
@@ -939,7 +921,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
                   baseClass: "bg-destructive/80",
                   activeClass: "bg-red-700",
                   textClass: "text-white",
-                  fullSwipe: true,
+                  fullSwipe: false,
                   onActivate: () => askDeleteTask(t),
                 },
                 {
