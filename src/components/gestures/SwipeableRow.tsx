@@ -35,8 +35,9 @@ interface Props {
 }
 
 const DEFAULT_SEGMENT = 84; // px per action slot
-const FULL_RATIO = 0.55;
-const MIN_COMMIT = 28; // px past which a partial release commits the active action
+const FULL_RATIO = 0.72;
+const MIN_COMMIT = 44; // px past which a partial release commits the active action
+const DIRECTION_THRESHOLD = 14; // px before deciding horizontal vs vertical swipe
 
 export default function SwipeableRow({
   children,
@@ -141,7 +142,7 @@ export default function SwipeableRow({
     const ddx = t.clientX - startX.current;
     const ddy = t.clientY - startY.current;
     if (decided.current === null) {
-      if (Math.abs(ddx) < 8 && Math.abs(ddy) < 8) return;
+      if (Math.abs(ddx) < DIRECTION_THRESHOLD && Math.abs(ddy) < DIRECTION_THRESHOLD) return;
       decided.current = Math.abs(ddx) > Math.abs(ddy) ? "h" : "v";
     }
     if (decided.current !== "h") return;
